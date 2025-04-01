@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 import phonenumbers
@@ -8,6 +9,7 @@ from api.models import Lead
 
 
 class LeadSerializer(serializers.ModelSerializer):
+    appointment_date = serializers.CharField(required=False, allow_null=True)
     class Meta:
         model = Lead
         fields = [
@@ -32,25 +34,39 @@ class LeadSerializer(serializers.ModelSerializer):
         return value.lower().strip() if value else None
 
     def validate_phone(self, value):
-        """Valide et formate le numéro de téléphone en E.164."""
-        if not value:
-            raise serializers.ValidationError(_("Le numéro est obligatoire."))
-
         try:
-            parsed = phonenumbers.parse(value, None)
-            if not phonenumbers.is_valid_number(parsed):
+            # 📌 Si le numéro ne commence pas par "+", on assume que c'est un numéro FR
+            parsed_number = phonenumbers.parse(value, None if value.startswith("+") else "FR")
+
+            # ✅ Vérifie si le numéro est valide
+            if not phonenumbers.is_valid_number(parsed_number):
                 raise serializers.ValidationError(_("Le numéro de téléphone est invalide."))
-            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+
+            # ✅ Retourne le numéro au format international standard (ex: +33612345678)
+            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+
         except phonenumbers.NumberParseException:
             raise serializers.ValidationError(_("Le format du numéro de téléphone est incorrect."))
 
     def validate_appointment_date(self, value):
-        """Valide la date de rendez-vous."""
-        if value and value < datetime.now().astimezone():
+        if not value:
+            return None
+
+        try:
+            parsed = datetime.strptime(value, "%d/%m/%Y %H:%M")
+            parsed = timezone.make_aware(parsed)  # <-- Corrige le problème
+        except ValueError:
+            raise serializers.ValidationError(
+                _("Format de date invalide. Utilisez JJ/MM/AAAA HH:mm.")
+            )
+
+        if parsed < timezone.now():  # ✅ Comparaison entre deux datetimes aware
             raise serializers.ValidationError(_("La date de rendez-vous ne peut pas être dans le passé."))
-        if value and (value.hour < 9 or (value.hour == 18 and value.minute > 30) or value.hour > 18):
+
+        if parsed.hour < 9 or (parsed.hour == 18 and parsed.minute > 30) or parsed.hour > 18:
             raise serializers.ValidationError(_("Les rendez-vous doivent être entre 9h et 18h30."))
-        return value
+
+        return parsed
 
     def validate(self, data):
         """Vérifie l'unicité du téléphone et de l'email."""
@@ -63,14 +79,14 @@ class LeadSerializer(serializers.ModelSerializer):
             if instance:
                 queryset = queryset.exclude(pk=instance.pk)
             if queryset.exists():
-                raise serializers.ValidationError({'phone': _("Un lead avec ce numéro de téléphone existe déjà.")})
+                raise serializers.ValidationError({'phone': _("Ce numéro de téléphone existe déjà. Veuillez nous Contacter")})
 
         if email:
             queryset = Lead.objects.filter(email__iexact=email)
             if instance:
                 queryset = queryset.exclude(pk=instance.pk)
             if queryset.exists():
-                raise serializers.ValidationError({'email': _("Un lead avec cet email existe déjà.")})
+                raise serializers.ValidationError({'email': _("cet email existe déjà. Veuillez nous Contacter")})
 
         return data
 

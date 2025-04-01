@@ -4,36 +4,38 @@ from django.utils.translation import gettext_lazy as _
 from .user import User
 
 
+class LeadStatus(models.TextChoices):
+    NOUVEAU = 'NOUVEAU', _('Nouveau')
+    NRP = 'NRP', _('NRP')
+    NRP_PLUS = 'NRP++', _('NRP ++')
+    NRP_MESSAGE = 'NRP+MESSAGE', _('NRP+MESSAGE')
+    CLIENT_RAPPELLERA = 'CLIENT_RAPPELLERA', _('Client rappellera')
+    PRESENT = 'PRESENT', _('Présent')
+    PAYE = 'PAYE', _('Payé')
+    DOSS_EN_COURS = 'DOSS_EN_COURS', _('Dossier en cours')
+    FAUX_NUMERO = 'FAUX_NUMERO', _('Faux numéro')
+    PAS_INTERRESSE = 'PAS_INTERRESSE', _('Pas intéressé')
+    RDV_VALIDE = 'RDV_VALIDE', _('Rendez-vous validé')
+    RDV_CONFIRME = 'RDV_CONFIRME', _('Rendez-vous confirmé')
+    ATTENTE_REGLEMENT = 'ATTENTE_REGLEMENT', _('Attente règlement')
+    FORMULAIRE_OK = 'FORMULAIRE_OK', _('Formulaire OK')
+    ANNULE = 'ANNULE', _('Annulé')
+    ELLIGIBLE = 'ELLIGIBLE', _('Eligible')
+    PAS_DE_REPONSE = 'PAS_DE_REPONSE', _('Pas de réponse')
+    SOUCIS_FINANCIER = 'SOUCIS_FINANCIER', _('Soucis financier')
+    DIFFICULTE_FINANCIERE = 'DIFFICULTE_FINANCIERE', _('Difficulté financière')
+    ABSENT = 'ABSENT', _('Absent')
+    REVIENDRA = 'REVIENDRA', _('Reviendra')
+    A_RAPPELER = 'A_RAPPELER', _('A rappeler')
+    PIECES_MANQUANTES = 'PIECES_MANQUANTES', _('Pièce(s) manquante(s)')
+
 class Lead(models.Model):
     """
     Modèle représentant un prospect (lead) avec toutes les informations nécessaires
     pour le suivi commercial.
     """
 
-    class LeadStatus(models.TextChoices):
-        NOUVEAU = 'NOUVEAU', _('Nouveau')
-        NRP = 'NRP', _('NRP')
-        NRP_PLUS = 'NRP++', _('NRP ++')
-        NRP_MESSAGE = 'NRP+MESSAGE', _('NRP+MESSAGE')
-        CLIENT_RAPPELLERA = 'CLIENT_RAPPELLERA', _('Client rappellera')
-        PRESENT = 'PRESENT', _('Présent')
-        PAYE = 'PAYE', _('Payé')
-        DOSS_EN_COURS = 'DOSS_EN_COURS', _('Dossier en cours')
-        FAUX_NUMERO = 'FAUX_NUMERO', _('Faux numéro')
-        PAS_INTERRESSE = 'PAS_INTERRESSE', _('Pas intéressé')
-        RDV_VALIDE = 'RDV_VALIDE', _('Rendez-vous validé')
-        RDV_CONFIRME = 'RDV_CONFIRME', _('Rendez-vous confirmé')
-        ATTENTE_REGLEMENT = 'ATTENTE_REGLEMENT', _('Attente règlement')
-        FORMULAIRE_OK = 'FORMULAIRE_OK', _('Formulaire OK')
-        ANNULE = 'ANNULE', _('Annulé')
-        ELLIGIBLE = 'ELLIGIBLE', _('Eligible')
-        PAS_DE_REPONSE = 'PAS_DE_REPONSE', _('Pas de réponse')
-        SOUCIS_FINANCIER = 'SOUCIS_FINANCIER', _('Soucis financier')
-        DIFFICULTE_FINANCIERE = 'DIFFICULTE_FINANCIERE', _('Difficulté financière')
-        ABSENT = 'ABSENT', _('Absent')
-        REVIENDRA = 'REVIENDRA', _('Reviendra')
-        A_RAPPELER = 'A_RAPPELER', _('A rappeler')
-        PIECES_MANQUANTES = 'PIECES_MANQUANTES', _('Pièce(s) manquante(s)')
+
 
     id = models.AutoField(
         primary_key=True,

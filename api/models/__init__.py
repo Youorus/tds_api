@@ -1,7 +1,7 @@
 from .user import User, CustomUserManager
 from .role import Role
 from .client import Client
-from .lead import Lead
+from .lead import Lead, LeadStatus
 from .comment import Comment
 
 __all__ = [
@@ -11,4 +11,5 @@ __all__ = [
     'Client',
     'Lead',
     'Comment',
+    'LeadStatus'
 ]
