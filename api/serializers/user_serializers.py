@@ -1,5 +1,5 @@
 import re
-from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth import get_user_model, authenticate, login
 from django.contrib.auth.hashers import make_password
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -87,58 +87,4 @@ class UserSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class LoginSerializer(serializers.Serializer):
-    """
-    Serializer de connexion pour authentifier un utilisateur avec email et mot de passe.
-    Retourne les tokens JWT (access + refresh) si l'authentification est réussie.
-    """
 
-    email = serializers.EmailField(
-        error_messages={
-            'required': _('L\'email est requis.'),
-            'invalid': _('Veuillez entrer une adresse email valide.')
-        }
-    )
-    password = serializers.CharField(
-        style={'input_type': 'password'},
-        trim_whitespace=False,
-        error_messages={
-            'required': _('Le mot de passe est requis.'),
-            'blank': _('Le mot de passe ne peut pas être vide.')
-        }
-    )
-
-    def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
-        request = self.context.get('request')
-        errors = {}
-
-        # Vérifie que l'utilisateur existe
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            errors['email'] = [_("Aucun utilisateur trouvé avec cet email.")]
-            raise serializers.ValidationError(errors)
-
-        # Authentifie l'utilisateur
-        user = authenticate(request=request, email=email, password=password)
-
-        if not user:
-            errors['password'] = [_("Mot de passe incorrect.")]
-            raise serializers.ValidationError(errors)
-
-        if not user.is_active:
-            errors['non_field_errors'] = [_("Votre compte est désactivé. Veuillez contacter l'administrateur.")]
-            raise serializers.ValidationError(errors)
-
-        # Génère les tokens JWT
-        refresh = RefreshToken.for_user(user)
-
-        return {
-            'user': user,
-            'tokens': {
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }
-        }

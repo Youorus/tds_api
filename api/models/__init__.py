@@ -10,6 +10,6 @@ __all__ = [
     'Role',
     'Client',
     'Lead',
+    'LeadStatus',
     'Comment',
-    'LeadStatus'
 ]

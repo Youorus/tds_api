@@ -15,7 +15,7 @@ class LeadStatus(models.TextChoices):
     DOSS_EN_COURS = 'DOSS_EN_COURS', _('Dossier en cours')
     FAUX_NUMERO = 'FAUX_NUMERO', _('Faux numéro')
     PAS_INTERRESSE = 'PAS_INTERRESSE', _('Pas intéressé')
-    RDV_VALIDE = 'RDV_VALIDE', _('Rendez-vous validé')
+    RDV_PLANIFIER = 'RDV_PLANIFIER', _('Rendez-vous planifié')
     RDV_CONFIRME = 'RDV_CONFIRME', _('Rendez-vous confirmé')
     ATTENTE_REGLEMENT = 'ATTENTE_REGLEMENT', _('Attente règlement')
     FORMULAIRE_OK = 'FORMULAIRE_OK', _('Formulaire OK')
@@ -29,13 +29,12 @@ class LeadStatus(models.TextChoices):
     A_RAPPELER = 'A_RAPPELER', _('A rappeler')
     PIECES_MANQUANTES = 'PIECES_MANQUANTES', _('Pièce(s) manquante(s)')
 
+
 class Lead(models.Model):
     """
     Modèle représentant un prospect (lead) avec toutes les informations nécessaires
     pour le suivi commercial.
     """
-
-
 
     id = models.AutoField(
         primary_key=True,
@@ -112,6 +111,6 @@ class Lead(models.Model):
 
     def save(self, *args, **kwargs):
         """Surcharge de la méthode save pour définir automatiquement le statut"""
-        if self.appointment_date and self.status == self.LeadStatus.NOUVEAU:
-            self.status = self.LeadStatus.RDV_CONFIRME
+        if self.appointment_date and self.status == LeadStatus.NOUVEAU:
+            self.status = LeadStatus.RDV_CONFIRME
         super().save(*args, **kwargs)

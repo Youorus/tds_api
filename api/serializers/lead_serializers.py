@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 import phonenumbers
 
-from api.models import Lead
+from api.models import Lead, LeadStatus
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -18,10 +18,9 @@ class LeadSerializer(serializers.ModelSerializer):
             'status', 'assigned_to', 'created_at'
         ]
         extra_kwargs = {
-            'first_name': {'required': True, 'allow_blank': False},
-            'last_name': {'required': True, 'allow_blank': False},
-            'phone': {'required': True, 'allow_blank': False},
-            'status': {'read_only': True},
+            'first_name': {'allow_blank': False},
+            'last_name': {'allow_blank': False},
+            'phone': {'allow_blank': False},
             'created_at': {'read_only': True},
         }
 
@@ -91,18 +90,14 @@ class LeadSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        """Définit automatiquement le statut sur RDV_CONFIRME si un rendez-vous est ajouté."""
-        if validated_data.get('appointment_date'):
-            validated_data['status'] = Lead.LeadStatus.RDV_CONFIRME
+        """Définit automatiquement le statut sur RDV_PLANIFIER uniquement si aucun statut n'est fourni."""
+        if validated_data.get('appointment_date') and not validated_data.get('status'):
+            validated_data['status'] = LeadStatus.RDV_PLANIFIER
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
-        """Met à jour le statut si un rendez-vous est ajouté à un lead NOUVEAU."""
-        instance = super().update(instance, validated_data)
-        if instance.appointment_date and instance.status == Lead.LeadStatus.NOUVEAU:
-            instance.status = Lead.LeadStatus.RDV_CONFIRME
-            instance.save()
-        return instance
+        """Met à jour un lead sans logique métier automatique."""
+        return super().update(instance, validated_data)
 
     def to_representation(self, instance):
         """Formate les données pour la réponse API."""

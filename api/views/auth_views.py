@@ -2,11 +2,11 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django.contrib.auth import get_user_model
 from api.models import Role, Client
-from api.serializers import LoginSerializer
-from tds import settings
+from api.serializers.login_serializer import LoginSerializer
 
+User = get_user_model()
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -21,34 +21,16 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user']
-        tokens = serializer.validated_data['tokens']  # Récupère les tokens JWT
+        tokens = serializer.validated_data['tokens']
 
-        # Récupération du rôle de l'utilisateur
-        role = None
-        try:
-            role = user.role.role_type  # Accès via la relation OneToOne
-        except Role.DoesNotExist:
-            if user.is_superuser:
-                role = Role.RoleType.ADMIN.value
-            elif user.is_staff:
-                role = Role.RoleType.CONSEILLER.value
-            else:
-                role = Role.RoleType.CLIENT.value
+        # Récupération des données utilisateur
+        role = self._get_user_role(user)
+        client_data = self._get_client_data(user)
 
-        # Récupération des infos supplémentaires du client (si existant)
-        client_data = {}
-        try:
-            client_profile = user.client_profile
-            client_data = {
-                'phone': client_profile.phone,
-                'address': client_profile.address
-            }
-        except Client.DoesNotExist:
-            pass
-
-        # Réponse JSON SANS les tokens
+        # Construction de la réponse
         response_data = {
             "user": {
+                "id": user.id,
                 "email": user.email,
                 "first_name": user.first_name,
                 "last_name": user.last_name,
@@ -56,39 +38,29 @@ class LoginView(APIView):
                 "is_superuser": user.is_superuser,
                 "role": role,
                 **client_data
+            },
+            "tokens": tokens  # Inclure directement les tokens dans la réponse JSON
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    def _get_user_role(self, user):
+        """Détermine le rôle de l'utilisateur"""
+        if hasattr(user, 'role') and user.role:
+            return user.role.role_type
+        elif user.is_superuser:
+            return Role.RoleType.ADMIN.value
+        elif user.is_staff:
+            return Role.RoleType.CONSEILLER.value
+        return Role.RoleType.CLIENT.value
+
+    def _get_client_data(self, user):
+        """Récupère les données supplémentaires du client"""
+        try:
+            client_profile = user.client_profile
+            return {
+                'phone': client_profile.phone,
+                'address': client_profile.address
             }
-        }
-
-        # Création de la réponse
-        response = Response(response_data, status=status.HTTP_200_OK)
-
-        # Ajout des tokens UNIQUEMENT dans les cookies
-        self._set_auth_cookies(response, tokens)
-
-        return response
-
-    def _set_auth_cookies(self, response, tokens):
-        """Configure les cookies HTTP Only pour les tokens JWT"""
-        cookie_params = {
-            'secure': not settings.DEBUG,  # Secure en production seulement
-            'httponly': True,  # Empêche l'accès via JavaScript
-            'samesite': 'Lax',  # Protection contre les attaques CSRF
-            'path': settings.SIMPLE_JWT['AUTH_COOKIE_PATH'],
-            'domain': settings.SIMPLE_JWT.get('AUTH_COOKIE_DOMAIN'),  # Optionnel
-        }
-
-        # Cookie pour le token d'accès
-        response.set_cookie(
-            key=settings.SIMPLE_JWT['AUTH_COOKIE_ACCESS'],
-            value=tokens['access'],
-            max_age=settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'].total_seconds(),
-            **cookie_params
-        )
-
-        # Cookie pour le token de rafraîchissement
-        response.set_cookie(
-            key=settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
-            value=tokens['refresh'],
-            max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
-            **cookie_params
-        )
+        except Client.DoesNotExist:
+            return {}
