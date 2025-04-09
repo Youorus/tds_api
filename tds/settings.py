@@ -9,21 +9,30 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # ==================== CONFIGURATION EMAIL ====================
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
-EMAIL_HOST = os.getenv('EMAIL_HOST')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))  # Conversion en int
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes")
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in ("true", "1", "yes")
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
 # Configuration de base
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default-key')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "tds.local",  # 👈 ajoute ceci
+]
 
 # Applications Django + API
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.auth',
     "django_extensions",
     'django.contrib.contenttypes',
@@ -34,7 +43,6 @@ INSTALLED_APPS = [
     # API
     'rest_framework',
     'rest_framework_simplejwt',
-    'corsheaders',
 
     # Ton app
     'api',
@@ -53,8 +61,21 @@ MIDDLEWARE = [
 ]
 
 # CORS autorisé pour ton frontend React
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
+    "https://tds.local:3000",  # si tu l'utilises
+]
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = ["https://localhost:3000"]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "https://localhost:3000",
+    "https://127.0.0.1:3000",
+    "https://tds.local:3000",
+]
 
 # Fichiers statiques
 STATIC_URL = 'static/'
@@ -123,7 +144,7 @@ AUTH_USER_MODEL = 'api.User'
 
 # Internationalisation
 LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = 'Europe/Paris'
+TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 

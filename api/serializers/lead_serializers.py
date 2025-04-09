@@ -6,6 +6,7 @@ from rest_framework import serializers
 import phonenumbers
 
 from api.models import Lead, LeadStatus
+from api.utils.utils import get_formatted_appointment
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -24,6 +25,9 @@ class LeadSerializer(serializers.ModelSerializer):
             'created_at': {'read_only': True},
         }
 
+    def get_formatted_appointment(self, obj):
+        return get_formatted_appointment(obj.appointment_date)
+
     def validate_email(self, value):
         """Valide et normalise l'email."""
         if value and '@' not in value:
@@ -31,6 +35,12 @@ class LeadSerializer(serializers.ModelSerializer):
                 _("Veuillez entrer une adresse email valide.")
             )
         return value.lower().strip() if value else None
+
+    def validate_first_name(self, value):
+        return value.capitalize()
+
+    def validate_last_name(self, value):
+        return value.capitalize()
 
     def validate_phone(self, value):
         try:
@@ -92,7 +102,10 @@ class LeadSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Définit automatiquement le statut sur RDV_PLANIFIER uniquement si aucun statut n'est fourni."""
         if validated_data.get('appointment_date') and not validated_data.get('status'):
+            print("✅ RDV présent, on met RDV_PLANIFIER")
             validated_data['status'] = LeadStatus.RDV_PLANIFIER
+        else:
+            print("⚠️ Pas de RDV ou statut déjà défini")
         return super().create(validated_data)
 
     def update(self, instance, validated_data):

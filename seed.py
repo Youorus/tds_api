@@ -1,3 +1,11 @@
+# seed.py
+
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
+django.setup()
+
 import random
 from datetime import timedelta
 from django.utils import timezone
@@ -6,7 +14,12 @@ from api.models import Lead, User, Comment, LeadStatus
 
 fake = Faker('fr_FR')
 
-# Créer ou récupérer un utilisateur test pour l'auteur des commentaires
+# 🧹 Supprimer les anciennes données
+Comment.objects.all().delete()
+Lead.objects.all().delete()
+print("🗑️ Anciennes données supprimées")
+
+# 👤 Créer un utilisateur test
 author, _ = User.objects.get_or_create(
     email="test@example.com",
     defaults={
@@ -15,17 +28,17 @@ author, _ = User.objects.get_or_create(
         "is_active": True,
         "is_staff": True,
         "is_superuser": True,
-        "password": "admin",  # à hasher si nécessaire
+        "password": "admin",
     }
 )
 
-# Liste des statuts pour diversification
+# 📊 Statuts disponibles
 all_statuses = [status[0] for status in LeadStatus.choices]
 
+# ➕ Création de 300 leads
 leads_to_create = []
-comments_to_create = []
 
-for _ in range(300):  # Génère 300 leads
+for _ in range(300):
     status = random.choice(all_statuses)
 
     lead = Lead(
@@ -41,13 +54,14 @@ for _ in range(300):  # Génère 300 leads
     leads_to_create.append(lead)
 
 Lead.objects.bulk_create(leads_to_create)
-print("✅ Leads créés")
+print("✅ 300 leads créés")
 
-# Récupérer les leads pour y ajouter des commentaires
+# 🗨️ Ajouter des commentaires
 leads = Lead.objects.all()
+comments_to_create = []
 
 for lead in leads:
-    for _ in range(random.randint(0, 4)):  # 0 à 4 commentaires par lead
+    for _ in range(random.randint(0, 4)):
         comments_to_create.append(Comment(
             lead=lead,
             author=author,
@@ -57,4 +71,4 @@ for lead in leads:
         ))
 
 Comment.objects.bulk_create(comments_to_create)
-print("✅ Commentaires ajoutés")
+print(f"✅ {len(comments_to_create)} commentaires ajoutés")
