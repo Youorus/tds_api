@@ -25,7 +25,7 @@ class LoginView(APIView):
 
         # Récupération des données utilisateur
         role = self._get_user_role(user)
-        client_data = self._get_client_data(user)
+        #client_data = self._get_client_data(user)
 
         # Construction de la réponse
         response_data = {
@@ -37,7 +37,6 @@ class LoginView(APIView):
                 "is_staff": user.is_staff,
                 "is_superuser": user.is_superuser,
                 "role": role,
-                **client_data
             },
             "tokens": tokens  # Inclure directement les tokens dans la réponse JSON
         }
@@ -53,14 +52,3 @@ class LoginView(APIView):
         elif user.is_staff:
             return Role.RoleType.CONSEILLER.value
         return Role.RoleType.CLIENT.value
-
-    def _get_client_data(self, user):
-        """Récupère les données supplémentaires du client"""
-        try:
-            client_profile = user.client_profile
-            return {
-                'phone': client_profile.phone,
-                'address': client_profile.address
-            }
-        except Client.DoesNotExist:
-            return {}

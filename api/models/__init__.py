@@ -4,12 +4,39 @@ from .client import Client
 from .lead import Lead, LeadStatus
 from .comment import Comment
 
+# Enums & choices
+from .client import (
+    SourceInformation,
+    Civilite,
+    VisaType,
+    TypeDemande,
+    SituationFamiliale,
+    LogementType,
+    SituationProfessionnelle,
+)
+
 __all__ = [
+    # Users
     'User',
     'CustomUserManager',
+
+    # Roles
     'Role',
-    'Client',
+
+    # Leads
     'Lead',
     'LeadStatus',
+
+    # Clients
+    'Client',
+    'SourceInformation',
+    'Civilite',
+    'VisaType',
+    'TypeDemande',
+    'SituationFamiliale',
+    'LogementType',
+    'SituationProfessionnelle',
+
+    # Comments
     'Comment',
 ]
