@@ -1,0 +1,33 @@
+# 🧱 Base Django + DRF
+Django==5.1.7
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+django-extensions==3.2.3
+djangorestframework_simplejwt==5.5.0
+
+# 🗃️ PostgreSQL
+psycopg2-binary==2.9.10
+
+# 🔐 Auth / JWT / Crypto
+cryptography==44.0.2
+PyJWT==2.9.0
+
+# 📦 Utilitaires
+python-dotenv==1.1.0
+Faker==37.1.0
+phonenumbers==9.0.2
+
+# 🕒 Temps et date
+tzdata==2025.2
+
+# 🌐 HTTP
+requests==2.32.3
+urllib3==2.3.0
+charset-normalizer==3.4.1
+certifi==2025.1.31
+idna==3.10
+
+# 🧰 Django internals
+sqlparse==0.5.3
+asgiref==3.8.1
+typing_extensions==4.13.0
