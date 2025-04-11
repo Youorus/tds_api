@@ -6,17 +6,19 @@ from rest_framework import serializers
 import phonenumbers
 
 from api.models import Lead, LeadStatus
+from api.serializers import ClientSerializer
 from api.utils.utils import get_formatted_appointment
 
 
 class LeadSerializer(serializers.ModelSerializer):
     appointment_date = serializers.CharField(required=False, allow_null=True)
+    form_data = ClientSerializer(read_only=True)
     class Meta:
         model = Lead
         fields = [
             'id', 'first_name', 'last_name', 'email',
             'phone', 'appointment_date',
-            'status', 'assigned_to', 'created_at'
+            'status', 'assigned_to', 'created_at','form_data'
         ]
         extra_kwargs = {
             'first_name': {'allow_blank': False},
