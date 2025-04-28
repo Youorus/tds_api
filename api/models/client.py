@@ -21,6 +21,7 @@ class SourceInformation(models.TextChoices):
 
 class Civilite(models.TextChoices):
     MADAME = 'MADAME', _('Madame')
+    MADEMOISELLE = 'MADEMOISELLE', _('Mademoiselle')
     MONSIEUR = 'MONSIEUR', _('Monsieur')
 
 
@@ -41,6 +42,7 @@ class TypeDemande(models.TextChoices):
     CONTESTATION_OQTF = 'CONTESTATION_OQTF', _('Contestation OQTF')
     SUIVI_DOSSIER = 'SUIVI_DOSSIER', _('Suivi de dossier')
     PRISE_RDV = 'PRISE_RDV', _('Prise de rendez-vous')
+    AUTRES = 'AUTRES', _('Autres (précisez)')
 
 
 class SituationFamiliale(models.TextChoices):
@@ -71,7 +73,7 @@ class SituationProfessionnelle(models.TextChoices):
 class Client(models.Model):
     lead = models.OneToOneField('Lead', on_delete=models.CASCADE, related_name='form_data')
 
-    civilite = models.CharField(_('civilité'), max_length=10, choices=Civilite.choices, blank=True)
+    civilite = models.CharField(_('civilité'), max_length=15, choices=Civilite.choices, blank=True)
 
     date_naissance = models.DateField(_('date de naissance'), blank=True, null=True)
     lieu_naissance = models.CharField(_('lieu de naissance'), max_length=255, blank=True)
@@ -84,7 +86,7 @@ class Client(models.Model):
     date_entree_france = models.DateField(_('date d’entrée en France'), blank=True, null=True)
 
     a_un_visa = models.BooleanField(_('visa'), null=True, blank=True)
-    type_visa = models.CharField(_('type de visa'), max_length=20, choices=VisaType.choices, blank=True)
+    type_visa = models.CharField(_('type de visa'), null=True, max_length=20, choices=VisaType.choices, blank=True)
     statut_refugie_ou_protection = models.BooleanField(_('statut réfugié ou protection subsidiaire'), null=True, blank=True)
 
     types_demande = ArrayField(

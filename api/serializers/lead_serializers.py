@@ -5,20 +5,29 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 import phonenumbers
 
-from api.models import Lead, LeadStatus
+from api.models import Lead, LeadStatus, User
 from api.serializers import ClientSerializer
 from api.utils.utils import get_formatted_appointment
 
+class AssignedUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "email")  # Ajoute 'avatar_url' si tu veux
 
 class LeadSerializer(serializers.ModelSerializer):
     appointment_date = serializers.CharField(required=False, allow_null=True)
     form_data = ClientSerializer(read_only=True)
+    assigned_to = AssignedUserSerializer(read_only=True)  # renvoie un objet complet
+    assigned_to_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(), source="assigned_to", write_only=True, required=False, allow_null=True
+    )  # attend un id à l'écriture
+
     class Meta:
         model = Lead
         fields = [
             'id', 'first_name', 'last_name', 'email',
             'phone', 'appointment_date',
-            'status', 'assigned_to', 'created_at','form_data'
+            'status', 'assigned_to', 'assigned_to_id', 'created_at', 'form_data'
         ]
         extra_kwargs = {
             'first_name': {'allow_blank': False},
@@ -65,13 +74,13 @@ class LeadSerializer(serializers.ModelSerializer):
 
         try:
             parsed = datetime.strptime(value, "%d/%m/%Y %H:%M")
-            parsed = timezone.make_aware(parsed)  # <-- Corrige le problème
+            parsed = timezone.make_aware(parsed)
         except ValueError:
             raise serializers.ValidationError(
                 _("Format de date invalide. Utilisez JJ/MM/AAAA HH:mm.")
             )
 
-        if parsed < timezone.now():  # ✅ Comparaison entre deux datetimes aware
+        if parsed < timezone.now():
             raise serializers.ValidationError(_("La date de rendez-vous ne peut pas être dans le passé."))
 
         if parsed.hour < 9 or (parsed.hour == 18 and parsed.minute > 30) or parsed.hour > 18:
@@ -117,17 +126,7 @@ class LeadSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Formate les données pour la réponse API."""
         representation = super().to_representation(instance)
-
         representation['status_display'] = instance.get_status_display()
-
         if instance.appointment_date:
             representation['appointment_date'] = instance.appointment_date.strftime('%d/%m/%Y %H:%M')
-
-        if instance.assigned_to:
-            representation['assigned_to'] = {
-                'id': instance.assigned_to.id,
-                'name': instance.assigned_to.get_full_name(),
-                'email': instance.assigned_to.email
-            }
-
         return representation

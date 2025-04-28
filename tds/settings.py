@@ -1,7 +1,10 @@
 from datetime import timedelta
 from pathlib import Path
 import os
+
+from celery.schedules import crontab
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 
 # Charger les variables d'environnement depuis .env
 load_dotenv()
@@ -21,36 +24,35 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
-# Configuration de base
+# ==================== CONFIGURATION DE BASE ====================
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default-key')
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = [
-    "localhost",
-    "127.0.0.1",
-    "tds.local",  # 👈 ajoute ceci
-]
+ALLOWED_HOSTS = ['*']  # à restreindre en prod !
 
-# Applications Django + API
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+
+# ==================== APPS DJANGO ====================
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.auth',
-    "django_extensions",
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
+    'sslserver',
 
     # API
     'rest_framework',
     'rest_framework_simplejwt',
 
-    # Ton app
+    # App principale
     'api',
 ]
 
-# Middleware
+# ==================== MIDDLEWARE ====================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # doit être en haut
+    'corsheaders.middleware.CorsMiddleware',  # doit être placé en premier
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -60,28 +62,33 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# CORS autorisé pour ton frontend React
+# ==================== CORS CONFIG (version JWT header, sans cookies) ====================
+CORS_ALLOW_ALL_ORIGINS = False  # ⛔ désactive ce mode
+CORS_ALLOW_CREDENTIALS = True  # ✅ si tu utilises withCredentials: true dans axios
+
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "https://127.0.0.1:3000",
-    "https://tds.local:3000",  # si tu l'utilises
+    "http://localhost:3000",  # ton frontend local
+    "http://192.168.1.161:3000",  # si tu accèdes depuis un autre appareil sur le réseau
 ]
 
-CORS_ALLOW_CREDENTIALS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "https://localhost:3000",
-    "https://127.0.0.1:3000",
-    "https://tds.local:3000",
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
 ]
 
-# Fichiers statiques
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+    'content-type',
+]
+
+# ==================== STATICS / TEMPLATES ====================
 STATIC_URL = 'static/'
 
-# Templates
-ROOT_URLCONF = 'tds.urls'  # adapter si ton projet s'appelle autrement
+ROOT_URLCONF = 'tds.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -98,9 +105,9 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'tds.wsgi.application'  # adapter si besoin
+WSGI_APPLICATION = 'tds.wsgi.application'
 
-# Base de données PostgreSQL (Render ou autre)
+# ==================== DATABASE ====================
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -112,27 +119,38 @@ DATABASES = {
     }
 }
 
-# Authentification JWT
+# ==================== REST FRAMEWORK ====================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',  # Global setting
+        'rest_framework.permissions.IsAuthenticated',
     ],
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
 }
 
+# ==================== SIMPLE JWT ====================
 SIMPLE_JWT = {
-    # Désactive les cookies si vous utilisez uniquement les headers
     'AUTH_COOKIE': None,
-
-    # Configuration des tokens
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# Validation des mots de passe
+CELERY_BEAT_SCHEDULE = {
+    'send-rdv-reminders-every-morning': {
+        'task': 'api.tasks.send_rdv_reminders',
+        'schedule': crontab(hour=9, minute=0),
+    },
+    'maj-leads-absents-auto-every-30min': {
+        'task': 'api.tasks.maj_leads_absents_auto',
+        'schedule': crontab(minute='*/30'),  # toutes les 30min
+    },
+}
+
+# ==================== AUTH ====================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -142,11 +160,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = 'api.User'
 
-# Internationalisation
+# ==================== I18N ====================
 LANGUAGE_CODE = 'fr-fr'
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Clé par défaut pour les modèles
+# ==================== AUTRES ====================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

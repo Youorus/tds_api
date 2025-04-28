@@ -1,22 +1,54 @@
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
-from django.utils.timezone import now
-from datetime import timedelta
 
-from api.models import Lead, LeadStatus
+from api.models import Lead, LeadStatus, User
 from api.serializers import LeadSerializer, LeadStatusUpdateSerializer
 from api.services import NotificationService
 
 
 class LeadViewSet(viewsets.ModelViewSet):
-    queryset = Lead.objects.all()
     serializer_class = LeadSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    # Initialisation du service de notification
     notification_service = NotificationService()
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Lead.objects.all()
+
+        # 🔐 Restriction d'accès en fonction du rôle
+        if not (user.is_superuser or user.role in [User.Roles.ADMIN, User.Roles.ACCUEIL]):
+            if user.role == User.Roles.CONSEILLER:
+                queryset = queryset.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True))
+            else:
+                queryset = queryset.filter(assigned_to=user)
+
+        # ✅ Filtrage par statut
+        status_param = self.request.query_params.get("status")
+        if status_param and status_param.upper() != "TOUS":
+            queryset = queryset.filter(status__iexact=status_param)
+
+        # ✅ Filtrage par date
+        date_str = self.request.query_params.get("date")
+        if date_str:
+            parsed_date = parse_date(date_str)
+            if parsed_date:
+                queryset = queryset.filter(created_at__date=parsed_date)
+
+        # ✅ Recherche textuelle
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(email__icontains=search)
+            )
+
+        return queryset.order_by("-created_at")
 
     def get_permissions(self):
         if self.action == "create":
@@ -25,10 +57,9 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         lead = serializer.save()
-        print(lead)
         if lead.appointment_date and lead.email:
             self.notification_service.send_appointment_confirmation(lead)
-        elif not lead.appointment_date and lead.email:
+        elif lead.email:
             self.notification_service.send_welcome(lead)
 
     def perform_update(self, serializer):
@@ -43,7 +74,6 @@ class LeadViewSet(viewsets.ModelViewSet):
         if appointment_after and lead.email and appointment_before != appointment_after:
             self.notification_service.send_appointment_confirmation(lead)
 
-        # Envoie une notification si le statut vient de passer à ABSENT
         if status_before != LeadStatus.ABSENT and status_after == LeadStatus.ABSENT:
             self.notification_service.send_missed_appointment(lead)
 
@@ -52,6 +82,7 @@ class LeadViewSet(viewsets.ModelViewSet):
         lead = self.get_object()
         serializer = LeadStatusUpdateSerializer(lead, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+
         status_before = lead.status
         lead = serializer.save()
 
@@ -59,51 +90,3 @@ class LeadViewSet(viewsets.ModelViewSet):
             self.notification_service.send_missed_appointment(lead)
 
         return Response({"status": serializer.data["status"]}, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=["get"], url_path="statut-nouveau")
-    def get_nouveaux_leads(self, request):
-        count = Lead.objects.filter(status=LeadStatus.NOUVEAU).count()
-        return Response({"count": count})
-
-    @action(detail=False, methods=["get"], url_path="rdv-demain")
-    def get_leads_rdv_demain(self, request):
-        tomorrow = now().date() + timedelta(days=1)
-        leads = Lead.objects.filter(appointment_date__date=tomorrow)
-        for lead in leads:
-            # Utilisation du service unifié pour les rappels
-            self.notification_service.send_appointment_reminder(lead)
-        return Response({"count": leads.count()})
-
-    @action(detail=False, methods=["get"], url_path="statut-absent")
-    def get_leads_absents(self, request):
-        count = Lead.objects.filter(status=LeadStatus.ABSENT).count()
-        return Response({"count": count})
-
-    @action(detail=False, methods=["post"], url_path="maj-absents-auto")
-    def maj_leads_absents_auto(self, request):
-        limite = now() - timedelta(hours=1)
-        leads = Lead.objects.filter(status=LeadStatus.RDV_CONFIRME, appointment_date__lt=limite)
-        updated_count = 0
-        for lead in leads:
-            lead.status = LeadStatus.ABSENT
-            lead.save()
-            self.notification_service.send_missed_appointment(lead)
-            updated_count += 1
-
-        return Response({"message": f"{updated_count} leads mis à jour en 'absent'"})
-
-
-    @action(detail=False, methods=["get"], url_path="search")
-    def search_leads(self, request):
-        query = request.query_params.get("q", "")
-        if not query:
-            return Response([])
-
-        leads = Lead.objects.filter(
-            Q(first_name__icontains=query)
-            | Q(last_name__icontains=query)
-            | Q(email__icontains=query)
-            | Q(phone__icontains=query)
-        )[:10]
-        serializer = self.get_serializer(leads, many=True)
-        return Response(serializer.data)

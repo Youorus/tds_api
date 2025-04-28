@@ -101,3 +101,20 @@ class EmailService:
             template_name="email/welcome.html",
             context=context,
         )
+
+    def send_formulaire_email(self, lead):
+        name_param = f"{lead.first_name} {lead.last_name}".replace(" ", "%20")
+        formulaire_url = f"{settings.FRONTEND_BASE_URL}/formulaire?id={lead.id}&name={name_param}"
+
+        context = {
+            "user": lead,
+            "formulaire_url": formulaire_url,
+            "year": datetime.now().year,
+        }
+
+        return self.send_html_email(
+            to_email=lead.email,
+            subject="Merci de compléter votre formulaire – TDS France",
+            template_name="email/formulaire_link.html",
+            context=context,
+        )
