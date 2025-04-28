@@ -9,57 +9,35 @@ class CustomUserManager(BaseUserManager):
     Implémente les méthodes nécessaires à la création d'utilisateurs et super-utilisateurs.
     """
 
-    def create_user(self, email, first_name, last_name, password=None, **extra_fields):
-        """
-        Crée et enregistre un utilisateur standard avec l'email et le mot de passe fournis.
-
-        Args:
-            email (str): Adresse email de l'utilisateur
-            first_name (str): Prénom de l'utilisateur
-            last_name (str): Nom de famille de l'utilisateur
-            password (str): Mot de passe en clair (optionnel)
-            extra_fields: Arguments supplémentaires pour le modèle User
-
-        Returns:
-            User: Instance du nouvel utilisateur créé
-
-        Raises:
-            ValueError: Si l'email n'est pas fourni
-        """
+    def create_user(self, email, first_name, last_name, password=None, role="COMMERCIAL", **extra_fields):
         if not email:
             raise ValueError(_('L\'email doit être renseigné'))
-
         email = self.normalize_email(email)
         user = self.model(
             email=email,
             first_name=first_name,
             last_name=last_name,
+            role=role,
             **extra_fields
         )
+
+        # Gestion staff/superuser selon le rôle
+        if role == User.Roles.ADMIN:
+            user.is_staff = True
+            user.is_superuser = True
+        else:
+            user.is_staff = True  # Pour tous les rôles internes, tu peux adapter selon ton besoin
+            user.is_superuser = False
+
         user.set_password(password)
         user.save(using=self._db)
         return user
 
     def create_superuser(self, email, first_name, last_name, password=None, **extra_fields):
-        """
-        Crée un super-utilisateur avec tous les droits administratifs.
-
-        Args:
-            email (str): Adresse email de l'administrateur
-            first_name (str): Prénom de l'administrateur
-            last_name (str): Nom de famille de l'administrateur
-            password (str): Mot de passe en clair (optionnel)
-            extra_fields: Arguments supplémentaires pour le modèle User
-
-        Returns:
-            User: Instance du nouvel administrateur créé
-
-        Raises:
-            ValueError: Si is_staff ou is_superuser ne sont pas True
-        """
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('role', User.Roles.ADMIN)
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError(_('Le super-utilisateur doit avoir is_staff=True.'))
@@ -68,16 +46,18 @@ class CustomUserManager(BaseUserManager):
 
         return self.create_user(email, first_name, last_name, password, **extra_fields)
 
-
 class User(AbstractBaseUser, PermissionsMixin):
     """
     Modèle utilisateur personnalisé remplaçant le modèle User par défaut de Django.
     Utilise l'email comme identifiant principal et UUID comme clé primaire.
-
-    Hérite de:
-        AbstractBaseUser: Fournit le cœur de l'implémentation utilisateur
-        PermissionsMixin: Ajoute le système de permissions Django
     """
+
+    class Roles(models.TextChoices):
+        ADMIN = "ADMIN", _("Administrateur")
+        ACCUEIL = "ACCUEIL", _("Accueil")
+        JURISTE = "JURISTE", _("Juriste")
+        CONSEILLER = "CONSEILLER", _("Conseiller")
+        COMPTABILITE = "COMPTABILITE", _("Comptabilité")
 
     id = models.UUIDField(
         primary_key=True,
@@ -110,6 +90,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         help_text=_('Nom de famille de l\'utilisateur (requis)')
     )
 
+    role = models.CharField(
+        _('rôle'),
+        max_length=32,
+        default=Roles.CONSEILLER,
+        choices=Roles.choices,
+        help_text=_("Rôle du collaborateur")
+    )
+
     is_staff = models.BooleanField(
         _('membre du staff'),
         default=False,
@@ -138,7 +126,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
+    REQUIRED_FIELDS = ['first_name', 'last_name', 'role']
 
     class Meta:
         verbose_name = _('utilisateur')
@@ -160,3 +148,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_short_name(self):
         """Retourne le prénom de l'utilisateur"""
         return self.first_name
+
+    # (Optionnel) Si tu veux synchroniser staff/superuser/role à chaque save :
+    def save(self, *args, **kwargs):
+        if self.role == self.Roles.ADMIN:
+            self.is_staff = True
+            self.is_superuser = True
+        else:
+            self.is_staff = True  # tu peux adapter (ex: self.role in ["ADMIN", "SUPPORT", ...])
+            self.is_superuser = False
+        super().save(*args, **kwargs)

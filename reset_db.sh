@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # 🔧 Variables de configuration
-DB_NAME="test_db"
-DB_USER="postgres"
-DB_PASSWORD="postgres"
+DB_NAME="tds"
+DB_USER="marc"
+DB_PASSWORD="marc"   # ← remplace ici par le vrai mot de passe de l'utilisateur marc
 DB_HOST="localhost"
 DB_PORT="5432"
 
