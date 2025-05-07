@@ -1,3 +1,5 @@
+import time
+
 from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
@@ -56,11 +58,17 @@ class LeadViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
+        start = time.time()
         lead = serializer.save()
-        if lead.appointment_date and lead.email:
-            self.notification_service.send_appointment_confirmation(lead)
-        elif lead.email:
-            self.notification_service.send_welcome(lead)
+        # ...
+        print("⏱️ Backend create duration:", time.time() - start, "seconds")
+
+    #def perform_create(self, serializer):
+        #lead = serializer.save()
+        #if lead.appointment_date and lead.email:
+           # self.notification_service.send_appointment_confirmation(lead)
+       # elif lead.email:
+         #   self.notification_service.send_welcome(lead)
 
     def perform_update(self, serializer):
         lead_before = self.get_object()
@@ -90,3 +98,44 @@ class LeadViewSet(viewsets.ModelViewSet):
             self.notification_service.send_missed_appointment(lead)
 
         return Response({"status": serializer.data["status"]}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["patch"], url_path="assign")
+    def assign_to_me(self, request, pk=None):
+        """
+        Permet à l'utilisateur connecté de s'assigner ce lead
+        uniquement s'il est CONSEILLER ou ADMIN.
+        """
+        user = request.user
+        lead = self.get_object()
+
+        if user.role not in [User.Roles.CONSEILLER, User.Roles.ADMIN]:
+            return Response(
+                {"detail": "Vous n'avez pas la permission de vous assigner ce lead."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        lead.assigned_to = user
+        lead.save()
+
+        return Response(status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["patch"], url_path="unassign")
+    def unassign_me(self, request, pk=None):
+        """
+        Permet à l'utilisateur connecté de se désassigner du lead.
+        """
+        user = request.user
+        lead = self.get_object()
+
+        # ✅ Vérifie si l'utilisateur est bien assigné à ce lead
+        if lead.assigned_to != user:
+            return Response(
+                {"detail": "Vous n'êtes pas assigné à ce lead."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # ✅ Désassigner
+        lead.assigned_to = None
+        lead.save()
+
+        return Response(status=status.HTTP_200_OK)

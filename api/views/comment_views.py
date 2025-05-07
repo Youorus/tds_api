@@ -12,12 +12,7 @@ class CommentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = Comment.objects.all()
-        if not self.request.user.is_superuser:
-            queryset = queryset.filter(
-                lead__assigned_to=self.request.user
-            ).select_related('author', 'lead')
-        return queryset
+        return Comment.objects.all().select_related("author", "lead")
 
     @action(detail=False, methods=["get"], url_path="lead/(?P<lead_id>[^/.]+)")
     def by_lead(self, request, lead_id=None):

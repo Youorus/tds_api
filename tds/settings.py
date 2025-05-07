@@ -34,6 +34,7 @@ FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 # ==================== APPS DJANGO ====================
 INSTALLED_APPS = [
     'corsheaders',
+    "storages",
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -68,7 +69,7 @@ CORS_ALLOW_CREDENTIALS = True  # ✅ si tu utilises withCredentials: true dans a
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",  # ton frontend local
-    "http://192.168.1.161:3000",  # si tu accèdes depuis un autre appareil sur le réseau
+    "http://192.168.1.159:3000",  # si tu accèdes depuis un autre appareil sur le réseau
 ]
 
 CORS_ALLOW_METHODS = [
@@ -159,6 +160,23 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTH_USER_MODEL = 'api.User'
+
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+AWS_ACCESS_KEY_ID = "minioadmin"
+AWS_SECRET_ACCESS_KEY = "minioadmin"
+AWS_STORAGE_BUCKET_NAME = "lead-documents"
+AWS_S3_ENDPOINT_URL = "http://localhost:9000"
+AWS_S3_REGION_NAME = "us-east-1"
+AWS_QUERYSTRING_AUTH = False  # URL publique
+AWS_S3_ADDRESSING_STYLE = "path"
+
+# (optionnel pour éviter certaines erreurs locales SSL)
+AWS_S3_VERIFY = False
+
+
+MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 
 # ==================== I18N ====================
 LANGUAGE_CODE = 'fr-fr'

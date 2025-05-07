@@ -1,4 +1,5 @@
 import uuid
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
@@ -121,6 +122,14 @@ class User(AbstractBaseUser, PermissionsMixin):
         _('date d\'inscription'),
         auto_now_add=True,
         help_text=_('Date et heure de création du compte')
+    )
+
+    avatar = models.URLField(
+        _('avatar'),
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text=_('URL de la photo de profil (facultative)')
     )
 
     objects = CustomUserManager()

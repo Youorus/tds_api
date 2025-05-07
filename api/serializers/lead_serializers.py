@@ -92,7 +92,15 @@ class LeadSerializer(serializers.ModelSerializer):
         """Vérifie l'unicité du téléphone et de l'email."""
         email = data.get('email')
         phone = data.get('phone')
+        status = data.get('status')
+        appointment_date = data.get('appointment_date')
         instance = getattr(self, 'instance', None)
+
+        invalid_statuses = [LeadStatus.RDV_PLANIFIER, LeadStatus.RDV_CONFIRME]
+        if status in invalid_statuses and not appointment_date:
+            raise serializers.ValidationError({
+                "appointment_date": _("Une date de rendez-vous est requise pour ce statut.")
+            })
 
         if phone:
             queryset = Lead.objects.filter(phone=phone)
