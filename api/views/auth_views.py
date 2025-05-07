@@ -34,6 +34,7 @@ class LoginView(APIView):
                 "is_superuser": user.is_superuser,
                 "role": user.role,  # Valeur brute (ex: "ADMIN")
                 "role_display": user.get_role_display(),  # Nom humain (ex: "Administrateur")
+                "avatar": user.avatar,
                 "last_login": user.last_login,
                 "date_joined": user.date_joined,
             },

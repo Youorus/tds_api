@@ -5,6 +5,8 @@ from .comment_urls import urlpatterns as comment_urls
 from .email_preview_urls import urlpatterns as email_preview_urls
 from .client_urls import urlpatterns as client_urls
 from .email_form_urls import urlpatterns as email_urls
+from .document_urls import urlpatterns as document_urls
+from .avatar_urls import urlpatterns as avatar_urls_urls
 
 urlpatterns = [
     *auth_urls,
@@ -14,4 +16,6 @@ urlpatterns = [
     *client_urls,
     *email_urls,
     *user_urlpatterns,
+    *document_urls,
+    *avatar_urls_urls,
 ]
