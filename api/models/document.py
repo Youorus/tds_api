@@ -1,34 +1,48 @@
-import os
+# api/models/document.py
 
+import os
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import FileExtensionValidator
+from django.conf import settings
+from storages.backends.s3boto3 import S3Boto3Storage
 
+# 📦 Détermine dynamiquement le backend de stockage à utiliser
+def get_storage_backend():
+    from api.storage_backends import MinioMediaStorage
+    return MinioMediaStorage() if settings.STORAGE_BACKEND == "minio" else S3Boto3Storage()
 
-import os
-
+# 📁 Fonction de path dynamique avec structure propre
 def document_upload_path(instance, filename):
     """
-    Stocke les fichiers sous :
-    leads/documents/{LASTNAME_FIRSTNAME}/{CATEGORY}/{original_filename}
+    Chemin de sauvegarde :
+    JEAN_DUPONT/CNI/NOM_FICHIER.pdf
     """
     lead = getattr(instance, 'lead', None)
-    if not lead:
-        # fallback : au cas où instance.lead n’est pas chargé (ex: instance.lead_id seulement)
-        return f"leads/documents/lead_{instance.lead_id}/{filename}"
+    category = (instance.category or "AUTRES").strip().upper()
 
-    category = (instance.category or "AUTRE").strip().upper()
+    def slugify(value):
+        return str(value).strip().replace(" ", "_").upper()
 
-    last_name = getattr(lead, "last_name", "UNKNOWN").strip().replace(" ", "_").upper()
-    first_name = getattr(lead, "first_name", "UNKNOWN").strip().replace(" ", "_").upper()
+    if lead:
+        last_name = slugify(getattr(lead, "last_name", "UNKNOWN"))
+        first_name = slugify(getattr(lead, "first_name", "UNKNOWN"))
+        base_filename, extension = os.path.splitext(filename)
+        safe_filename = slugify(base_filename)
 
-    base_filename, file_extension = os.path.splitext(filename)
-    safe_filename = base_filename.strip().replace(" ", "_")
+        return f"{first_name}_{last_name}/{category}/{safe_filename}{extension}"
 
-    return f"{first_name}_{last_name}/{category}/{safe_filename}{file_extension}"
+    # Fallback si lead n’est pas chargé
+    return f"lead_{instance.lead_id}/{category}/{filename}"
 
 class Document(models.Model):
+    """
+    Document rattaché à un lead — fichier uploadé (PDF/JPG/PNG).
+    Stockage S3/MinIO configuré dynamiquement.
+    """
+
     class DocumentCategory(models.TextChoices):
+        # 📂 Catégories documentaires standardisées
         CNI = "CNI", _("Carte d'identité")
         PASSEPORT = "PASSEPORT", _("Passeport")
         ACTE_NAISSANCE = "ACTE_NAISSANCE", _("Acte de naissance")
@@ -56,19 +70,28 @@ class Document(models.Model):
         "Lead",
         on_delete=models.CASCADE,
         related_name="documents",
+        verbose_name="Lead associé"
     )
 
     category = models.CharField(
         max_length=50,
         choices=DocumentCategory.choices,
+        verbose_name="Catégorie"
     )
 
     file = models.FileField(
         upload_to=document_upload_path,
+        storage=get_storage_backend(),  # ✅ dynamique MinIO / S3
         validators=[FileExtensionValidator(allowed_extensions=["pdf", "jpg", "jpeg", "png"])],
+        verbose_name="Fichier"
     )
 
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Date d'envoi")
+
+    class Meta:
+        verbose_name = "Document"
+        verbose_name_plural = "Documents"
+        ordering = ["-uploaded_at"]
 
     def __str__(self):
-        return f"{self.lead.first_name} {self.lead.last_name} - {self.get_category_display()}"
+        return f"{self.lead.first_name} {self.lead.last_name} – {self.get_category_display()}"

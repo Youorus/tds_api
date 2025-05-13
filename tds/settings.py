@@ -1,40 +1,28 @@
-from datetime import timedelta
 from pathlib import Path
+from datetime import timedelta
 import os
 
-from celery.schedules import crontab
 from dotenv import load_dotenv
+from celery.schedules import crontab
 from corsheaders.defaults import default_headers
 
-# Charger les variables d'environnement depuis .env
+# Charger .env
 load_dotenv()
 
+# ==================== BASE DIR ====================
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ==================== CONFIGURATION EMAIL ====================
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
-EMAIL_HOST = os.getenv("EMAIL_HOST")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
-
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes")
-EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in ("true", "1", "yes")
-
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
-SERVER_EMAIL = os.getenv("SERVER_EMAIL")
-
-# ==================== CONFIGURATION DE BASE ====================
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default-key')
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = ['*']  # à restreindre en prod !
+# ==================== DJANGO CORE ====================
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default')
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
+ALLOWED_HOSTS = ['*']
 
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
 
-# ==================== APPS DJANGO ====================
+# ==================== INSTALLED APPS ====================
 INSTALLED_APPS = [
     'corsheaders',
-    "storages",
+    'storages',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -53,7 +41,7 @@ INSTALLED_APPS = [
 
 # ==================== MIDDLEWARE ====================
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # doit être placé en premier
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -63,33 +51,11 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-# ==================== CORS CONFIG (version JWT header, sans cookies) ====================
-CORS_ALLOW_ALL_ORIGINS = False  # ⛔ désactive ce mode
-CORS_ALLOW_CREDENTIALS = True  # ✅ si tu utilises withCredentials: true dans axios
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # ton frontend local
-    "http://192.168.1.159:3000",  # si tu accèdes depuis un autre appareil sur le réseau
-]
-
-CORS_ALLOW_METHODS = [
-    'DELETE',
-    'GET',
-    'OPTIONS',
-    'PATCH',
-    'POST',
-    'PUT',
-]
-
-CORS_ALLOW_HEADERS = list(default_headers) + [
-    'authorization',
-    'content-type',
-]
-
-# ==================== STATICS / TEMPLATES ====================
-STATIC_URL = 'static/'
-
+# ==================== URL & WSGI ====================
 ROOT_URLCONF = 'tds.urls'
+WSGI_APPLICATION = 'tds.wsgi.application'
+
+# ==================== TEMPLATES ====================
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -106,8 +72,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'tds.wsgi.application'
-
 # ==================== DATABASE ====================
 DATABASES = {
     'default': {
@@ -119,6 +83,16 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
+
+# ==================== AUTH ====================
+AUTH_USER_MODEL = 'api.User'
+
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
 
 # ==================== REST FRAMEWORK ====================
 REST_FRAMEWORK = {
@@ -132,7 +106,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
-# ==================== SIMPLE JWT ====================
 SIMPLE_JWT = {
     'AUTH_COOKIE': None,
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
@@ -140,6 +113,26 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+# ==================== CORS ====================
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://192.168.1.159:3000",
+]
+CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
+CORS_ALLOW_HEADERS = list(default_headers) + ['authorization', 'content-type']
+
+# ==================== STATIC / MEDIA ====================
+STATIC_URL = 'static/'
+
+# ==================== INTERNATIONALIZATION ====================
+LANGUAGE_CODE = 'fr-fr'
+TIME_ZONE = "UTC"
+USE_I18N = True
+USE_TZ = True
+
+# ==================== CELERY ====================
 CELERY_BEAT_SCHEDULE = {
     'send-rdv-reminders-every-morning': {
         'task': 'api.tasks.send_rdv_reminders',
@@ -147,42 +140,46 @@ CELERY_BEAT_SCHEDULE = {
     },
     'maj-leads-absents-auto-every-30min': {
         'task': 'api.tasks.maj_leads_absents_auto',
-        'schedule': crontab(minute='*/30'),  # toutes les 30min
+        'schedule': crontab(minute='*/30'),
     },
 }
 
-# ==================== AUTH ====================
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
+# ==================== EMAIL ====================
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "yes")
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in ("true", "1", "yes")
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
-AUTH_USER_MODEL = 'api.User'
+# ==================== STORAGE (MinIO / AWS S3) ====================
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "minio")
 
-
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-AWS_ACCESS_KEY_ID = "minioadmin"
-AWS_SECRET_ACCESS_KEY = "minioadmin"
-AWS_STORAGE_BUCKET_NAME = "lead-documents"
-AWS_S3_ENDPOINT_URL = "http://localhost:9000"
-AWS_S3_REGION_NAME = "us-east-1"
-AWS_QUERYSTRING_AUTH = False  # URL publique
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
 AWS_S3_ADDRESSING_STYLE = "path"
+AWS_QUERYSTRING_AUTH = False
 
-# (optionnel pour éviter certaines erreurs locales SSL)
-AWS_S3_VERIFY = False
+if STORAGE_BACKEND == "minio":
+    AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://localhost:9000")
+    AWS_S3_VERIFY = False
+    DEFAULT_FILE_STORAGE = 'api.storage_backends.MinioMediaStorage'
+elif STORAGE_BACKEND == "aws":
+    AWS_S3_ENDPOINT_URL = None
+    AWS_S3_VERIFY = True
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-
-MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
-
-# ==================== I18N ====================
-LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
+MEDIA_URL = (
+    f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/"
+    if STORAGE_BACKEND == "aws"
+    else f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+)
 
 # ==================== AUTRES ====================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
