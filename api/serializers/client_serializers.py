@@ -6,7 +6,7 @@ from api.models import Client
 class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
-        exclude = ["id", "lead"]
+        exclude = ["lead"]
 
     # --- Champs individuels ---
 
@@ -60,22 +60,30 @@ class ClientSerializer(serializers.ModelSerializer):
     def validate(self, data):
         errors = {}
 
-        if data.get('a_un_visa') and not data.get('type_visa'):
-            errors['type_visa'] = "Veuillez sélectionner un type de visa"
+        # on vérifie si la requête est partielle
+        is_partial = self.partial
 
-        if data.get('situation_pro') and not data.get('domaine_activite'):
-            errors['domaine_activite'] = "Veuillez indiquer votre domaine d’activité"
-
-        if not data.get('types_demande'):
+        # Ne pas forcer la validation si le champ n’est pas dans les données PATCHées
+        if (not is_partial or 'types_demande' in data) and not data.get('types_demande'):
             errors['types_demande'] = "Veuillez sélectionner au moins un type de demande"
 
-        if data.get('nombre_enfants') is not None and data['nombre_enfants'] < 0:
+        if (not is_partial or 'type_visa' in data) and data.get('a_un_visa') and not data.get('type_visa'):
+            errors['type_visa'] = "Veuillez sélectionner un type de visa"
+
+        if (not is_partial or 'domaine_activite' in data) and data.get('situation_pro') and not data.get(
+                'domaine_activite'):
+            errors['domaine_activite'] = "Veuillez indiquer votre domaine d’activité"
+
+        if (not is_partial or 'nombre_enfants' in data) and data.get('nombre_enfants') is not None and data[
+            'nombre_enfants'] < 0:
             errors['nombre_enfants'] = "Veuillez saisir un nombre valide"
 
-        if data.get('nombre_enfants_francais') is not None and data['nombre_enfants_francais'] < 0:
+        if (not is_partial or 'nombre_enfants_francais' in data) and data.get('nombre_enfants_francais') is not None and \
+                data['nombre_enfants_francais'] < 0:
             errors['nombre_enfants_francais'] = "Veuillez saisir un nombre valide"
 
-        if data.get('nombre_fiches_paie') is not None and data['nombre_fiches_paie'] < 0:
+        if (not is_partial or 'nombre_fiches_paie' in data) and data.get('nombre_fiches_paie') is not None and data[
+            'nombre_fiches_paie'] < 0:
             errors['nombre_fiches_paie'] = "Veuillez saisir un nombre valide"
 
         if errors:

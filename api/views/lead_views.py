@@ -21,13 +21,6 @@ class LeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Lead.objects.all()
 
-        # 🔐 Restriction d'accès en fonction du rôle
-        if not (user.is_superuser or user.role in [User.Roles.ADMIN, User.Roles.ACCUEIL]):
-            if user.role == User.Roles.CONSEILLER:
-                queryset = queryset.filter(Q(assigned_to=user) | Q(assigned_to__isnull=True))
-            else:
-                queryset = queryset.filter(assigned_to=user)
-
         # ✅ Filtrage par statut
         status_param = self.request.query_params.get("status")
         if status_param and status_param.upper() != "TOUS":
@@ -49,6 +42,17 @@ class LeadViewSet(viewsets.ModelViewSet):
                 Q(phone__icontains=search) |
                 Q(email__icontains=search)
             )
+
+        # 🔐 Restriction d'accès selon rôle
+        if not (user.is_superuser or user.role in [User.Roles.ADMIN, User.Roles.ACCUEIL]):
+            if user.role == User.Roles.CONSEILLER:
+                # Conseiller : ses leads + leads non assignés
+                queryset = queryset.filter(
+                    Q(assigned_to__isnull=True) | Q(assigned_to=user)
+                )
+            else:
+                # Autre (ex : juriste, support) → seulement les leads qui lui sont assignés
+                queryset = queryset.filter(assigned_to=user)
 
         return queryset.order_by("-created_at")
 

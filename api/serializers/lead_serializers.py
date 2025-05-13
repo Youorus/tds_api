@@ -12,7 +12,7 @@ from api.utils.utils import get_formatted_appointment
 class AssignedUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ("id", "first_name", "last_name", "email")  # Ajoute 'avatar_url' si tu veux
+        fields = ("id", "first_name", "last_name", "email", "avatar")  # Ajoute 'avatar_url' si tu veux
 
 class LeadSerializer(serializers.ModelSerializer):
     appointment_date = serializers.CharField(required=False, allow_null=True)
@@ -27,7 +27,7 @@ class LeadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'email',
             'phone', 'appointment_date',
-            'status', 'assigned_to', 'assigned_to_id', 'created_at', 'form_data'
+            'status', 'assigned_to', 'assigned_to_id', 'created_at', 'form_data', 'statut_dossier'
         ]
         extra_kwargs = {
             'first_name': {'allow_blank': False},

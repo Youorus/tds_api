@@ -1,6 +1,6 @@
 from .user import User, CustomUserManager
 from .client import Client
-from .lead import Lead, LeadStatus
+from .lead import Lead, LeadStatus, StatutDossier
 from .comment import Comment
 from .document import Document
 
