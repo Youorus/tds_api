@@ -13,7 +13,7 @@ django.setup()
 from api.models import (
     Comment, Client, LeadStatus, Lead, User,
     Civilite, VisaType, TypeDemande,
-    SituationFamiliale, SituationProfessionnelle, StatutDossier
+    SituationFamiliale, SituationProfessionnelle, StatutDossier, SourceInformation
 )
 
 fake = Faker('fr_FR')
@@ -109,10 +109,13 @@ for lead in leads:
     demande_formulee = random.choice([True, False])
     nb_enfants = random.randint(0, 4)
     nb_enfants_fr = random.randint(0, nb_enfants)
+    source = random.sample([s[0] for s in SourceInformation.choices], k=random.randint(1, 3))
+
 
     clients.append(Client(
         lead=lead,
         civilite=random.choice([c[0] for c in Civilite.choices]),
+        source=source,
         date_naissance=fake.date_of_birth(minimum_age=18, maximum_age=65),
         lieu_naissance=fake.city(),
         pays=fake.country(),

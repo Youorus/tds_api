@@ -73,6 +73,13 @@ class SituationProfessionnelle(models.TextChoices):
 class Client(models.Model):
     lead = models.OneToOneField('Lead', on_delete=models.CASCADE, related_name='form_data')
 
+    source = ArrayField(
+        models.CharField(max_length=30, choices=SourceInformation.choices),
+        verbose_name=_('source'),
+        default=list,
+        blank=True
+    )
+
     civilite = models.CharField(_('civilité'), max_length=15, choices=Civilite.choices, blank=True)
 
     date_naissance = models.DateField(_('date de naissance'), blank=True, null=True)
