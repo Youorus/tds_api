@@ -59,13 +59,12 @@ class ClientSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         errors = {}
-
-        # on vérifie si la requête est partielle
         is_partial = self.partial
+        skip_type_demande_check = self.context.get("skip_type_demande_validation", False)
 
-        # Ne pas forcer la validation si le champ n’est pas dans les données PATCHées
-        if (not is_partial or 'types_demande' in data) and not data.get('types_demande'):
-            errors['types_demande'] = "Veuillez sélectionner au moins un type de demande"
+        if not skip_type_demande_check:
+            if (not is_partial or 'types_demande' in data) and not data.get('types_demande'):
+                errors['types_demande'] = "Veuillez sélectionner au moins un type de demande"
 
         if (not is_partial or 'type_visa' in data) and data.get('a_un_visa') and not data.get('type_visa'):
             errors['type_visa'] = "Veuillez sélectionner un type de visa"
