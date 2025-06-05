@@ -1,4 +1,7 @@
+from urllib.parse import urlparse
+
 from babel.dates import format_datetime
+from django.core.files.storage import default_storage
 from django.utils import timezone
 
 def get_formatted_appointment(dt):

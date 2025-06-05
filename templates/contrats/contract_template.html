@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contrat de Prestation de Services - TDS France</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 20mm;
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        font-size: 11pt;
+        color: #999;
+      }
+    }
+    .parties {
+      background-color: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 16px;
+      margin-bottom: 25px;
+    }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
+      font-size: 13pt;
+      color: #222;
+      line-height: 1.65;
+      margin: 0;
+      padding: 0;
+      counter-reset: section-counter;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 0;
+    }
+
+.header {
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 30px;
+  padding-bottom: 10px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header img {
+  height: 100px;
+  display: block;
+  margin: 0 auto;
+  flex-grow: 1;
+}
+
+.header-title {
+  font-size: 12pt;
+  color: #444;
+  white-space: nowrap;
+}
+
+    h1 {
+      font-size: 22pt;
+      text-align: center;
+      font-weight: 700;
+      color: #111;
+      margin-bottom: 30px;
+      letter-spacing: -0.3px;
+    }
+
+    h2 {
+      counter-increment: section-counter;
+      position: relative;
+      padding-left: 34px;
+      font-size: 15pt;
+      color: #222;
+      margin-top: 30px;
+      margin-bottom: 12px;
+      font-weight: 700;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    h2::before {
+      content: counter(section-counter) ". ";
+      position: absolute;
+      left: 0;
+      top: 0;
+      font-weight: 700;
+      color: #2563eb;
+    }
+
+    p {
+      margin: 12px 0;
+      text-align: justify;
+    }
+
+    ul {
+      padding-left: 24px;
+      margin: 12px 0;
+    }
+
+    li {
+      margin-bottom: 8px;
+    }
+
+    .highlight {
+      font-weight: 600;
+      color: #000;
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 11pt;
+      color: #999;
+      position: relative;
+    }
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      margin: 12px 0;
+    }
+
+    .checkmark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background-color: #2563eb;
+      color: #fff;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 50%;
+      margin-right: 12px;
+      border: 2px solid #1d4ed8;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 40px;
+    }
+
+    td {
+      font-size: 10.5pt;
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      width: 50%;
+    }
+
+    @media print {
+      body, html {
+        margin: 0;
+        padding: 0;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .container {
+        padding: 0;
+      }
+
+      h2 {
+        margin-top: 22px;
+        margin-bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+  <div class="header-content">
+    <img src="https://i.imgur.com/iSzPCvI.jpeg" alt="Logo TDS France" />
+    <div class="header-title">
+      Contrat signé le : <strong>{{ date }}</strong>
+    </div>
+  </div>
+</div>
+
+    <h1>Contrat de Prestation de Services</h1>
+
+    <div class="parties">
+      <p><span class="highlight">ENTRE :</span><br/>
+        TDS FRANCE, appelée dans ledit contrat « La Société », Société par Actions Simplifiées.</p>
+      <p>Dont le siège social est sis 11, rue de l'Arrivée – 75015 PARIS.</p>
+      <p>SIREN 928 184 043 00026.</p>
+      <p>Représentée par son Président.</p>
+      <p><strong>D'une part,</strong></p><br/>
+      <p><span class="highlight">ET :</span><br/>
+        Nom : <strong>{{ first_name }}</strong> &nbsp;&nbsp; Prénom : <strong>{{ last_name }}</strong></p>
+      <p>Téléphone : <strong>{{ phone }}</strong></p>
+      <p>Email : <strong>{{ email }}</strong></p>
+      <p>Appelé dans ledit contrat « Le Client ».</p>
+      <p><strong>D'autre part.</strong></p>
+    </div>
+
+    <div class="section">
+      <h2>Objet du Contrat et modalités de la prestation</h2>
+      <p>La Société TDS France s'engage à fournir un service d’assistance dans la constitution de dossiers administratifs et à faciliter la mise en relation avec des avocats partenaires pour les besoins suivants :</p>
+
+      <div class="service-item">
+        <span class="checkmark">✓</span>
+        <span class="highlight"><strong>{{ service }}</strong></span>
+      </div>
+
+      <p><strong>Modalités de la prestation :</strong></p>
+      <ul>
+        <li><strong>Constitution de dossiers</strong> : accompagnement professionnel pour les démarches dématérialisées liées aux titres de séjour, naturalisation, regroupement familial ou demandes de visa.</li>
+        <li><strong>Mise en relation avec des avocats</strong> : sélection de partenaires spécialisés pour le traitement juridique.</li>
+        <li><strong>Suivi de dossier</strong> : information régulière du Client sur les évolutions de son dossier.</li>
+        <li><strong>Actualisation du dossier</strong> : mise à jour continue durant la mission.</li>
+      </ul>
+    </div>
+
+  <h2>Rémunération de la Société</h2>
+    <p>Le Client s’engage à régler à la Société la somme totale de : <strong>{{ montant }} €</strong>.</p>
+    <p>Il convient de préciser que le Client devra régler ses honoraires à l’avocat qui aura la charge de son dossier.</p>
+    <p>Le montant dû à la Société pourra être réglé en 4 paiements maximum.</p>
+
+    <h2>Obligations de la Société</h2>
+    <p>La Société s’engage à :</p>
+    <ul>
+      <li>Fournir des services conformes aux normes professionnelles ;</li>
+      <li>Fournir un accompagnement personnalisé au Client ;</li>
+      <li>Assurer la confidentialité des informations du Client ;</li>
+      <li>Conserver les documents remis par le Client pour effectuer sa mission.</li>
+    </ul>
+    <p>La Société s’engage à faire tout ce qui est en son pouvoir pour que le contrat soit exécuté. Ladite Société n’est donc tenue que par une obligation de moyen.</p>
+
+    <h2>Obligations du Client</h2>
+    <ul>
+      <li>Fournir des informations précises et complètes nécessaires à la prestation demandée ;</li>
+      <li>Transmettre les documents nécessaires à la mission confiée à la Société ;</li>
+      <li>Respecter les délais de paiement.</li>
+    </ul>
+
+    <h2>Durée du Contrat</h2>
+    <p>Le présent contrat prend effet à la date de signature et demeure en vigueur jusqu’à l’achèvement de la mission.</p>
+
+    <h2>Résiliation</h2>
+    <p>Chacune des parties pourra résilier ledit contrat, de plein droit, à tout moment et sans préavis, au cas où l’autre des parties manquerait gravement à ses obligations contractuelles.</p>
+    <p>Cette résiliation devra être précédée d’un courrier envoyé par lettre recommandée et resté sans effet durant 30 jours calendaires.</p>
+
+    <h2>Confidentialité</h2>
+    <p>Les deux parties s’engagent à maintenir la confidentialité des informations échangées dans le cadre dudit contrat.</p>
+    <p>La Société garantit la protection des données personnelles conformément à la réglementation en vigueur.</p>
+
+    <h2>Lois et réglementation régissant cet accord</h2>
+    <ul>
+      <li>La validité, l’interprétation et l’exécution de ce contrat devront se faire conformément à la législation et la juridiction française ;</li>
+      <li>Les titres ou intitulés de clause ne doivent pas se substituer à leur contenu ;</li>
+      <li>Si une clause venait à être annulée, cela n’affecterait pas la validité des autres clauses.</li>
+    </ul>
+
+    <h2>Données à caractère personnel</h2>
+    <p>Les données personnelles sont traitées par la Société conformément au RGPD (Règlement UE 2016/679) et à la loi n°78-17 du 6 janvier 1978.</p>
+    <p>Le Client bénéficie des droits d’accès, rectification, opposition, effacement et limitation, en contactant :</p>
+    <ul>
+      <li>Par email : contact@titresdesejour.fr</li>
+      <li>Par courrier : TDS France, 11 rue de l’Arrivée, 75015 Paris</li>
+    </ul>
+
+    <h2>Conservation des documents et des données</h2>
+    <p>Les documents sont conservés pendant :</p>
+    <ul>
+      <li>5 ans pour les données de mission, selon l’article 5.1 RGPD ;</li>
+      <li>5 ans pour les documents contractuels (article 2224 Code civil) ;</li>
+      <li>10 ans pour les documents comptables (article L123-22 Code de commerce).</li>
+    </ul>
+
+    <h2>Absence de remboursement</h2>
+    <p>La Société est tenue à une obligation de moyens. Aucun remboursement ne pourra être exigé en cas d’insatisfaction liée à l’issue administrative ou juridique de la procédure.</p>
+
+    <h2>Geste commercial</h2>
+    <p>En cas de manquement avéré au devoir de conseil, la Société se réserve le droit d’offrir un geste commercial exceptionnel (avoir, remboursement partiel ou prestation supplémentaire), sans reconnaissance de responsabilité.</p>
+
+    <h2>Litiges</h2>
+    <p>Les différends seront résolus à l’amiable. À défaut, les tribunaux français seront seuls compétents.</p>
+
+    <p>En foi de quoi, les parties conviennent de la mise en vigueur du présent contrat à la date indiquée ci-dessus.</p>
+
+
+    <table>
+      <tr>
+        <td>
+          La Société TDS FRANCE<br/>Signature<br/><br/>J.K Président
+        </td>
+        <td>
+          Le Client<br/>Signature
+        </td>
+      </tr>
+    </table>
+
+    <div class="footer">
+      Document généré électroniquement – TDS France
+    </div>
+  </div>
+</body>
+</html>

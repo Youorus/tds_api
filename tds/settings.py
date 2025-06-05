@@ -17,7 +17,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default')
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
 ALLOWED_HOSTS = ['*']
 
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3001")
 
 # ==================== INSTALLED APPS ====================
 INSTALLED_APPS = [
@@ -73,14 +73,21 @@ TEMPLATES = [
 ]
 
 # ==================== DATABASE ====================
+#DATABASES = {
+#   'default': {
+#       'ENGINE': 'django.db.backends.postgresql',
+#       'NAME': os.getenv('DB_NAME'),
+#       'USER': os.getenv('DB_USER'),
+#       'PASSWORD': os.getenv('DB_PASSWORD'),
+#       'HOST': os.getenv('DB_HOST'),
+#       'PORT': os.getenv('DB_PORT', '5432'),
+#   }
+#}
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME'),
-        'USER': os.getenv('DB_USER'),
-        'PASSWORD': os.getenv('DB_PASSWORD'),
-        'HOST': os.getenv('DB_HOST'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -114,11 +121,11 @@ SIMPLE_JWT = {
 }
 
 # ==================== CORS ====================
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://192.168.1.159:3000",
+    "http://localhost:3001",
+    "http://192.168.1.159:3001",
 ]
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = list(default_headers) + ['authorization', 'content-type']

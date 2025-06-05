@@ -1,24 +1,40 @@
 import os
 import django
 import random
+from random import choice
 from datetime import timedelta
 from django.utils import timezone
 from faker import Faker
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
+from decimal import Decimal
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 django.setup()
 
 from api.models import (
-    Comment, Client, LeadStatus, Lead, User,
-    Civilite, VisaType, TypeDemande,
-    SituationFamiliale, SituationProfessionnelle, StatutDossier, SourceInformation
+    Comment, Client, Lead, LeadStatus, StatutDossier, User,
+    Civilite, VisaType, SituationFamiliale,
+    SituationProfessionnelle, SourceInformation, PaymentReceipt
 )
+from api.models.payment import Payment, PaymentMode, SERVICE_PRICES, ServiceTarifaire
 
-fake = Faker('fr_FR')
+fake = Faker("fr_FR")
 
-# 📞 Génère un numéro de téléphone français valide (mobile uniquement)
+DEMANDES_POSSIBLES = [
+    "TITRE_SEJOUR",
+    "RENOUVELLEMENT",
+    "NATURALISATION",
+    "DEMANDE_VISA",
+    "REGROUPEMENT_FAMILIAL",
+    "SUIVI_NATURALISATION",
+    "DUPLICATA",
+    "SUIVI_DOSSIER",
+    "DCEM",
+    "PRISE_RDV",
+    "AUTRES",
+]
+
 def generate_french_phone_number():
     prefix = random.choice(["06", "07"])
     suffix = ''.join([str(random.randint(0, 9)) for _ in range(8)])
@@ -26,17 +42,20 @@ def generate_french_phone_number():
     phone_obj = phonenumbers.parse(number, "FR")
     return phonenumbers.format_number(phone_obj, PhoneNumberFormat.E164)
 
-# 🧹 Nettoyage
-print("🧹 Suppression des anciennes données...")
+# Nettoyage
+print("\U0001f9f9 Suppression des données existantes...")
 Comment.objects.all().delete()
+PaymentReceipt.objects.all().delete()
+Payment.objects.all().delete()
 Client.objects.all().delete()
 Lead.objects.all().delete()
 User.objects.exclude(email="admin@example.com").delete()
 
-# 👤 Utilisateurs
-print("👤 Création des utilisateurs...")
+# Utilisateurs
+print("\U0001f465 Création des utilisateurs...")
 users_info = [
     ("admin@example.com", "Admin", "User", User.Roles.ADMIN),
+    ("mtakoumba@gmail.com", "Admin", "User", User.Roles.ADMIN),
     ("accueil@example.com", "Accueil", "User", User.Roles.ACCUEIL),
     ("conseiller1@example.com", "Conseiller1", "User", User.Roles.CONSEILLER),
     ("conseiller2@example.com", "Conseiller2", "User", User.Roles.CONSEILLER),
@@ -46,104 +65,133 @@ user_map = {}
 for email, first, last, role in users_info:
     user, _ = User.objects.update_or_create(
         email=email,
-        defaults={
-            "first_name": first,
-            "last_name": last,
-            "role": role,
-            "is_active": True,
-        }
+        defaults={"first_name": first, "last_name": last, "role": role, "is_active": True}
     )
     user.set_password("Password@1")
     user.save()
     user_map[email] = user
-    print(f" ✅ {email} (rôle : {role})")
+    print(f" ✅ {email} ({role})")
 
 conseillers = [u for u in user_map.values() if u.role == User.Roles.CONSEILLER]
 
-# 📊 Statuts disponibles
-lead_statuses = [s[0] for s in LeadStatus.choices]
-statut_dossiers = [s[0] for s in StatutDossier.choices]
-
-# ➕ Leads
-print("📈 Création de 5000 leads...")
+# Leads
+print("📞 Génération de leads...")
 leads = []
-for _ in range(5000):
-    status = random.choice(lead_statuses)
-    rdv = timezone.now() + timedelta(days=random.randint(-10, 30)) if "RDV" in status else None
-    leads.append(Lead(
+for _ in range(1):
+    status = random.choice([s[0] for s in LeadStatus.choices])
+    lead = Lead(
         first_name=fake.first_name(),
         last_name=fake.last_name(),
-        email=fake.email() if random.random() < 0.8 else None,
-        phone=generate_french_phone_number(),  # ✅ numéro FR valide
-        appointment_date=rdv,
+        email=fake.email(),
+        phone=generate_french_phone_number(),
+        appointment_date=timezone.now() + timedelta(days=random.randint(-5, 20)) if "RDV" in status else None,
         status=status,
-        statut_dossier=random.choice(statut_dossiers),
-        created_at=timezone.now() - timedelta(days=random.randint(0, 60)),
+        statut_dossier=random.choice([s[0] for s in StatutDossier.choices]),
         assigned_to=random.choice(conseillers),
-    ))
-Lead.objects.bulk_create(leads)
+    )
+    lead.save()
+    leads.append(lead)
+print(f"✅ {len(leads)} leads créés")
 
-leads = Lead.objects.all()
-print(f" ✅ {leads.count()} leads créés")
-
-# 🗨️ Commentaires
-print("💬 Ajout de commentaires...")
-comments = []
-for lead in leads:
-    for _ in range(random.randint(0, 3)):
-        comments.append(Comment(
-            lead=lead,
-            author=random.choice(conseillers),
-            content=fake.paragraph(nb_sentences=random.randint(1, 3)),
-            created_at=timezone.now() - timedelta(days=random.randint(0, 10)),
-            updated_at=timezone.now(),
-        ))
-Comment.objects.bulk_create(comments)
-print(f" ✅ {len(comments)} commentaires ajoutés")
-
-# 🧾 Données client
-print("📋 Création des données clients...")
+# Clients
+print("🗂 Création des données client...")
 clients = []
 for lead in leads:
-    a_un_visa = random.choice([True, False])
-    demande_formulee = random.choice([True, False])
     nb_enfants = random.randint(0, 4)
-    nb_enfants_fr = random.randint(0, nb_enfants)
-    source = random.sample([s[0] for s in SourceInformation.choices], k=random.randint(1, 3))
-
-
-    clients.append(Client(
+    client = Client(
         lead=lead,
+        source=random.sample([s[0] for s in SourceInformation.choices], k=2),
         civilite=random.choice([c[0] for c in Civilite.choices]),
-        source=source,
-        date_naissance=fake.date_of_birth(minimum_age=18, maximum_age=65),
+        date_naissance=fake.date_of_birth(minimum_age=20, maximum_age=60),
         lieu_naissance=fake.city(),
         pays=fake.country(),
         nationalite=fake.current_country(),
         adresse=fake.street_address(),
         code_postal=fake.postcode(),
         ville=fake.city(),
-        date_entree_france=timezone.now().date() - timedelta(days=random.randint(365, 365 * 20)),
-        a_un_visa=a_un_visa,
-        type_visa=random.choice([v[0] for v in VisaType.choices]) if a_un_visa else "",
+        date_entree_france=timezone.now().date() - timedelta(days=random.randint(400, 4000)),
+        a_un_visa=random.choice([True, False]),
+        type_visa=random.choice([v[0] for v in VisaType.choices]),
         statut_refugie_ou_protection=random.choice([True, False]),
-        types_demande=random.sample([t[0] for t in TypeDemande.choices], random.randint(1, 3)),
-        demande_deja_formulee=demande_formulee,
-        demande_formulee_precise=fake.sentence(nb_words=5) if demande_formulee else "",
+        type_demande=random.choice(DEMANDES_POSSIBLES),
+    demande_deja_formulee=random.choice([True, False]),
+        demande_formulee_precise=fake.sentence() if random.random() < 0.3 else "",
         situation_familiale=random.choice([s[0] for s in SituationFamiliale.choices]),
         a_des_enfants=nb_enfants > 0,
         nombre_enfants=nb_enfants,
-        nombre_enfants_francais=nb_enfants_fr,
+        nombre_enfants_francais=random.randint(0, nb_enfants),
         enfants_scolarises=random.choice([True, False]) if nb_enfants else False,
         naissance_enfants_details=fake.text(100) if nb_enfants else "",
         situation_pro=random.choice([p[0] for p in SituationProfessionnelle.choices]),
         domaine_activite=fake.job(),
-        nombre_fiches_paie=random.randint(0, 6),
-        date_depuis_sans_emploi=(timezone.now().date() - timedelta(days=random.randint(30, 2000))) if random.random() < 0.4 else None,
+        nombre_fiches_paie=random.randint(1, 6),
         a_deja_eu_oqtf=random.choice([True, False]),
-        date_derniere_oqtf=(timezone.now().date() - timedelta(days=random.randint(30, 2000))) if random.random() < 0.3 else None,
-        demarche_en_cours_administration=random.choice([True, False]),
-        remarques=fake.text(200),
-    ))
-Client.objects.bulk_create(clients)
-print(f" ✅ {len(clients)} clients créés")
+        remarques=fake.sentence(),
+    )
+    client.save()
+    clients.append(client)
+print(f"✅ {len(clients)} clients créés")
+
+# Paiements
+print("💳 Création des paiements...")
+for client in clients:
+    try:
+        service = random.choice(list(ServiceTarifaire.values))
+        base_price = SERVICE_PRICES[service]
+        remise = random.choice([0, 10, 20])
+        discount = Decimal(remise) / Decimal(100)
+        real_amount_due = (base_price * (1 - discount)).quantize(Decimal("0.01"))
+
+        total_receipts = random.choice([1, 2, 3])
+        receipt_amount = (real_amount_due / total_receipts).quantize(Decimal("0.01"))
+
+        plan = Payment.objects.create(
+            client=client,
+            created_by=random.choice(conseillers),
+            service=service,
+            amount_due=base_price,
+            discount_percent=Decimal(remise),
+        )
+
+        today = timezone.now().date()
+        total_paid = Decimal("0.00")
+
+        for i in range(total_receipts):
+            remaining = (real_amount_due - total_paid).quantize(Decimal("0.01"))
+            is_last = i == total_receipts - 1
+            actual_amount = remaining if is_last else min(receipt_amount, remaining)
+
+            if actual_amount <= Decimal("0.00"):
+                print(f"⚠️ Paiement ignoré (montant nul ou négatif) pour client {client.id}")
+                break
+
+            mode = random.choice([m[0] for m in PaymentMode.choices])
+            next_due = (today + timedelta(days=30 * (i + 1))) if not is_last else None
+
+            receipt = plan.pay(
+                amount=actual_amount,
+                mode=mode,
+                user=random.choice(conseillers),
+                next_due_date=next_due,
+            )
+
+            print(f"✅ Paiement {i+1}/{total_receipts} pour client {client.id}: {actual_amount} € ({mode})")
+            total_paid += actual_amount
+
+    except Exception as e:
+        print(f"❌ Erreur pour client {client.id}: {e}")
+
+print("✅ Paiements et reçus générés")
+
+# Commentaires
+print("💬 Création de commentaires...")
+comments = []
+for lead in leads:
+    for _ in range(random.randint(0, 2)):
+        comments.append(Comment(
+            lead=lead,
+            author=random.choice(conseillers),
+            content=fake.paragraph(),
+        ))
+Comment.objects.bulk_create(comments)
+print("✅ Commentaires ajoutés")

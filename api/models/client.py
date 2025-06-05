@@ -1,5 +1,5 @@
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models import JSONField
 from django.utils.translation import gettext_lazy as _
 
 
@@ -33,18 +33,6 @@ class VisaType(models.TextChoices):
     AUTRE = 'AUTRE', _('Autre')
 
 
-class TypeDemande(models.TextChoices):
-    TITRE_SEJOUR = 'TITRE_SEJOUR', _('Titre de séjour (1ère demande)')
-    RENOUVELLEMENT = 'RENOUVELLEMENT', _('Renouvellement titre de séjour')
-    NATURALISATION = 'NATURALISATION', _('Naturalisation')
-    DEMANDE_VISA = 'DEMANDE_VISA', _('Demande de visa')
-    REGROUPEMENT_FAMILIAL = 'REGROUPEMENT_FAMILIAL', _('Regroupement familial')
-    CONTESTATION_OQTF = 'CONTESTATION_OQTF', _('Contestation OQTF')
-    SUIVI_DOSSIER = 'SUIVI_DOSSIER', _('Suivi de dossier')
-    PRISE_RDV = 'PRISE_RDV', _('Prise de rendez-vous')
-    AUTRES = 'AUTRES', _('Autres (précisez)')
-
-
 class SituationFamiliale(models.TextChoices):
     CELIBATAIRE = 'CELIBATAIRE', _('Célibataire')
     MARIE = 'MARIE', _('Marié(e)')
@@ -73,11 +61,10 @@ class SituationProfessionnelle(models.TextChoices):
 class Client(models.Model):
     lead = models.OneToOneField('Lead', on_delete=models.CASCADE, related_name='form_data')
 
-    source = ArrayField(
-        models.CharField(max_length=30, choices=SourceInformation.choices),
-        verbose_name=_('source'),
+    source = JSONField(
+        blank=True,
         default=list,
-        blank=True
+        verbose_name="source"
     )
 
     civilite = models.CharField(_('civilité'), max_length=15, choices=Civilite.choices, blank=True)
@@ -96,11 +83,11 @@ class Client(models.Model):
     type_visa = models.CharField(_('type de visa'), null=True, max_length=20, choices=VisaType.choices, blank=True)
     statut_refugie_ou_protection = models.BooleanField(_('statut réfugié ou protection subsidiaire'), null=True, blank=True)
 
-    types_demande = ArrayField(
-        models.CharField(max_length=30, choices=TypeDemande.choices),
-        verbose_name=_('types de demande'),
-        default=list,
-        blank=True
+    type_demande = models.CharField(
+        _("type de demande"),
+        max_length=100,
+        blank=True,
+        default=""
     )
     demande_deja_formulee = models.BooleanField(_('demande déjà formulée ?'), null=True, blank=True)
     demande_formulee_precise = models.CharField(_('si oui, laquelle ?'), max_length=255, blank=True)

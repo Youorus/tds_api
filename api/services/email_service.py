@@ -6,6 +6,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 
+from api.models import User
 from api.utils.utils import get_formatted_appointment
 
 logger = logging.getLogger(__name__)
@@ -116,5 +117,48 @@ class EmailService:
             to_email=lead.email,
             subject="Merci de compléter votre formulaire – TDS France",
             template_name="email/formulaire_link.html",
+            context=context,
+        )
+    def send_lead_assignment_request_to_admin(self, conseiller, lead):
+        """Send assignment request email to all admins"""
+        approve_url = (
+            f"{settings.FRONTEND_BASE_URL}/approve-assignment"
+            f"?lead_id={lead.id}&user_id={conseiller.id}"
+        )
+        context = {
+            "conseiller": conseiller,
+            "lead": lead,
+            "approve_url": approve_url,
+            "year": datetime.now().year,
+        }
+
+        subject = f"Demande d'assignation – {conseiller.first_name} {conseiller.last_name}"
+
+        admin_emails = [
+            admin.email for admin in User.objects.filter(role=User.Roles.ADMIN) if admin.email
+        ]
+
+        for admin_email in admin_emails:
+            self.send_html_email(
+                to_email=admin_email,
+                subject=subject,
+                template_name="email/lead_assignment_request_admin.html",
+                context=context,
+            )
+
+    def send_lead_assignment_confirmation_to_conseiller(self, conseiller, lead):
+        """Send confirmation email to the conseiller"""
+        context = {
+            "conseiller": conseiller,
+            "lead": lead,
+            "year": datetime.now().year,
+        }
+
+        subject = f"Lead assigné – {lead.first_name} {lead.last_name}"
+
+        return self.send_html_email(
+            to_email=conseiller.email,
+            subject=subject,
+            template_name="email/lead_assignment_confirmation_conseiller.html",
             context=context,
         )

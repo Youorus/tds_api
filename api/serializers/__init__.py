@@ -11,6 +11,7 @@ from .lead_serializers import LeadSerializer
 from .comment_serializers import CommentSerializer
 from .document_serializer import DocumentSerializer
 from .user_avatar_serializer import UserAvatarSerializer
+from .payment_serializers import PaymentSerializer, PaymentReceiptSerializer
 
 User = get_user_model()
 
@@ -24,4 +25,6 @@ __all__ = [
     "DocumentSerializer",
     "PasswordChangeSerializer",
     "UserAvatarSerializer",
+    "PaymentSerializer",
+    "PaymentReceiptSerializer",
 ]

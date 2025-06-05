@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from api.models import Client, Lead
+from api.models import Client, Lead, LeadStatus
 from api.serializers import ClientSerializer
 
 
@@ -25,6 +25,10 @@ class ClientViewSet(viewsets.ModelViewSet):
 
         if hasattr(lead, "form_data") or Client.objects.filter(lead=lead).exists():
             raise ValidationError({"lead": "Un formulaire a déjà été enregistré pour ce lead."})
+
+            # Met à jour le statut du dossier par défaut
+        lead.status = LeadStatus.DOSS_EN_COURS
+        lead.save(update_fields=["status"])
 
         serializer.save(lead=lead)
 
