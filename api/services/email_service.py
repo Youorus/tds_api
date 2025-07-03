@@ -62,6 +62,20 @@ class EmailService:
             context=context,
         )
 
+    def send_appointment_planned(self, lead):
+        print(f"[📨 PLANIFICATION] Envoi à : {lead.appointment_date}")
+        context = {
+            "user": lead,
+            "appointment": get_formatted_appointment(lead.appointment_date),
+            "year": datetime.now().year,
+        }
+        return self.send_html_email(
+            to_email=lead.email,
+            subject="Votre rendez-vous chez TDS France a été planifié",
+            template_name="email/appointment_planned.html",
+            context=context,
+        )
+
     def send_appointment_reminder(self, lead):
         print(f"[📨 RAPPEL] Envoi à : {lead.email}")
         context = {
@@ -121,14 +135,10 @@ class EmailService:
         )
     def send_lead_assignment_request_to_admin(self, conseiller, lead):
         """Send assignment request email to all admins"""
-        approve_url = (
-            f"{settings.FRONTEND_BASE_URL}/approve-assignment"
-            f"?lead_id={lead.id}&user_id={conseiller.id}"
-        )
+
         context = {
             "conseiller": conseiller,
             "lead": lead,
-            "approve_url": approve_url,
             "year": datetime.now().year,
         }
 

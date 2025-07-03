@@ -37,6 +37,9 @@ INSTALLED_APPS = [
 
     # App principale
     'api',
+
+    # Ajoute l'app pour background tasks
+    'background_task',
 ]
 
 # ==================== MIDDLEWARE ====================
@@ -139,17 +142,6 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# ==================== CELERY ====================
-CELERY_BEAT_SCHEDULE = {
-    'send-rdv-reminders-every-morning': {
-        'task': 'api.tasks.send_rdv_reminders',
-        'schedule': crontab(hour=9, minute=0),
-    },
-    'maj-leads-absents-auto-every-30min': {
-        'task': 'api.tasks.maj_leads_absents_auto',
-        'schedule': crontab(minute='*/30'),
-    },
-}
 
 # ==================== EMAIL ====================
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")

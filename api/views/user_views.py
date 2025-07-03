@@ -6,7 +6,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api.models import User
-from api.serializers import UserSerializer, PasswordChangeSerializer
+from api.serializers.user_serializers import UserSerializer
+
 
 class IsAdminRole(permissions.BasePermission):
     """

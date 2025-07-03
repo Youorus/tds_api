@@ -1,34 +1,42 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from api.models import Client, Lead, LeadStatus
-from api.serializers import ClientSerializer
-
+from api.models import Client, Lead
+from api.serializers.client_serializers import ClientSerializer
 
 class ClientViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet pour la gestion des clients.
+    - POST /api/clients/ : Création publique (pas d'auth requise)
+    - GET/PUT/PATCH/DELETE : Authentification requise
+    """
+
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
+
+    def get_permissions(self):
+        # Rends la route POST (create) accessible à tous, les autres actions nécessitent l'authentification
+        if self.action == "create":
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
         lead_id = self.request.query_params.get("id")
 
-        # Si pas de lead_id → création manuelle classique
+        # Cas création manuelle (pas de lead lié explicitement)
         if not lead_id:
             return serializer.save()
 
-        # Création à partir d’un lead
+        # Création à partir d’un lead existant
         try:
             lead = Lead.objects.get(pk=lead_id)
         except Lead.DoesNotExist:
             raise ValidationError({"lead": "Lead introuvable avec cet ID."})
 
+        # Vérifie qu'un formulaire n'est pas déjà lié à ce lead
         if hasattr(lead, "form_data") or Client.objects.filter(lead=lead).exists():
             raise ValidationError({"lead": "Un formulaire a déjà été enregistré pour ce lead."})
-
-            # Met à jour le statut du dossier par défaut
-        lead.status = LeadStatus.DOSS_EN_COURS
-        lead.save(update_fields=["status"])
 
         serializer.save(lead=lead)
 

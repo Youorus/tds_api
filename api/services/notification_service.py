@@ -1,15 +1,16 @@
 # services/notification_service.py
 
 from .email_service import EmailService
-from .whatsapp_service import WhatsAppService
 
 class NotificationService:
     def __init__(self):
         self.email_service = EmailService()
-        self.whatsapp_service = WhatsAppService()
 
     def send_appointment_confirmation(self, lead):
         return self.email_service.send_appointment_confirmation(lead)
+
+    def send_appointment_planned(self, lead):
+        return self.email_service.send_appointment_planned(lead)
 
     def send_appointment_reminder(self, lead):
         return self.email_service.send_appointment_reminder(lead)

@@ -5,10 +5,11 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
-
+from django.utils.text import slugify
 from api.models import User
-from api.serializers import UserAvatarSerializer
+from api.serializers.user_avatar_serializer import UserAvatarSerializer
 from api.storage_backends import MinioAvatarStorage
+
 
 class UserAvatarViewSet(viewsets.ModelViewSet):
     serializer_class = UserAvatarSerializer
@@ -29,21 +30,35 @@ class UserAvatarViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Aucun fichier reçu."},
                             status=status.HTTP_400_BAD_REQUEST)
 
-        # 📁 Génère le chemin avatars/<user_id>/<uuid>.ext
-        ext = file.name.split('.')[-1]
-        filename = f"{user.id}/{uuid.uuid4().hex}.{ext}"
-
-        # 📦 Sauvegarde dans avatars/ avec le backend dédié
         storage = MinioAvatarStorage()
+
+        # 1️⃣ Supprimer l'ancien avatar du bucket s'il existe
+        if user.avatar:
+            try:
+                old_path = user.avatar.split(f"/{storage.bucket_name}/")[-1]
+                storage.delete(old_path)
+            except Exception as e:
+                print(f"Erreur suppression ancien avatar: {e}")
+
+        # 2️⃣ Génère le nom de dossier/fichier basé sur le nom de l'utilisateur
+        first = slugify(user.first_name)
+        last = slugify(user.last_name)
+        ext = file.name.split('.')[-1]
+        filename = f"{first}_{last}/{uuid.uuid4().hex}.{ext}"
+
+        # 3️⃣ Sauvegarde le nouveau fichier dans le bucket avatars
         saved_path = storage.save(filename, file)
 
-        # 🌐 Construit l’URL publique propre
+        # 4️⃣ Construit l’URL publique propre
         if settings.STORAGE_BACKEND == "aws":
             avatar_url = f"https://{storage.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{storage.location}/{saved_path}"
         else:
-            avatar_url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{storage.location}/{saved_path}"
+            # Si storage.location == '' (racine), on évite le double slash
+            location = f"{storage.location}/" if storage.location else ""
+            avatar_url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{location}{saved_path}"
+            print(avatar_url)
 
-        # 💾 Stocke l’URL dans user.avatar
+        # 5️⃣ Mise à jour du modèle utilisateur
         user.avatar = avatar_url
         user.save()
 
@@ -54,8 +69,9 @@ class UserAvatarViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         if user.avatar:
             try:
-                path = user.avatar.split(f"/{settings.AWS_STORAGE_BUCKET_NAME}/")[-1]
-                MinioAvatarStorage().delete(path)
+                storage = MinioAvatarStorage()
+                path = user.avatar.split(f"/{storage.bucket_name}/")[-1]
+                storage.delete(path)
             except Exception:
                 pass
             user.avatar = None

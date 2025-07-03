@@ -8,5 +8,4 @@ router.register(r'documents', DocumentViewSet, basename='document')
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('documents/download/', DocumentDownloadView.as_view(), name='document-download'),
 ]

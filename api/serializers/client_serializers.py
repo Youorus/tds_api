@@ -1,9 +1,20 @@
 from rest_framework import serializers
 from django.utils import timezone
-from api.models import Client
+from api.models import Client, Service
+from api.serializers.service_serializer import ServiceSerializer
 
 
 class ClientSerializer(serializers.ModelSerializer):
+    # Champ write-only pour la MAJ (id)
+    type_demande_id = serializers.PrimaryKeyRelatedField(
+        queryset=Service.objects.all(),
+        source="type_demande",
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    # Champ read-only pour l'affichage (objet détaillé)
+    type_demande = ServiceSerializer(read_only=True)
     class Meta:
         model = Client
         exclude = ["lead"]
@@ -54,6 +65,12 @@ class ClientSerializer(serializers.ModelSerializer):
         if value and len(value) > 255:
             raise serializers.ValidationError("Maximum 255 caractères autorisés.")
         return value
+
+    def validate_services(self, value):
+        if not value:
+            raise serializers.ValidationError("Veuillez sélectionner au moins un service.")
+        return value
+
 
     def validate_type_demande(self, value):
         if not value:

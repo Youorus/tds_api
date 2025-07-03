@@ -14,10 +14,9 @@ class MinioMediaStorage(S3Boto3Storage):
 class MinioAvatarStorage(S3Boto3Storage):
     """
     Backend dédié pour les avatars utilisateurs.
-    Chemin : avatars/<user_id>/<uuid>.jpg
     """
-    bucket_name = 'lead-documents'
-    location = 'avatars'
+    bucket_name = 'avatars'
+    location = ''
     file_overwrite = False
 
 
@@ -26,9 +25,9 @@ class MinioReceiptStorage(S3Boto3Storage):
     Backend dédié pour les reçus de paiement PDF.
     Chemin : receipts/<receipt_id>_<client_name>.pdf
     """
-    bucket_name = 'lead-documents'
-    location = 'receipts'
-    file_overwrite = True  # permet d’écraser un reçu si le paiement est mis à jour
+    bucket_name = 'recus'
+    location = ''
+    file_overwrite = False
 
 
 class MinioContractStorage(S3Boto3Storage):
@@ -36,6 +35,16 @@ class MinioContractStorage(S3Boto3Storage):
     Backend dédié pour les reçus de paiement PDF.
     Chemin : receipts/<receipt_id>_<client_name>.pdf
     """
-    bucket_name = 'lead-documents'
-    location = 'contracts'
-    file_overwrite = True  # permet d’écraser un reçu si le paiement est mis à jour
+    bucket_name = 'contracts'
+    location = ''
+    file_overwrite = False
+
+
+class MinioDocumentStorage(S3Boto3Storage):
+    """
+    Backend dédié pour les reçus de paiement PDF.
+    Chemin : receipts/<receipt_id>_<client_name>.pdf
+    """
+    bucket_name = 'documents-clients'
+    location = ''
+    file_overwrite = False

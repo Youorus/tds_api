@@ -7,7 +7,10 @@ from .user_views import UserViewSet
 from .document_view import DocumentViewSet
 from .document_download_view import DocumentDownloadView
 from .user_avatar_views import UserAvatarSerializer
-from .payment_views import PaymentViewSet
+from .contract_views import ContractViewSet
+from .service_views import ServiceViewSet
+from .Lead_status_view import LeadStatusViewSet
+from .status_dossier_view import StatusDossierViewSet
 
 __all__ = [
     "LoginView",
@@ -19,6 +22,9 @@ __all__ = [
     "DocumentViewSet",
     "DocumentDownloadView",
     "UserAvatarSerializer",
-    "PaymentViewSet",
+    "ContractViewSet",
+    "ServiceViewSet",
+    "LeadStatusViewSet",
+    "StatusDossierViewSet",
 ]
 

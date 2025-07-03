@@ -68,6 +68,13 @@ class Client(models.Model):
     )
 
     civilite = models.CharField(_('civilité'), max_length=15, choices=Civilite.choices, blank=True)
+    custom_demande = models.CharField(
+        _('autre demande (à préciser)'),
+        max_length=255,
+        blank=True,
+        default="",
+        help_text=_('A remplir si le service choisi est "Autre"')
+    )
 
     date_naissance = models.DateField(_('date de naissance'), blank=True, null=True)
     lieu_naissance = models.CharField(_('lieu de naissance'), max_length=255, blank=True)
@@ -83,11 +90,13 @@ class Client(models.Model):
     type_visa = models.CharField(_('type de visa'), null=True, max_length=20, choices=VisaType.choices, blank=True)
     statut_refugie_ou_protection = models.BooleanField(_('statut réfugié ou protection subsidiaire'), null=True, blank=True)
 
-    type_demande = models.CharField(
-        _("type de demande"),
-        max_length=100,
+    type_demande = models.ForeignKey(
+        'Service',
+        on_delete=models.PROTECT,
+        verbose_name=_("type de demande"),
         blank=True,
-        default=""
+        null=True,
+        help_text=_('Type de demande/service associé à ce client')
     )
     demande_deja_formulee = models.BooleanField(_('demande déjà formulée ?'), null=True, blank=True)
     demande_formulee_precise = models.CharField(_('si oui, laquelle ?'), max_length=255, blank=True)
