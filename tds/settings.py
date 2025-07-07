@@ -19,6 +19,7 @@ ALLOWED_HOSTS = ['*']
 
 FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3001")
 
+
 # ==================== INSTALLED APPS ====================
 INSTALLED_APPS = [
     'corsheaders',
@@ -29,6 +30,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_extensions',
+    "channels",
     'sslserver',
 
     # API
@@ -36,11 +38,36 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
 
     # App principale
-    'api',
+    # Modules métiers (réels, **basés sur ta capture**)
+    "api.custom_auth",
+    "api.clients",
+    "api.comments",
+    "api.contracts",
+    "api.documents",
+    "api.lead_status",
+    "api.leads",
+    "api.payments",
+    "api.profile",
+    "api.services",
+    "api.statut_dossier",
+    "api.users",
+    "api.websocket",
 
     # Ajoute l'app pour background tasks
     'background_task',
 ]
+
+ASGI_APPLICATION = "tds.asgi.application"
+
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
+}
 
 # ==================== MIDDLEWARE ====================
 MIDDLEWARE = [
@@ -95,7 +122,7 @@ DATABASES = {
 }
 
 # ==================== AUTH ====================
-AUTH_USER_MODEL = 'api.User'
+AUTH_USER_MODEL = 'users.user'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},

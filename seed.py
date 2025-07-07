@@ -1,4 +1,7 @@
 import os
+
+from api.users.roles import UserRoles
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 import django
 django.setup()
@@ -11,12 +14,19 @@ from django.utils import timezone
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
-from api.models import (
-    Comment, Contract, Client, Lead, User,
-    LeadStatus, StatutDossier, SourceInformation, Civilite,
-    VisaType, SituationFamiliale, SituationProfessionnelle, Service, Document
-)
-from api.models.PaymentReceipt import PaymentMode, PaymentReceipt
+# Import depuis chaque module
+from api.comments.models import Comment
+from api.contracts.models import Contract
+from api.clients.models import Client
+from api.leads.models import Lead
+from api.users.models import User
+from api.lead_status.models import LeadStatus
+from api.statut_dossier.models import StatutDossier
+from api.clients.enums import SourceInformation, Civilite, VisaType, SituationFamiliale, SituationProfessionnelle
+from api.services.models import Service
+from api.documents.models import Document
+from api.payments.enums import PaymentMode
+from api.payments.models import PaymentReceipt
 
 fake = Faker("fr_FR")
 
@@ -40,7 +50,7 @@ Service.objects.all().delete()
 LeadStatus.objects.all().delete()
 StatutDossier.objects.all().delete()
 
-# --- SERVICES et TYPES DE DEMANDE ---
+# --- SERVICES ---
 SERVICES_SEED = [
     {"code": "TITRE_SEJOUR", "label": "Titre de séjour", "price": Decimal("1590.00")},
     {"code": "REGROUPEMENT_FAMILIAL", "label": "Regroupement familial", "price": Decimal("1590.00")},
@@ -59,7 +69,7 @@ for s in SERVICES_SEED:
     service, _ = Service.objects.get_or_create(code=s["code"], defaults=s)
     service_map[s["code"]] = service
 
-# --- STATUTS DYNAMIQUES ---
+# --- STATUTS LEAD ---
 LEAD_STATUSES = [
     {"code": "RDV_CONFIRME", "label": "Rendez-vous confirmé", "color": "#60a5fa"},
     {"code": "RDV_PLANIFIE", "label": "Rendez-vous planifié", "color": "#818cf8"},
@@ -71,6 +81,7 @@ for s in LEAD_STATUSES:
     status, _ = LeadStatus.objects.get_or_create(code=s["code"], defaults=s)
     lead_status_map[s["code"]] = status
 
+# --- STATUTS DOSSIER ---
 DOSSIER_STATUSES = [
     {"code": "EN_ATTENTE", "label": "En attente", "color": "#cccccc"},
     {"code": "INCOMPLET", "label": "Incomplet", "color": "#fbbf24"},
@@ -83,14 +94,15 @@ for s in DOSSIER_STATUSES:
     status, _ = StatutDossier.objects.get_or_create(code=s["code"], defaults=s)
     dossier_status_map[s["code"]] = status
 
-# --- Utilisateurs
+# --- Utilisateurs ---
 print("👤 Création des utilisateurs...")
+
 users_info = [
-    ("admin@example.com", "Admin", "User", User.Roles.ADMIN),
-    ("mtakoumba@gmail.com", "Admin", "User", User.Roles.ADMIN),
-    ("accueil@example.com", "Accueil", "User", User.Roles.ACCUEIL),
-    ("conseiller1@example.com", "Conseiller1", "User", User.Roles.CONSEILLER),
-    ("conseiller2@example.com", "Conseiller2", "User", User.Roles.CONSEILLER),
+    ("admin@example.com", "Admin", "User", UserRoles.ADMIN),
+    ("mtakoumba@gmail.com", "Admin", "User", UserRoles.ADMIN),
+    ("accueil@example.com", "Accueil", "User", UserRoles.ACCUEIL),
+    ("conseiller1@example.com", "Conseiller1", "User", UserRoles.CONSEILLER),
+    ("conseiller2@example.com", "Conseiller2", "User", UserRoles.CONSEILLER),
 ]
 user_map = {}
 for email, first, last, role in users_info:
@@ -102,9 +114,9 @@ for email, first, last, role in users_info:
     user.save()
     user_map[email] = user
     print(f"✅ {email} ({role})")
-conseillers = [u for u in user_map.values() if u.role == User.Roles.CONSEILLER]
+conseillers = [u for u in user_map.values() if u.role == UserRoles.CONSEILLER]
 
-# --- Leads
+# --- Leads ---
 print("📞 Création des leads...")
 leads = []
 for _ in range(10):
@@ -123,7 +135,7 @@ for _ in range(10):
     leads.append(lead)
 print(f"✅ {len(leads)} leads créés")
 
-# --- Clients
+# --- Clients et Documents ---
 print("📁 Création des clients et documents...")
 clients = []
 for lead in leads:
@@ -144,7 +156,7 @@ for lead in leads:
         a_un_visa=random.choice([True, False]),
         type_visa=random.choice([v[0] for v in VisaType.choices]),
         statut_refugie_ou_protection=random.choice([True, False]),
-        type_demande=service_map[type_demande_code],  # FK vers Service
+        type_demande=service_map[type_demande_code],
         demande_deja_formulee=random.choice([True, False]),
         demande_formulee_precise=fake.sentence() if random.random() < 0.3 else "",
         situation_familiale=random.choice([s[0] for s in SituationFamiliale.choices]),
@@ -161,7 +173,6 @@ for lead in leads:
     )
     clients.append(client)
 
-    # Mock quelques documents (PDF/jpg/png)
     doc_urls = [
         "https://www.africau.edu/images/default/sample.pdf",
         "https://file-examples.com/storage/fe73f36e226f5c4e8cb08a2/2017/10/file-example_PDF_1MB.pdf",
@@ -169,25 +180,19 @@ for lead in leads:
         "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&h=800&auto=format",
     ]
     for url in random.sample(doc_urls, k=random.randint(1, 3)):
-        Document.objects.create(
-            client=client,
-            url=url
-        )
-
+        Document.objects.create(client=client, url=url)
 print(f"✅ {len(clients)} clients créés avec documents mock")
 
-# --- Paiements / Contrats
+# --- Paiements & Contrats ---
 print("💶 Génération des paiements...")
 for client in clients:
     try:
-        service = client.type_demande  # FK Service
+        service = client.type_demande
         base_price = service.price
-
         remise = random.choice([0, 10, 20])
         discount = Decimal(remise)
         ratio = (Decimal("100") - discount) / Decimal("100")
         real_amount_due = (base_price * ratio).quantize(Decimal("0.01"))
-
         contract = Contract.objects.create(
             client=client,
             created_by=random.choice(conseillers),
@@ -195,21 +200,17 @@ for client in clients:
             amount_due=base_price,
             discount_percent=discount,
         )
-
         total_receipts = random.choice([1, 2, 3])
         receipt_amount = (real_amount_due / total_receipts).quantize(Decimal("0.01"))
         total_paid = Decimal("0.00")
         today = timezone.now().date()
-
         for i in range(total_receipts):
             is_last = (i == total_receipts - 1)
             remaining = (real_amount_due - total_paid).quantize(Decimal("0.01"))
             actual_amount = remaining if is_last else min(receipt_amount, remaining)
             if actual_amount <= Decimal("0.00"):
                 break
-
             next_due = (today + timedelta(days=30 * (i + 1))) if not is_last else None
-
             PaymentReceipt.objects.create(
                 client=client,
                 contract=contract,
@@ -220,9 +221,7 @@ for client in clients:
                 next_due_date=next_due,
             )
             total_paid += actual_amount
-
         print(f"✅ Contrat {contract.id} créé avec {total_receipts} reçu(s) pour client {client.id}")
-
     except Exception as e:
         print(f"❌ Erreur pour client {client.id}: {e}")
 print("✅ Paiements et reçus générés")
