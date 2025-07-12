@@ -1,12 +1,23 @@
 import pytest
-from api.clients.models import Client
 from api.documents.models import Document
+from api.clients.models import Client
+from api.leads.models import Lead
+from api.lead_status.models import LeadStatus
 
 @pytest.mark.django_db
-def test_document_str_representation():
-    client = Client.objects.create(
-        # … champs requis
-        first_name="Jean", last_name="Test"
-    )
-    doc = Document.objects.create(client=client, url="https://cloud/doc1.pdf")
-    assert str(doc).endswith("doc1.pdf")
+class TestDocumentModel:
+    @pytest.fixture
+    def client(self):
+        # On crée tout l’arbre de dépendance !
+        status = LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#C1E8FF")
+        lead = Lead.objects.create(first_name="Marc", last_name="Nkue", status=status)
+        return Client.objects.create(lead=lead)
+
+    def test_create_document(self, client):
+        doc = Document.objects.create(client=client, url="https://cloud.test/doc.pdf")
+        assert doc.pk is not None
+        assert doc.url == "https://cloud.test/doc.pdf"
+
+    def test_str_representation(self, client):
+        doc = Document.objects.create(client=client, url="https://cloud.test/doc.pdf")
+        assert str(doc).startswith(str(client))

@@ -1,15 +1,17 @@
-from rest_framework.permissions import BasePermission
+# api/services/permissions.py
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 class IsServiceAdminOrReadOnly(BasePermission):
     """
-    Permission personnalisée pour les services :
-    - Lecture ouverte à tous.
-    - Création, modification et suppression réservées aux admins.
+    Autorise tout le monde en lecture seule, mais seulement les staff pour créer/modifier/supprimer.
     """
-
     def has_permission(self, request, view):
-        # Lecture autorisée à tous
-        if request.method in ("GET", "HEAD", "OPTIONS"):
+        if request.method in SAFE_METHODS:
             return True
-        # Modification/restreinte aux admins
-        return request.user and request.user.is_authenticated and request.user.is_staff
+        return request.user.is_authenticated and request.user.is_staff
+
+    def has_object_permission(self, request, view, obj):
+        print(f"DEBUG | {request.user.email} | staff={request.user.is_staff} | {request.method}")
+        if request.method in SAFE_METHODS:
+            return True
+        return request.user.is_authenticated and request.user.is_staff

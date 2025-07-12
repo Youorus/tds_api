@@ -1,24 +1,32 @@
-from rest_framework.permissions import BasePermission
+# api/leads/permissions.py
 
+from rest_framework.permissions import BasePermission, SAFE_METHODS
 from api.users.roles import UserRoles
 
-
-class IsLeadEditor(BasePermission):
+class IsLeadCreator(BasePermission):
     """
-    Autorise tous les rôles internes à éditer/créer/supprimer un lead,
-    sauf pour les actions d’assignation.
+    - ADMIN et ACCUEIL peuvent créer (POST)
+    - Tous les utilisateurs authentifiés peuvent lire, modifier, supprimer
+    - Route spéciale `public_create` toujours ouverte (vue custom)
     """
-    allowed_roles = set(UserRoles.values)  # ('ADMIN', 'ACCUEIL', ...)
-
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            getattr(request.user, "role", None) in self.allowed_roles
-        )
+        # Route ouverte à tous
+        if getattr(view, 'action', None) == 'public_create':
+            return True
+        # Création classique (POST /leads/)
+        if view.action == 'create':
+            return (
+                request.user.is_authenticated and
+                getattr(request.user, "role", None) in [UserRoles.ADMIN, UserRoles.ACCUEIL]
+            )
+        # Update/delete/read: tout utilisateur connecté
+        if request.user and request.user.is_authenticated:
+            return True
+        return False
 
 class IsConseillerOrAdmin(BasePermission):
     """
-    Seuls les conseillers ou admins peuvent s’assigner ou désassigner un lead.
+    Seuls les CONSEILLER ou ADMIN peuvent assigner ou se désassigner.
     """
     def has_permission(self, request, view):
         user = request.user

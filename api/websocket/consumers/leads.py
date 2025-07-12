@@ -1,5 +1,7 @@
-from channels.generic.websocket import AsyncWebsocketConsumer
+# api/websocket/consumers/leads.py
+
 import json
+from channels.generic.websocket import AsyncWebsocketConsumer
 
 class LeadConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -11,6 +13,6 @@ class LeadConsumer(AsyncWebsocketConsumer):
 
     async def lead_update(self, event):
         await self.send(text_data=json.dumps({
-            "event": event["event"],
-            "data": event["data"],
+            "event": event["event"],  # "created", "updated", "deleted"
+            "data": event["data"],    # le contenu du lead
         }))

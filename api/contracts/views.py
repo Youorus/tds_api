@@ -6,6 +6,7 @@ from api.contracts.models import Contract
 
 from api.contracts.permissions import IsContractEditor
 from api.contracts.serializer import ContractSerializer
+from api.payments.serializers import PaymentReceiptSerializer
 from api.storage_backends import MinioReceiptStorage, MinioContractStorage
 
 class ContractViewSet(viewsets.ModelViewSet):
@@ -91,7 +92,7 @@ class ContractViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
 
         # 1. Suppression des reçus liés (PDF storage + DB)
-        from api.models import PaymentReceipt  # Adapter si besoin
+        from api.payments.models import PaymentReceipt  # Adapter si besoin
         receipts = instance.receipts.all()
         for receipt in receipts:
             if receipt.receipt_url:

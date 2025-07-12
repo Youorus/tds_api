@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from api.lead_status.models import LeadStatus
 from api.leads.constants import RDV_PLANIFIE, RDV_CONFIRME
 
 
@@ -117,7 +118,6 @@ class Lead(models.Model):
 
         # 1. Statut par défaut si absent
         if not self.status:
-            from api.models import LeadStatus
             try:
                 default_status = LeadStatus.objects.get(code=RDV_PLANIFIE)
                 self.status = default_status

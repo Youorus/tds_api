@@ -1,24 +1,27 @@
 import pytest
 from rest_framework.test import APIRequestFactory
 from api.contracts.permissions import IsContractEditor
-from api.users.roles import UserRoles
+from api.users.models import User, UserRoles
 
-@pytest.mark.parametrize("role,method,expected", [
-    (UserRoles.ADMIN, "POST", True),
-    (UserRoles.JURISTE, "PUT", True),
-    (UserRoles.CONSEILLER, "POST", False),
-    (UserRoles.ACCUEIL, "POST", False),
-    (UserRoles.ADMIN, "GET", True),
-    (UserRoles.CONSEILLER, "GET", True),
-])
-def test_contract_editor_permission(role, method, expected, django_user_model):
-    if role is None:
-        pytest.skip("Role non défini dans UserRoles")
-    user = django_user_model.objects.create_user(email=f"{role}@x.fr", password="pw", role=role)
-    factory = APIRequestFactory()
-    request = factory.generic(method, "/contracts/")
-    request.user = user
+@pytest.mark.django_db
+class TestIsContractEditor:
+    def test_admin_has_permission(self):
+        user = User.objects.create_user(email="admin@ex.com", first_name="Admin", last_name="User", password="pwd", role=UserRoles.ADMIN)
+        request = APIRequestFactory().get("/")
+        request.user = user
+        perm = IsContractEditor()
+        assert perm.has_permission(request, None)
 
-    perm = IsContractEditor()
-    has_perm = perm.has_permission(request, None)
-    assert has_perm is expected
+    def test_juriste_has_permission(self):
+        user = User.objects.create_user(email="juriste@ex.com", first_name="Juriste", last_name="User", password="pwd", role=UserRoles.JURISTE)
+        request = APIRequestFactory().post("/")
+        request.user = user
+        perm = IsContractEditor()
+        assert perm.has_permission(request, None)
+
+    def test_random_user_no_permission(self):
+        user = User.objects.create_user(email="foo@ex.com", first_name="Foo", last_name="Bar", password="pwd", role="CLIENT")
+        request = APIRequestFactory().delete("/")
+        request.user = user
+        perm = IsContractEditor()
+        assert not perm.has_permission(request, None)

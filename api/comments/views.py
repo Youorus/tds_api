@@ -2,7 +2,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-
+from django.utils.translation import gettext as _
 from api.comments.models import Comment
 from api.comments.serializers import CommentSerializer
 from api.comments.permissions import IsCommentAuthorOrAdmin

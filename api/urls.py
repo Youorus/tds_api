@@ -25,7 +25,7 @@ urlpatterns = [
     path('comments/', include('api.comments.urls')),
 
     # Statuts de leads (dynamique, customisable)
-    path('lead-status/', include('api.lead_status.urls')),
+    path('lead-statuses/', include('api.lead_status.urls')),
 
     # Statuts de dossier (pour contrats ou demandes)
     path('statut-dossiers/', include('api.statut_dossier.urls')),

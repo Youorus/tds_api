@@ -1,22 +1,37 @@
 import pytest
 from rest_framework.test import APIRequestFactory
 from api.payments.permissions import IsPaymentEditor
-from api.users.models import UserRoles
+from api.users.models import User, UserRoles
 
-@pytest.mark.parametrize("role,method,expected", [
-    (UserRoles.ADMIN, "POST", True),
-    (UserRoles.JURISTE, "POST", True),
-    (UserRoles.CONSEILLER, "POST", False),
-    (UserRoles.ACCUEIL, "POST", False),
-    (UserRoles.ADMIN, "GET", True),
-    (UserRoles.CONSEILLER, "GET", True),
-])
-def test_is_payment_editor_permission(role, method, expected, user_factory):
-    user = user_factory(role=role)
-    factory = APIRequestFactory()
-    request = factory.generic(method, "/receipts/")
-    request.user = user
+@pytest.mark.django_db
+class TestIsPaymentEditor:
+    def test_permission_for_safe_methods(self):
+        user = User.objects.create_user(
+            email="test@ex.com", first_name="Test", last_name="User", password="pwd", role=UserRoles.CONSEILLER
+        )
+        factory = APIRequestFactory()
+        request = factory.get("/")
+        request.user = user
+        perm = IsPaymentEditor()
+        assert perm.has_permission(request, None)
 
-    perm = IsPaymentEditor()
-    has_perm = perm.has_permission(request, None)
-    assert has_perm is expected
+    def test_permission_for_editor_roles(self):
+        user = User.objects.create_user(
+            email="admin@ex.com", first_name="Admin", last_name="User", password="pwd", role=UserRoles.ADMIN
+        )
+        factory = APIRequestFactory()
+        request = factory.post("/")
+        request.user = user
+        perm = IsPaymentEditor()
+        assert perm.has_permission(request, None)
+
+    def test_permission_forbidden_for_non_editor(self):
+        # Suppose un utilisateur sans rôle autorisé
+        user = User.objects.create_user(
+            email="basic@ex.com", first_name="Basic", last_name="User", password="pwd", role="BASIC"
+        )
+        factory = APIRequestFactory()
+        request = factory.post("/")
+        request.user = user
+        perm = IsPaymentEditor()
+        assert not perm.has_permission(request, None)

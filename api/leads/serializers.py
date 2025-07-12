@@ -106,8 +106,6 @@ class LeadSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(_("Format de date invalide. Utilisez JJ/MM/AAAA HH:mm."))
         if parsed < timezone.now():
             raise serializers.ValidationError(_("La date de rendez-vous ne peut pas être dans le passé."))
-        if parsed.hour < 9 or (parsed.hour == 18 and parsed.minute > 30) or parsed.hour > 18:
-            raise serializers.ValidationError(_("Les rendez-vous doivent être entre 9h et 18h30."))
         return parsed
 
     # ------------ VALIDATIONS GLOBALES ------------

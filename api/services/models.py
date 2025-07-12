@@ -1,3 +1,4 @@
+import unicodedata
 from django.db import models
 from decimal import Decimal
 from django.utils.translation import gettext_lazy as _
@@ -51,19 +52,22 @@ class Service(models.Model):
     def clean_code(self, code):
         """
         Nettoie et normalise le code :
-        - Remplace les espaces/tirets/multi-espaces par '_'
+        - Supprime espaces/tirets/underscores
         - Met en MAJUSCULES
+        - Supprime les accents
         - Trim début/fin
         """
         code = code.strip()
-        code = re.sub(r"[\s\-]+", "_", code)
+        # Supprime les accents
+        code = ''.join(
+            c for c in unicodedata.normalize('NFD', code)
+            if unicodedata.category(c) != 'Mn'
+        )
+        code = code.replace(" ", "").replace("_", "").replace("-", "")
         code = code.upper()
         return code
 
     def save(self, *args, **kwargs):
-        """
-        Surcharge de save : garantie que le code sera toujours propre en BDD.
-        """
         if self.code:
             self.code = self.clean_code(self.code)
         super().save(*args, **kwargs)
