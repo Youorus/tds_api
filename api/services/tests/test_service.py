@@ -15,7 +15,7 @@ def api_client():
 
 @pytest.fixture
 def admin_user(db):
-    # Utilisateur staff pour les permissions DRF
+    # Utilisateur staff/admin
     return User.objects.create_user(
         email="admin@ex.com",
         password="Admin123!",
@@ -30,9 +30,9 @@ def admin_user(db):
 def user(db):
     return User.objects.create_user(
         email="user@ex.com", password="User123!",
-        is_staff=False,  # ← IMPERATIF !!!
+        is_staff=False,
         is_superuser=False,
-        first_name="User", last_name="Test"
+        first_name="User", last_name="Test", role=UserRoles.CONSEILLER,
     )
 
 @pytest.fixture
@@ -47,31 +47,32 @@ def user_client(api_client, user):
 
 @pytest.fixture
 def service(db):
-    # Service existant pour les tests
-    return Service.objects.create(code="TITRE_SEJOUR", label="Titre de séjour", price="120")
+    return Service.objects.create(code="TITRESEJOUR", label="Titre de séjour", price="120.00")
 
 # ---------- TESTS CRUD & LOGIQUE ----------
 
 @pytest.mark.django_db
 class TestServiceAPI:
+
     def test_non_admin_cannot_create_service(self, user_client):
         url = reverse("services-list")
         payload = {"code": "TEST", "label": "Essai", "price": "50"}
         resp = user_client.post(url, payload, format="json")
-        assert resp.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert not Service.objects.filter(label="Essai").exists()
+        assert "detail" in resp.data  # Vérifie qu'un message d'erreur est présent
 
     def test_non_admin_cannot_update_service(self, user_client, service):
         url = reverse("services-detail", args=[service.id])
         resp = user_client.patch(url, {"price": "80.00"}, format="json")
-        assert resp.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
         service.refresh_from_db()
-        assert service.price == 120
+        assert str(service.price) == "120.00"
 
     def test_non_admin_cannot_delete_service(self, user_client, service):
         url = reverse("services-detail", args=[service.id])
         resp = user_client.delete(url)
-        assert resp.status_code in (status.HTTP_403_FORBIDDEN, status.HTTP_401_UNAUTHORIZED)
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
         assert Service.objects.filter(id=service.id).exists()
 
     def test_admin_can_update_service(self, admin_client, service):
@@ -79,7 +80,7 @@ class TestServiceAPI:
         resp = admin_client.patch(url, {"price": "150.00"}, format="json")
         assert resp.status_code == 200
         service.refresh_from_db()
-        assert service.price == 150
+        assert str(service.price) == "150.00"
 
     def test_admin_can_delete_service(self, admin_client, service):
         url = reverse("services-detail", args=[service.id])
@@ -107,16 +108,23 @@ class TestServiceAPI:
         resp = admin_client.post(url, payload, format="json")
         assert resp.status_code == 201
         service = Service.objects.get(label="Nettoye")
-        assert service.code == "TITRESEJOUR"  # doit matcher le clean_code() (sans espace, sans accent, tout maj)
+        assert service.code == "TITRESEJOUR"
 
     def test_list_services_public(self, api_client, service):
         url = reverse("services-list")
         resp = api_client.get(url)
         assert resp.status_code == 200
-        # Pagination DRF ou pas ? On gère les deux.
+        # Pagination DRF ou pas
         if isinstance(resp.data, dict) and 'results' in resp.data:
             data = resp.data['results']
         else:
             data = resp.data
         labels = [item["label"] for item in data]
         assert "Titre de séjour" in labels
+
+    def test_unauthenticated_user_cannot_create_service(self, api_client):
+        url = reverse("services-list")
+        payload = {"code": "TST", "label": "Test non auth", "price": "15"}
+        resp = api_client.post(url, payload, format="json")
+        # Non authentifié : 401
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED

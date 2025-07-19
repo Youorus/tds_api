@@ -66,3 +66,24 @@ def send_welcome_email(lead):
         template_name="email/welcome.html",
         context=context,
     )
+
+def send_appointment_planned_email(lead):
+    """
+    Envoie un email lorsqu'un rendez-vous vient d'être planifié (statut RDV_PLANIFIE).
+    Utilise le template email/appointment_planned.html.
+    """
+    context = {
+        "user": lead,
+        "appointment": {
+            "date": lead.appointment_date.strftime("%A %d %B %Y"),
+            "time": lead.appointment_date.strftime("%H:%M"),
+            "location": "11 rue de l'Arrivée, 75015 Paris",
+        },
+        "year": datetime.now().year,
+    }
+    send_html_email(
+        to_email=lead.email,
+        subject="Votre rendez-vous a été planifié chez TDS France",
+        template_name="email/appointment_planned.html",
+        context=context,
+    )

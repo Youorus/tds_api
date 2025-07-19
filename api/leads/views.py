@@ -42,22 +42,19 @@ class LeadViewSet(viewsets.ModelViewSet):
                 Q(email__icontains=search)
             )
 
-        # Restriction CONSEILLER
+        # Restriction CONSEILLER : uniquement ses leads OU ceux en statut PRESENT et non assignés
         if getattr(user, "role", None) == UserRoles.CONSEILLER:
             try:
                 status_present = LeadStatus.objects.get(code=PRESENT)
-                status_present_id = status_present.id
-            except LeadStatus.DoesNotExist:
-                status_present_id = None
-            if status_present_id:
                 queryset = queryset.filter(
-                    Q(assigned_to=user)
-                    | (Q(assigned_to__isnull=True) & Q(status_id=status_present_id))
+                    Q(assigned_to=user) |
+                    Q(assigned_to__isnull=True, status=status_present)
                 )
-            else:
+            except LeadStatus.DoesNotExist:
+                # fallback : uniquement ses leads
                 queryset = queryset.filter(assigned_to=user)
 
-        # Filtrage par statut
+        # Filtrage par statut (après restriction conseiller)
         status_param = self.request.query_params.get("status")
         if status_param and status_param.upper() != "TOUS":
             queryset = queryset.filter(status_id=status_param)
@@ -98,8 +95,15 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     def handle_lead_notification(self, lead):
         status_code = getattr(lead.status, "code", None)
-        if status_code in (RDV_CONFIRME, RDV_PLANIFIE):
+        print(f"[NOTIF] Statut du lead: {status_code}")
+        if status_code == RDV_PLANIFIE:
+            print(f"[NOTIF] Envoi du mail PLANIFIÉ à {lead.email} (lead id: {lead.id})")
+            self.notification_service.send_appointment_planned(lead)
+        elif status_code == RDV_CONFIRME:
+            print(f"[NOTIF] Envoi du mail CONFIRMÉ à {lead.email} (lead id: {lead.id})")
             self.notification_service.send_appointment_confirmation(lead)
+        else:
+            print(f"[NOTIF] Aucun mail envoyé (statut={status_code}) pour {lead.email} (lead id: {lead.id})")
 
     def perform_update(self, serializer):
         lead_before = self.get_object()
@@ -111,10 +115,14 @@ class LeadViewSet(viewsets.ModelViewSet):
         status_after = getattr(lead.status, "code", None)
 
         if appointment_after and lead.email and appointment_before != appointment_after:
-            if status_after in (RDV_CONFIRME, RDV_PLANIFIE):
+            if status_after == RDV_PLANIFIE:
+                self.notification_service.send_appointment_planned(lead)
+            elif status_after == RDV_CONFIRME:
                 self.notification_service.send_appointment_confirmation(lead)
         elif status_before != status_after and lead.email:
             if status_after == RDV_PLANIFIE:
+                self.notification_service.send_appointment_planned(lead)
+            elif status_after == RDV_CONFIRME:
                 self.notification_service.send_appointment_confirmation(lead)
 
     @action(detail=False, methods=["post"], url_path="public-create", permission_classes=[AllowAny])
@@ -178,3 +186,17 @@ class LeadViewSet(viewsets.ModelViewSet):
             lead=lead
         )
         return Response({"detail": "Demande d’assignation envoyée à l’administrateur."}, status=201)
+
+    @action(detail=True, methods=["post"], url_path="send-formulaire-email")
+    def send_formulaire_email(self, request, pk=None):
+        """
+        Envoie au client le lien vers le formulaire de suivi personnalisé.
+        """
+        try:
+            lead = self.get_object()
+        except Lead.DoesNotExist:
+            return Response({"detail": "Lead introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Appelle le service d'envoi
+        self.notification_service.send_lead_formulaire(lead)
+        return Response({"detail": "E-mail de formulaire envoyé."}, status=status.HTTP_200_OK)

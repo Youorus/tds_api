@@ -7,7 +7,7 @@ from api.users.views import UserViewSet
 
 # Création du routeur principal
 router = DefaultRouter()
-router.register(r'users', UserViewSet, basename='user')
+router.register(r'', UserViewSet, basename='users')
 
 urlpatterns = [
     path('', include(router.urls)),
