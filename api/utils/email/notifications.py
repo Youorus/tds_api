@@ -10,7 +10,7 @@ from api.utils.email.appointments import (
 from api.utils.email.leads import (
     send_lead_assignment_request_to_admin,
     send_lead_assignment_confirmation_to_conseiller,
-    send_formulaire_email
+    send_formulaire_email, send_dossier_status_email
 )
 
 
@@ -41,3 +41,6 @@ class NotificationService:
 
     def send_lead_formulaire(self, lead):
         send_formulaire_email(self, lead)
+
+    def send_dossier_status_notification(self, lead):
+        send_dossier_status_email(lead)

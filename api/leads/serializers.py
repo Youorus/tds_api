@@ -26,6 +26,8 @@ class LeadSerializer(serializers.ModelSerializer):
     assigned_to = AssignedUserSerializer(read_only=True)
     status = LeadStatusSerializer(read_only=True)
     statut_dossier = StatutDossierSerializer(read_only=True)
+    jurist_assigned = AssignedUserSerializer(read_only=True)
+    juriste_assigned_at = serializers.DateTimeField(read_only=True)
 
     # Champs d’écriture pour status et statut_dossier via leur ID
     status_id = serializers.PrimaryKeyRelatedField(
@@ -49,7 +51,8 @@ class LeadSerializer(serializers.ModelSerializer):
             'form_data',
             'status', 'status_id',
             'assigned_to',
-            'statut_dossier', 'statut_dossier_id',
+            'statut_dossier', 'statut_dossier_id',  'jurist_assigned',
+            'juriste_assigned_at',
         ]
         extra_kwargs = {
             'first_name': {'allow_blank': False},

@@ -22,7 +22,7 @@ class Service(models.Model):
         help_text=_("Code interne unique du service (ex: NATURALISATION, TITRE_SEJOUR)")
     )
     label = models.CharField(
-        max_length=100,
+        max_length=1000,
         verbose_name=_("Libellé"),
         help_text=_("Nom lisible du service (ex: Titre de séjour)")
     )

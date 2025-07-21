@@ -14,7 +14,6 @@ from django.utils import timezone
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
-# Import depuis chaque module
 from api.comments.models import Comment
 from api.contracts.models import Contract
 from api.clients.models import Client
@@ -103,6 +102,7 @@ users_info = [
     ("accueil@example.com", "Accueil", "User", UserRoles.ACCUEIL),
     ("conseiller1@example.com", "Conseiller1", "User", UserRoles.CONSEILLER),
     ("conseiller2@example.com", "Conseiller2", "User", UserRoles.CONSEILLER),
+    ("juriste@example.com", "Juriste1", "User", UserRoles.JURISTE),
 ]
 user_map = {}
 for email, first, last, role in users_info:
@@ -114,7 +114,9 @@ for email, first, last, role in users_info:
     user.save()
     user_map[email] = user
     print(f"✅ {email} ({role})")
+
 conseillers = [u for u in user_map.values() if u.role == UserRoles.CONSEILLER]
+juristes = [u for u in user_map.values() if u.role == UserRoles.JURISTE]
 
 # --- Leads ---
 print("📞 Création des leads...")
@@ -122,18 +124,23 @@ leads = []
 for _ in range(10):
     status = random.choice(list(lead_status_map.values()))
     dossier_status = random.choice(list(dossier_status_map.values()))
+    assigned_to = random.choice(conseillers)
+    jurist_assigned = random.choice(juristes)
+    now = timezone.now()
     lead = Lead.objects.create(
         first_name=fake.first_name(),
         last_name=fake.last_name(),
         email=fake.email(),
         phone=generate_french_phone_number(),
-        appointment_date=timezone.now() + timedelta(days=random.randint(0, 15)) if "RDV" in status.code else None,
+        appointment_date=now + timedelta(days=random.randint(0, 15)) if "RDV" in status.code else None,
         status=status,
         statut_dossier=dossier_status,
-        assigned_to=random.choice(conseillers),
+        assigned_to=assigned_to,
+        jurist_assigned=jurist_assigned,
+        juriste_assigned_at=now - timedelta(days=random.randint(0, 10)),  # date assignation juriste
     )
     leads.append(lead)
-print(f"✅ {len(leads)} leads créés")
+print(f"✅ {len(leads)} leads créés avec juriste assigné")
 
 # --- Clients et Documents ---
 print("📁 Création des clients et documents...")

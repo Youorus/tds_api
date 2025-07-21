@@ -9,6 +9,7 @@ from rest_framework.response import Response
 
 from api.users.models import User
 from api.users.permissions import IsAdminRole
+from api.users.roles import UserRoles
 from api.users.serializers import UserSerializer
 
 
@@ -40,6 +41,18 @@ class UserViewSet(viewsets.ModelViewSet):
         user.is_active = bool(is_active)
         user.save()
         return Response({"is_active": user.is_active}, status=status.HTTP_200_OK)
+
+
+    @action(detail=False, methods=["get"], url_path="juristes", permission_classes=[IsAuthenticated])
+    def juristes(self, request):
+        """
+        Retourne la liste des juristes actifs (role=JURISTE, is_active=True).
+        Accessible à tous les utilisateurs connectés.
+        """
+        juristes = User.objects.filter(role=UserRoles.JURISTE, is_active=True)
+        serializer = self.get_serializer(juristes, many=True)
+        return Response(serializer.data)
+
 
     @action(detail=True, methods=["patch"], url_path="change-password")
     def change_password(self, request, pk=None):

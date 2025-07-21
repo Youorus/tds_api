@@ -143,6 +143,8 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
+WKHTMLTOPDF_PATH = "/usr/local/bin/wkhtmltopdf"
+
 SIMPLE_JWT = {
     'AUTH_COOKIE': None,
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

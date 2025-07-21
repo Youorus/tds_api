@@ -14,7 +14,7 @@ class LeadStatus(models.Model):
         help_text=_("Code unique du statut, utilisé pour l'intégration et la logique métier (ex: RDV_CONFIRME).")
     )
     label = models.CharField(
-        max_length=100,
+        max_length=1000,
         verbose_name=_('libellé'),
         help_text=_("Libellé affiché dans l'interface (ex: 'Rendez-vous confirmé').")
     )

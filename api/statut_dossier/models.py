@@ -12,7 +12,7 @@ class StatutDossier(models.Model):
         max_length=50, unique=True, verbose_name=_('code')
     )
     label = models.CharField(
-        max_length=100, verbose_name=_('nom affiché')
+        max_length=1000, verbose_name=_('nom affiché')
     )
     color = models.CharField(
         max_length=10, default="#4b5563", verbose_name=_('couleur (hexa)')

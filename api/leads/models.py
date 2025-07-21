@@ -91,6 +91,7 @@ class Lead(models.Model):
         verbose_name=_('juriste assigné'),
         help_text=_('Juriste responsable du lead (assigné par un administrateur)')
     )
+    juriste_assigned_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name = _('lead')

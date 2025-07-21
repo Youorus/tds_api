@@ -8,6 +8,8 @@ from api.contracts.permissions import IsContractEditor
 from api.contracts.serializer import ContractSerializer
 from api.payments.serializers import PaymentReceiptSerializer
 from api.storage_backends import MinioReceiptStorage, MinioContractStorage
+from api.utils.email.leads import send_contract_email_to_lead
+
 
 class ContractViewSet(viewsets.ModelViewSet):
     """
@@ -116,3 +118,16 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         # 3. Supprime l’instance (et reçus via FK CASCADE)
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"], url_path="send-email")
+    def send_email(self, request, pk=None):
+        """
+        Envoie le contrat PDF au client concerné par e-mail.
+        """
+        contract = self.get_object()
+        try:
+            send_contract_email_to_lead(contract)
+        except Exception as e:
+            # Logge ou renvoie le détail si besoin
+            return Response({"detail": f"Erreur lors de l'envoi de l'email : {e}"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Contrat envoyé au client par email."}, status=status.HTTP_200_OK)

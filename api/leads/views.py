@@ -32,7 +32,11 @@ class LeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Lead.objects.all()
 
-        # Recherche plein texte
+        # 🔸 Restriction JURISTE : uniquement les leads qui lui sont assignés
+        if getattr(user, "role", None) == UserRoles.JURISTE:
+            queryset = queryset.filter(assigned_to=user)
+
+        # 🔸 Recherche plein texte
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -42,7 +46,7 @@ class LeadViewSet(viewsets.ModelViewSet):
                 Q(email__icontains=search)
             )
 
-        # Restriction CONSEILLER : uniquement ses leads OU ceux en statut PRESENT et non assignés
+        # 🔸 Restriction CONSEILLER : ses leads OU leads non assignés avec statut PRÉSENT
         if getattr(user, "role", None) == UserRoles.CONSEILLER:
             try:
                 status_present = LeadStatus.objects.get(code=PRESENT)
@@ -51,15 +55,14 @@ class LeadViewSet(viewsets.ModelViewSet):
                     Q(assigned_to__isnull=True, status=status_present)
                 )
             except LeadStatus.DoesNotExist:
-                # fallback : uniquement ses leads
                 queryset = queryset.filter(assigned_to=user)
 
-        # Filtrage par statut (après restriction conseiller)
+        # 🔸 Filtrage par statut
         status_param = self.request.query_params.get("status")
         if status_param and status_param.upper() != "TOUS":
             queryset = queryset.filter(status_id=status_param)
 
-        # Filtrage par date
+        # 🔸 Filtrage par date
         date_str = self.request.query_params.get("date")
         date_field = self.request.query_params.get("date_field", "created_at")
         if date_str:
@@ -109,11 +112,14 @@ class LeadViewSet(viewsets.ModelViewSet):
         lead_before = self.get_object()
         appointment_before = lead_before.appointment_date
         status_before = getattr(lead_before.status, "code", None)
+        statut_dossier_before = getattr(lead_before.statut_dossier, "id", None)  # <-- Ajout
 
         lead = serializer.save()
         appointment_after = lead.appointment_date
         status_after = getattr(lead.status, "code", None)
+        statut_dossier_after = getattr(lead.statut_dossier, "id", None)  # <-- Ajout
 
+        # Notification RDV
         if appointment_after and lead.email and appointment_before != appointment_after:
             if status_after == RDV_PLANIFIE:
                 self.notification_service.send_appointment_planned(lead)
@@ -124,6 +130,10 @@ class LeadViewSet(viewsets.ModelViewSet):
                 self.notification_service.send_appointment_planned(lead)
             elif status_after == RDV_CONFIRME:
                 self.notification_service.send_appointment_confirmation(lead)
+
+        # ====== Notification statut dossier ======
+        if statut_dossier_before != statut_dossier_after and lead.statut_dossier and lead.email:
+            self.notification_service.send_dossier_status_notification(lead)
 
     @action(detail=False, methods=["post"], url_path="public-create", permission_classes=[AllowAny])
     def public_create(self, request):
@@ -146,31 +156,64 @@ class LeadViewSet(viewsets.ModelViewSet):
             results[code] = Lead.objects.filter(status_id=status_id).count() if status_id else 0
         return Response(results)
 
+    @action(detail=True, methods=["patch"], url_path="assign-juriste")
+    def assign_juriste(self, request, pk=None):
+        """
+        Assigne un juriste à un lead (ADMIN only).
+        Payload: { "juriste_id": "<uuid>" }
+        """
+        user = request.user
+        if user.role != UserRoles.ADMIN:
+            raise PermissionDenied("Seul un admin peut assigner un juriste.")
+        lead = self.get_object()
+        juriste_id = request.data.get("juriste_id")
+        if not juriste_id:
+            return Response({"detail": "juriste_id manquant."}, status=400)
+        try:
+            juriste = User.objects.get(pk=juriste_id, role=UserRoles.JURISTE, is_active=True)
+        except User.DoesNotExist:
+            raise NotFound("Juriste introuvable.")
+        lead.assigned_juriste = juriste
+        from django.utils import timezone
+        lead.juriste_assigned_at = timezone.now()
+        lead.save()
+        # Optionnel: Notif mail au juriste/lead
+        return Response({"detail": "Juriste assigné avec succès."}, status=200)
+
     @action(detail=True, methods=["patch"], url_path="assignment")
     def assignment(self, request, pk=None):
         user = request.user
         lead = self.get_object()
-        assigned_to_id = request.data.get("assigned_to", None)
-        # Désassignation
-        if assigned_to_id is None:
-            if user.role not in [UserRoles.ADMIN, UserRoles.CONSEILLER]:
-                raise PermissionDenied("Permission refusée pour désassigner ce lead.")
-            if user.role == UserRoles.CONSEILLER and lead.assigned_to != user:
-                raise PermissionDenied("Seul l’admin ou l’utilisateur assigné peut désassigner.")
+        action_type = request.data.get("action")  # "assign" ou "unassign"
+
+        if action_type == "unassign":
+            # Désassignation
+            if user.role == UserRoles.ADMIN:
+                pass  # autorisé
+            elif user.role == UserRoles.CONSEILLER:
+                if lead.assigned_to != user:
+                    raise PermissionDenied("Vous ne pouvez désassigner que les leads qui vous sont assignés.")
+            else:
+                raise PermissionDenied("Vous n'avez pas la permission de désassigner ce lead.")
+
             lead.assigned_to = None
             lead.save()
             return Response(status=status.HTTP_200_OK)
-        # Assignation à un utilisateur
-        try:
-            assigned_user = User.objects.get(pk=assigned_to_id)
-        except User.DoesNotExist:
-            raise NotFound("Utilisateur introuvable.")
-        if user.role == UserRoles.ADMIN or (user.role == UserRoles.CONSEILLER and user == assigned_user):
-            lead.assigned_to = assigned_user
+
+        elif action_type == "assign":
+            # Assignation à soi-même
+            if user.role not in [UserRoles.ADMIN, UserRoles.CONSEILLER]:
+                raise PermissionDenied("Vous n'avez pas la permission de vous assigner ce lead.")
+
+            if lead.assigned_to and lead.assigned_to != user and user.role != UserRoles.ADMIN:
+                raise PermissionDenied("Ce lead est déjà assigné à un autre utilisateur.")
+
+            lead.assigned_to = user
             lead.save()
             return Response(status=status.HTTP_200_OK)
+
         else:
-            raise PermissionDenied("Permission refusée pour cette assignation.")
+            raise PermissionDenied("Action invalide ou manquante (assign ou unassign attendu).")
 
     @action(detail=True, methods=["post"], url_path="request-assignment")
     def request_assignment(self, request, pk=None):

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Votre dossier évolue – TDS France</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body { background: #f6f8fb; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+      @media only screen and (max-width: 600px) {
+        .container { width: 100% !important; padding: 16px !important; }
+        .logo { max-width: 160px !important; }
+        .content { padding: 20px !important; }
+      }
+      .badge {
+        display: inline-block;
+        padding: 8px 18px;
+        border-radius: 30px;
+        font-size: 15px;
+        font-weight: bold;
+        color: #fff;
+        letter-spacing: 0.5px;
+        margin: 10px 0 14px 0;
+        background: #2563eb;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(37, 99, 235, 0.05);
+        max-width: 600px;
+        margin: auto;
+        padding: 0;
+        overflow: hidden;
+      }
+      .content {
+        padding: 36px;
+        text-align: left;
+      }
+      .title {
+        color: #1d3557;
+        font-size: 22px;
+        font-weight: bold;
+        margin-bottom: 4px;
+        margin-top: 0;
+        text-align: left;
+      }
+      .subtitle {
+        color: #4b5563;
+        font-size: 16px;
+        margin-bottom: 24px;
+        text-align: left;
+      }
+      .divider {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 30px 0 18px 0;
+      }
+      .footer {
+        font-size: 12px;
+        color: #999;
+        text-align: center;
+        padding: 16px 0;
+        border-top: 1px solid #eee;
+      }
+      a { color: #2563eb; text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div style="padding: 38px 0;">
+      <div class="card">
+        <!-- Logo -->
+        <div style="text-align: left; padding: 32px 36px 0 36px;">
+          <img src="https://i.imgur.com/iSzPCvI.jpeg" alt="TDS France" class="logo" style="display:block; max-width:200px; width:100%; height:auto; margin-bottom:18px;" />
+        </div>
+        <!-- Content -->
+        <div class="content">
+          <h2 class="title">Évolution du statut de votre dossier</h2>
+          <p class="subtitle">
+            Bonjour <strong>{{ user.first_name|capfirst }} {{ user.last_name|capfirst }}</strong>,
+            <br>
+            Nous souhaitons vous informer que le statut de votre dossier a récemment changé.
+          </p>
+          <!-- Badge Statut -->
+          <span class="badge" style="background: {{ statut_dossier.color }};">
+            {{ statut_dossier.label }}
+          </span>
+          <p style="font-size: 16px; color: #1d3557; margin: 22px 0 10px 0;">
+            Nouveau statut&nbsp;:
+            <b style="color:{{ statut_dossier.color }};">{{ statut_dossier.label }}</b>
+          </p>
+
+          <p style="font-size: 15px; color: #555; margin: 18px 0 10px 0;">
+  Nous vous informons que le statut de votre dossier a changé.
+  <br>
+  Vous pouvez suivre son évolution ou contacter votre conseiller si besoin d’informations complémentaires.
+</p>
+
+          <hr class="divider" />
+          <p style="font-size: 15px; color: #333;">
+            Pour toute question, contactez votre conseiller, ou écrivez-nous à&nbsp;
+            <a href="mailto:contact@tds-france.fr">contact@tds-france.fr</a>
+            ou au <strong>06 95 59 70 43</strong>.
+          </p>
+          <p style="font-size: 14px; color: #777; margin-top: 28px;">
+            Merci pour votre confiance,<br>
+            <b style="color:#2196F3;">L’équipe TDS France</b>
+          </p>
+        </div>
+        <!-- Footer -->
+        <div class="footer">
+          TDS France © {{ year }}<br>
+          Cet e-mail est automatique, merci de ne pas y répondre directement.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,11 +1,16 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from decimal import Decimal
 
+from api.leads.models import Lead
 from api.payments.models import PaymentReceipt
 from api.payments.permissions import IsPaymentEditor
 from api.payments.serializers import PaymentReceiptSerializer
 from api.storage_backends import MinioReceiptStorage
+from api.utils.email.leads import send_receipts_email_to_lead
+
+
 # from api.permissions.payment import IsPaymentEditor  # Active si tu veux
 
 class PaymentReceiptViewSet(viewsets.ModelViewSet):
@@ -35,3 +40,38 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             except Exception as e:
                 print(f"Erreur suppression du reçu PDF MinIO : {e}")
         return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=["post"], url_path="send-email")
+    def send_receipts_email(self, request):
+        """
+        Envoie un ou plusieurs reçus sélectionnés par email au client.
+        Expects: { lead_id, receipt_ids: [id1, id2, ...] }
+        """
+        lead_id = request.data.get("lead_id")
+        receipt_ids = request.data.get("receipt_ids", [])
+        if not lead_id or not receipt_ids:
+            return Response({"detail": "lead_id et receipt_ids requis"}, status=400)
+
+        # On force receipt_ids en int (important si appel JS/TS)
+        try:
+            receipt_ids = [int(rid) for rid in receipt_ids]
+        except Exception:
+            return Response({"detail": "receipt_ids doit contenir des entiers."}, status=400)
+
+        try:
+            lead = Lead.objects.get(pk=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"detail": "Lead introuvable."}, status=404)
+
+        receipts = PaymentReceipt.objects.filter(id__in=receipt_ids)
+        receipts_list = list(receipts)
+        if not receipts_list:
+            return Response({"detail": "Aucun reçu trouvé."}, status=404)
+
+        try:
+            send_receipts_email_to_lead(lead, receipts_list)
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())  # Log plus complet pour debug
+            return Response({"detail": f"Erreur lors de l'envoi de l'email : {e}"}, status=400)
+        return Response({"detail": "Reçus envoyés au client par email."})
