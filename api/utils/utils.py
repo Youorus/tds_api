@@ -23,3 +23,10 @@ def download_file(url):
     content = response.content
     filename = os.path.basename(url)
     return content, filename
+
+def get_french_datetime_strings(dt):
+    dt_local = timezone.localtime(dt)
+    # Le format Babel, pas strftime !
+    date_str = format_datetime(dt_local, "EEEE d MMMM yyyy", locale="fr_FR")
+    time_str = format_datetime(dt_local, "HH:mm", locale="fr_FR")
+    return date_str, time_str

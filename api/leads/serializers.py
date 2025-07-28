@@ -11,6 +11,8 @@ from api.leads.models import Lead
 from api.statut_dossier.models import StatutDossier
 from api.statut_dossier.serializers import StatutDossierSerializer
 from api.users.assigned_user_serializer import AssignedUserSerializer
+from api.users.models import User
+from api.users.roles import UserRoles
 
 
 class LeadSerializer(serializers.ModelSerializer):
@@ -23,10 +25,18 @@ class LeadSerializer(serializers.ModelSerializer):
     """
     appointment_date = serializers.CharField(required=False, allow_null=True)
     form_data = ClientSerializer(read_only=True)
-    assigned_to = AssignedUserSerializer(read_only=True)
+    assigned_to = AssignedUserSerializer(read_only=True, many=True)
     status = LeadStatusSerializer(read_only=True)
     statut_dossier = StatutDossierSerializer(read_only=True)
-    jurist_assigned = AssignedUserSerializer(read_only=True)
+    jurist_assigned = AssignedUserSerializer(read_only=True, many=True)
+    jurist_assigned_ids = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=UserRoles.JURISTE, is_active=True),
+        many=True,
+        source="jurists_assigned",
+        write_only=True,
+        required=False
+    )
+
     juriste_assigned_at = serializers.DateTimeField(read_only=True)
 
     # Champs d’écriture pour status et statut_dossier via leur ID
@@ -42,6 +52,28 @@ class LeadSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False
     )
+    assigned_to_ids = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role=UserRoles.CONSEILLER, is_active=True),
+        many=True,
+        source="assigned_to",
+        write_only=True,
+        required=False
+    )
+
+    contract_emitter_id = serializers.SerializerMethodField()
+
+    def get_contract_emitter_id(self, obj):
+        """
+        Retourne l’ID du conseiller ayant émis le contrat principal du client lié à ce lead.
+        - On prend ici le dernier contrat créé (tu peux adapter la logique).
+        """
+        client = getattr(obj, 'form_data', None)
+        if not client:
+            return None
+        contract = client.contracts.order_by('-created_at').first()
+        if contract and contract.created_by:
+            return str(contract.created_by.id)
+        return None
 
     class Meta:
         model = Lead
@@ -50,8 +82,9 @@ class LeadSerializer(serializers.ModelSerializer):
             'phone', 'appointment_date', 'created_at',
             'form_data',
             'status', 'status_id',
-            'assigned_to',
-            'statut_dossier', 'statut_dossier_id',  'jurist_assigned',
+            'assigned_to', 'assigned_to_ids', "contract_emitter_id",
+            'statut_dossier', 'statut_dossier_id',
+            'jurist_assigned', 'jurist_assigned_ids',
             'juriste_assigned_at',
         ]
         extra_kwargs = {

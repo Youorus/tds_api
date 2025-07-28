@@ -1,6 +1,6 @@
 import os
 
-from api.users.roles import UserRoles
+from api.utils.jurist_slots import get_slots_for_day
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 import django
@@ -8,7 +8,7 @@ django.setup()
 
 import random
 from decimal import Decimal
-from datetime import timedelta
+from datetime import timedelta, datetime, date
 from faker import Faker
 from django.utils import timezone
 import phonenumbers
@@ -26,6 +26,9 @@ from api.services.models import Service
 from api.documents.models import Document
 from api.payments.enums import PaymentMode
 from api.payments.models import PaymentReceipt
+from api.appointment.models import Appointment
+from api.jurist_appointment.models import JuristAppointment
+from api.users.roles import UserRoles
 
 fake = Faker("fr_FR")
 
@@ -36,8 +39,10 @@ def generate_french_phone_number():
     phone_obj = phonenumbers.parse(number, "FR")
     return phonenumbers.format_number(phone_obj, PhoneNumberFormat.E164)
 
-# --- Nettoyage
+# --- Nettoyage ---
 print("🧹 Suppression des données...")
+Appointment.objects.all().delete()
+JuristAppointment.objects.all().delete()
 Comment.objects.all().delete()
 PaymentReceipt.objects.all().delete()
 Contract.objects.all().delete()
@@ -95,14 +100,15 @@ for s in DOSSIER_STATUSES:
 
 # --- Utilisateurs ---
 print("👤 Création des utilisateurs...")
-
 users_info = [
     ("admin@example.com", "Admin", "User", UserRoles.ADMIN),
     ("mtakoumba@gmail.com", "Admin", "User", UserRoles.ADMIN),
     ("accueil@example.com", "Accueil", "User", UserRoles.ACCUEIL),
     ("conseiller1@example.com", "Conseiller1", "User", UserRoles.CONSEILLER),
     ("conseiller2@example.com", "Conseiller2", "User", UserRoles.CONSEILLER),
-    ("juriste@example.com", "Juriste1", "User", UserRoles.JURISTE),
+    ("juriste1@example.com", "Juriste", "Dupont", UserRoles.JURISTE),
+    ("juriste2@example.com", "Juriste", "Martin", UserRoles.JURISTE),
+    ("juriste3@example.com", "Juriste", "Bernard", UserRoles.JURISTE),
 ]
 user_map = {}
 for email, first, last, role in users_info:
@@ -118,14 +124,12 @@ for email, first, last, role in users_info:
 conseillers = [u for u in user_map.values() if u.role == UserRoles.CONSEILLER]
 juristes = [u for u in user_map.values() if u.role == UserRoles.JURISTE]
 
-# --- Leads ---
-print("📞 Création des leads...")
+# --- Leads avec multi-assignation conseiller et juriste ---
+print("📞 Création des leads variés (multi-assignation)...")
 leads = []
-for _ in range(10):
+for i in range(15):
     status = random.choice(list(lead_status_map.values()))
     dossier_status = random.choice(list(dossier_status_map.values()))
-    assigned_to = random.choice(conseillers)
-    jurist_assigned = random.choice(juristes)
     now = timezone.now()
     lead = Lead.objects.create(
         first_name=fake.first_name(),
@@ -135,12 +139,80 @@ for _ in range(10):
         appointment_date=now + timedelta(days=random.randint(0, 15)) if "RDV" in status.code else None,
         status=status,
         statut_dossier=dossier_status,
-        assigned_to=assigned_to,
-        jurist_assigned=jurist_assigned,
-        juriste_assigned_at=now - timedelta(days=random.randint(0, 10)),  # date assignation juriste
     )
+    # Multi-assignation conseillers : entre 1 et 2 conseillers par lead
+    num_conseillers = random.randint(1, 2)
+    assigned_conseillers = random.sample(conseillers, k=num_conseillers)
+    lead.assigned_to.set(assigned_conseillers)
+
+    # Multi-assignation juristes : entre 0 et 2 juristes par lead (peut être 0 !)
+    num_juristes = random.randint(0, 2)
+    juristes_users = random.sample(juristes, k=num_juristes) if num_juristes > 0 else []
+    lead.jurist_assigned.set(juristes_users)  # <-- IMPORTANT : champ ManyToManyField
+
+    lead.save()
     leads.append(lead)
-print(f"✅ {len(leads)} leads créés avec juriste assigné")
+print(f"✅ {len(leads)} leads créés (multi-assignation conseiller/juriste)")
+
+# --- Créneaux juristes ---
+print("📆 Création des rendez-vous juriste (JuristAppointment)...")
+all_slots = []
+today = timezone.now().date()
+for i in range(60):
+    d = today + timedelta(days=i)
+    all_slots.extend(get_slots_for_day(d))
+jurist_appointments = []
+used_slots = set()
+random.shuffle(all_slots)
+for lead in leads:
+    for juriste in lead.jurist_assigned.all():
+        count = 0
+        possible_slots = all_slots[:]
+        random.shuffle(possible_slots)
+        for slot in possible_slots:
+            key = (juriste.id, slot)
+            if key in used_slots:
+                continue
+            jurist_appointments.append(JuristAppointment(
+                lead=lead,
+                jurist=juriste,
+                date=slot,
+                created_by=random.choice(conseillers),
+            ))
+            used_slots.add(key)
+            count += 1
+            if count >= random.choice([0, 1, 2]):
+                break
+JuristAppointment.objects.bulk_create(jurist_appointments)
+print(f"✅ {len(jurist_appointments)} jurist-appointments créés (2 mois glissants)")
+
+# --- Appointments classiques (RDV Lead/Conseiller) ---
+print("📅 Création des rendez-vous classiques (Appointment)...")
+appointments = []
+for lead in leads:
+    nb_appointments = random.randint(1, 3)
+    for i in range(nb_appointments):
+        dt = timezone.make_aware(
+            datetime(
+                year=(timezone.now().year if timezone.now().month < 11 else timezone.now().year + 1),
+                month=random.choice([timezone.now().month, (timezone.now() + timedelta(days=30)).month]),
+                day=random.randint(1, 28),
+                hour=random.randint(8, 18),
+                minute=random.choice([0, 30])
+            )
+        )
+        if Appointment.objects.filter(lead=lead, date=dt).exists():
+            continue
+        if JuristAppointment.objects.filter(lead=lead, date=dt).exists():
+            continue
+        appointments.append(Appointment(
+            lead=lead,
+            date=dt,
+            note=fake.sentence() if random.random() < 0.7 else "",
+            created_by=random.choice(conseillers),
+        ))
+Appointment.objects.bulk_create(appointments)
+print(f"✅ {len(appointments)} rendez-vous classiques créés")
 
 # --- Clients et Documents ---
 print("📁 Création des clients et documents...")
@@ -179,7 +251,6 @@ for lead in leads:
         remarques=fake.sentence(),
     )
     clients.append(client)
-
     doc_urls = [
         "https://www.africau.edu/images/default/sample.pdf",
         "https://file-examples.com/storage/fe73f36e226f5c4e8cb08a2/2017/10/file-example_PDF_1MB.pdf",

@@ -53,6 +53,16 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(juristes, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="conseillers", permission_classes=[IsAuthenticated])
+    def conseillers(self, request):
+        """
+        Retourne la liste des conseillers actifs (role=CONSEILLER, is_active=True).
+        Accessible à tous les utilisateurs connectés.
+        """
+        conseillers = User.objects.filter(role=UserRoles.CONSEILLER, is_active=True)
+        serializer = self.get_serializer(conseillers, many=True)
+        return Response(serializer.data)
+
 
     @action(detail=True, methods=["patch"], url_path="change-password")
     def change_password(self, request, pk=None):

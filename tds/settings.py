@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     "api.services",
     "api.statut_dossier",
     "api.users",
+    "api.appointment",
+    "api.jurist_appointment",
     "api.websocket",
 
     # Ajoute l'app pour background tasks
@@ -167,7 +169,7 @@ STATIC_URL = 'static/'
 
 # ==================== INTERNATIONALIZATION ====================
 LANGUAGE_CODE = 'fr-fr'
-TIME_ZONE = "UTC"
+TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
 

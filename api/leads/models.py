@@ -74,22 +74,18 @@ class Lead(models.Model):
         help_text=_('Statut actuel du lead (ex: NOUVEAU, RDV_VALIDÉ, etc.)')
     )
 
-    assigned_to = models.ForeignKey(
+    assigned_to = models.ManyToManyField(
         'users.User',
-        on_delete=models.SET_NULL,
         blank=True,
-        null=True,
-        verbose_name=_('assigné à'),
-        help_text=_('Conseiller à qui ce lead est assigné')
+        verbose_name=_('assignés à'),
+        help_text=_('Conseillers à qui ce lead est assigné')
     )
-    jurist_assigned = models.ForeignKey(
+    jurist_assigned = models.ManyToManyField(
         'users.User',
-        on_delete=models.SET_NULL,
         blank=True,
-        null=True,
         related_name='leads_juriste',
-        verbose_name=_('juriste assigné'),
-        help_text=_('Juriste responsable du lead (assigné par un administrateur)')
+        verbose_name=_('juristes assignés'),
+        help_text=_('Juristes responsables du lead (assignés par un administrateur)')
     )
     juriste_assigned_at = models.DateTimeField(null=True, blank=True)
 
@@ -101,7 +97,6 @@ class Lead(models.Model):
             models.Index(fields=['status'], name='lead_status_idx'),
             models.Index(fields=['appointment_date'], name='lead_appointment_idx'),
             models.Index(fields=['created_at'], name='lead_created_idx'),
-            models.Index(fields=['jurist_assigned'], name='lead_jurist_idx'),
         ]
 
     def __str__(self):

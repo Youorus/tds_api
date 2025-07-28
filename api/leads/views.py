@@ -1,5 +1,5 @@
 # api/leads/views.py
-
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db.models import Q
 from rest_framework import viewsets, status
@@ -34,7 +34,7 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         # 🔸 Restriction JURISTE : uniquement les leads qui lui sont assignés
         if getattr(user, "role", None) == UserRoles.JURISTE:
-            queryset = queryset.filter(assigned_to=user)
+            queryset = queryset.filter(jurist_assigned=user)
 
         # 🔸 Recherche plein texte
         search = self.request.query_params.get("search")
@@ -156,64 +156,90 @@ class LeadViewSet(viewsets.ModelViewSet):
             results[code] = Lead.objects.filter(status_id=status_id).count() if status_id else 0
         return Response(results)
 
-    @action(detail=True, methods=["patch"], url_path="assign-juriste")
-    def assign_juriste(self, request, pk=None):
-        """
-        Assigne un juriste à un lead (ADMIN only).
-        Payload: { "juriste_id": "<uuid>" }
-        """
-        user = request.user
-        if user.role != UserRoles.ADMIN:
-            raise PermissionDenied("Seul un admin peut assigner un juriste.")
-        lead = self.get_object()
-        juriste_id = request.data.get("juriste_id")
-        if not juriste_id:
-            return Response({"detail": "juriste_id manquant."}, status=400)
-        try:
-            juriste = User.objects.get(pk=juriste_id, role=UserRoles.JURISTE, is_active=True)
-        except User.DoesNotExist:
-            raise NotFound("Juriste introuvable.")
-        lead.assigned_juriste = juriste
-        from django.utils import timezone
-        lead.juriste_assigned_at = timezone.now()
-        lead.save()
-        # Optionnel: Notif mail au juriste/lead
-        return Response({"detail": "Juriste assigné avec succès."}, status=200)
+
+    @action(detail=True, methods=["patch"], url_path="assign-juristes")
+    def assign_juristes(self, request, pk=None):
+            """
+            ADMIN ONLY : Assigne ou désassigne un ou plusieurs juristes sur un lead.
+            Payload :
+            {
+                "assign": [<user_id>, ...],   # IDs à assigner
+                "unassign": [<user_id>, ...]  # IDs à désassigner
+            }
+            """
+            user = request.user
+            if getattr(user, "role", None) != UserRoles.ADMIN:
+                raise PermissionDenied("Seul un admin peut gérer les juristes assignés.")
+
+            lead = self.get_object()
+            assign_ids = request.data.get("assign", [])
+            unassign_ids = request.data.get("unassign", [])
+
+            # Assignation
+            if assign_ids:
+                juristes_to_assign = User.objects.filter(id__in=assign_ids, role=UserRoles.JURISTE, is_active=True)
+                if juristes_to_assign.count() != len(assign_ids):
+                    raise NotFound("Un ou plusieurs juristes à assigner sont introuvables ou inactifs.")
+                lead.jurist_assigned.add(*juristes_to_assign)
+
+            # Désassignation
+            if unassign_ids:
+                juristes_to_unassign = User.objects.filter(id__in=unassign_ids, role=UserRoles.JURISTE)
+                lead.jurist_assigned.remove(*juristes_to_unassign)
+
+            lead.save()
+            serializer = self.get_serializer(lead)
+            return Response(serializer.data, status=200)
 
     @action(detail=True, methods=["patch"], url_path="assignment")
     def assignment(self, request, pk=None):
+        """
+        Gère l’assignation/désassignation de conseillers sur un lead.
+        - ADMIN : peut assigner ou désassigner plusieurs conseillers à la fois (payload : {"assign": [ids], "unassign": [ids]})
+        - CONSEILLER : ne peut s’assigner/désassigner que lui-même (payload : {"action": "assign" ou "unassign"})
+        """
         user = request.user
         lead = self.get_object()
-        action_type = request.data.get("action")  # "assign" ou "unassign"
 
-        if action_type == "unassign":
+        if user.role == UserRoles.ADMIN:
+            assign_ids = request.data.get("assign", [])
+            unassign_ids = request.data.get("unassign", [])
+
+            # On gère assignation
+            if assign_ids:
+                users_to_assign = User.objects.filter(id__in=assign_ids, role=UserRoles.CONSEILLER, is_active=True)
+                if users_to_assign.count() != len(assign_ids):
+                    raise NotFound("Un ou plusieurs conseillers à assigner sont introuvables ou inactifs.")
+                lead.assigned_to.add(*users_to_assign)
+
             # Désassignation
-            if user.role == UserRoles.ADMIN:
-                pass  # autorisé
-            elif user.role == UserRoles.CONSEILLER:
-                if lead.assigned_to != user:
-                    raise PermissionDenied("Vous ne pouvez désassigner que les leads qui vous sont assignés.")
-            else:
-                raise PermissionDenied("Vous n'avez pas la permission de désassigner ce lead.")
+            if unassign_ids:
+                users_to_unassign = User.objects.filter(id__in=unassign_ids, role=UserRoles.CONSEILLER)
+                lead.assigned_to.remove(*users_to_unassign)
 
-            lead.assigned_to = None
             lead.save()
-            return Response(status=status.HTTP_200_OK)
+            serializer = self.get_serializer(lead)
+            return Response(serializer.data, status=200)
 
-        elif action_type == "assign":
-            # Assignation à soi-même
-            if user.role not in [UserRoles.ADMIN, UserRoles.CONSEILLER]:
-                raise PermissionDenied("Vous n'avez pas la permission de vous assigner ce lead.")
+        elif user.role == UserRoles.CONSEILLER:
+            action_type = request.data.get("action")
+            if action_type not in ["assign", "unassign"]:
+                return Response({"detail": "Action attendue : 'assign' ou 'unassign'."}, status=400)
 
-            if lead.assigned_to and lead.assigned_to != user and user.role != UserRoles.ADMIN:
-                raise PermissionDenied("Ce lead est déjà assigné à un autre utilisateur.")
+            if action_type == "assign":
+                # Conseiller ne peut s’assigner que lui-même
+                if not lead.assigned_to.filter(id=user.id).exists():
+                    lead.assigned_to.add(user)
+            elif action_type == "unassign":
+                if lead.assigned_to.filter(id=user.id).exists():
+                    lead.assigned_to.remove(user)
 
-            lead.assigned_to = user
             lead.save()
-            return Response(status=status.HTTP_200_OK)
+            serializer = self.get_serializer(lead)
+            return Response(serializer.data, status=200)
 
         else:
-            raise PermissionDenied("Action invalide ou manquante (assign ou unassign attendu).")
+            raise PermissionDenied("Seuls les admins ou conseillers peuvent gérer l’assignation des leads.")
 
     @action(detail=True, methods=["post"], url_path="request-assignment")
     def request_assignment(self, request, pk=None):

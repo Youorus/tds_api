@@ -21,6 +21,8 @@ urlpatterns = [
     # Services - liste des services (ex: titre de séjour, naturalisation, etc)
     path('services/', include('api.services.urls')),
 
+    path('jurist-appointments/', include('api.jurist_appointment.urls')),
+
     # Commentaires - gestion des commentaires liés à un lead/client
     path('comments/', include('api.comments.urls')),
 
@@ -32,6 +34,8 @@ urlpatterns = [
 
     # Documents clients (upload et gestion)
     path('documents/', include('api.documents.urls')),
+
+    path('appointments/', include('api.appointment.urls')),
 
     # Gestion des avatars utilisateurs (upload/profil)
     path('avatars/', include('api.profile.urls')),
