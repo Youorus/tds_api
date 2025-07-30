@@ -54,6 +54,8 @@ INSTALLED_APPS = [
     "api.appointment",
     "api.jurist_appointment",
     "api.websocket",
+    "api.special_closing_period",
+    "api.opening_hours",
 
     # Ajoute l'app pour background tasks
     'background_task',

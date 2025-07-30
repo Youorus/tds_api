@@ -116,6 +116,11 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         lead = serializer.save()
         appointment_after = lead.appointment_date
+
+
+        print(appointment_before)
+        print(appointment_after)
+
         status_after = getattr(lead.status, "code", None)
         statut_dossier_after = getattr(lead.statut_dossier, "id", None)  # <-- Ajout
 
@@ -194,25 +199,24 @@ class LeadViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["patch"], url_path="assignment")
     def assignment(self, request, pk=None):
         """
-        Gère l’assignation/désassignation de conseillers sur un lead.
-        - ADMIN : peut assigner ou désassigner plusieurs conseillers à la fois (payload : {"assign": [ids], "unassign": [ids]})
-        - CONSEILLER : ne peut s’assigner/désassigner que lui-même (payload : {"action": "assign" ou "unassign"})
+        - ADMIN : assignation/désassignation de conseillers (payload : {"assign": [ids]} ou {"unassign": [ids]})
+        - CONSEILLER : auto-assignation/désassignation (payload : {"action": "assign"} ou {"action": "unassign"})
         """
         user = request.user
         lead = self.get_object()
+        print("=== PAYLOAD RECU ===", dict(request.data))
+        print("ROLE UTILISATEUR :", user.role)
 
         if user.role == UserRoles.ADMIN:
             assign_ids = request.data.get("assign", [])
             unassign_ids = request.data.get("unassign", [])
 
-            # On gère assignation
             if assign_ids:
                 users_to_assign = User.objects.filter(id__in=assign_ids, role=UserRoles.CONSEILLER, is_active=True)
                 if users_to_assign.count() != len(assign_ids):
                     raise NotFound("Un ou plusieurs conseillers à assigner sont introuvables ou inactifs.")
                 lead.assigned_to.add(*users_to_assign)
 
-            # Désassignation
             if unassign_ids:
                 users_to_unassign = User.objects.filter(id__in=unassign_ids, role=UserRoles.CONSEILLER)
                 lead.assigned_to.remove(*users_to_unassign)
@@ -227,7 +231,6 @@ class LeadViewSet(viewsets.ModelViewSet):
                 return Response({"detail": "Action attendue : 'assign' ou 'unassign'."}, status=400)
 
             if action_type == "assign":
-                # Conseiller ne peut s’assigner que lui-même
                 if not lead.assigned_to.filter(id=user.id).exists():
                     lead.assigned_to.add(user)
             elif action_type == "unassign":

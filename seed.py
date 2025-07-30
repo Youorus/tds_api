@@ -1,19 +1,19 @@
 import os
 
-from api.utils.jurist_slots import get_slots_for_day
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 import django
 django.setup()
 
 import random
 from decimal import Decimal
-from datetime import timedelta, datetime, date
+from datetime import timedelta, datetime, date, time
 from faker import Faker
 from django.utils import timezone
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
+from api.opening_hours.models import OpeningHours
+from api.special_closing_period.models import SpecialClosingPeriod  # <- ajuste le chemin si besoin
 from api.comments.models import Comment
 from api.contracts.models import Contract
 from api.clients.models import Client
@@ -29,6 +29,7 @@ from api.payments.models import PaymentReceipt
 from api.appointment.models import Appointment
 from api.jurist_appointment.models import JuristAppointment
 from api.users.roles import UserRoles
+from api.utils.jurist_slots import get_slots_for_day
 
 fake = Faker("fr_FR")
 
@@ -39,7 +40,7 @@ def generate_french_phone_number():
     phone_obj = phonenumbers.parse(number, "FR")
     return phonenumbers.format_number(phone_obj, PhoneNumberFormat.E164)
 
-# --- Nettoyage ---
+# --- Nettoyage complet ---
 print("🧹 Suppression des données...")
 Appointment.objects.all().delete()
 JuristAppointment.objects.all().delete()
@@ -53,6 +54,58 @@ User.objects.exclude(email="admin@example.com").delete()
 Service.objects.all().delete()
 LeadStatus.objects.all().delete()
 StatutDossier.objects.all().delete()
+OpeningHours.objects.all().delete()
+SpecialClosingPeriod.objects.all().delete()
+
+# --- HORAIRES D'OUVERTURE PAR DÉFAUT (LUNDI à VENDREDI) ---
+print("🕰️ Création des horaires d'ouverture (lundi à vendredi)...")
+opening_hours_defaults = [
+    (0, time(9, 0), time(18, 0)),   # Lundi
+    (1, time(9, 0), time(18, 0)),   # Mardi
+    (2, time(9, 0), time(18, 0)),   # Mercredi
+    (3, time(9, 0), time(18, 0)),   # Jeudi
+    (4, time(9, 0), time(18, 0)),   # Vendredi
+]
+for day, open_time, close_time in opening_hours_defaults:
+    obj, created = OpeningHours.objects.get_or_create(
+        day_of_week=day,
+        defaults={"open_time": open_time, "close_time": close_time}
+    )
+    print(f"  {'✅' if created else '⚠️'} {obj}")
+print("✅ Horaires créés ou mis à jour (lundi-vendredi)")
+
+# --- FERMETURES EXCEPTIONNELLES ---
+print("🚫 Ajout de fermetures exceptionnelles...")
+closing_periods = [
+    {
+        "label": "Noël",
+        "start_date": date(2025, 12, 25),
+        "end_date": date(2025, 12, 25)
+    },
+    {
+        "label": "15 août",
+        "start_date": date(2025, 8, 15),
+        "end_date": date(2025, 8, 15)
+    },
+    {
+        "label": "Vacances d'été",
+        "start_date": date(2025, 8, 5),
+        "end_date": date(2025, 8, 23)
+    },
+    {
+        "label": "Travaux exceptionnels",
+        "start_date": date(2025, 10, 3),
+        "end_date": date(2025, 10, 7)
+    }
+]
+for period in closing_periods:
+    obj, created = SpecialClosingPeriod.objects.get_or_create(
+        label=period["label"],
+        start_date=period["start_date"],
+        end_date=period["end_date"],
+    )
+    print(f"  {'✅' if created else '⚠️'} {obj}")
+print("✅ Fermetures exceptionnelles créées")
 
 # --- SERVICES ---
 SERVICES_SEED = [
