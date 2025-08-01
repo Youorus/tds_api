@@ -1,38 +1,41 @@
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 from django.utils.timezone import make_aware, get_current_timezone
 
+from api.jurist_availability_date.models import JuristGlobalAvailability
+
 SLOT_DURATION = timedelta(minutes=30)
-TUESDAY = 1
-THURSDAY = 3
 
 def is_valid_day(day):
-    return day.weekday() in [TUESDAY, THURSDAY]
+    """
+    Retourne True si au moins une plage globale existe ce jour-là.
+    """
+    return JuristGlobalAvailability.objects.filter(day_of_week=day.weekday()).exists()
 
 def get_slots_for_day(day):
     """
-    Retourne TOUS les créneaux (aware, Europe/Paris) pour le jour donné (mardi/jeudi)
+    Retourne TOUS les créneaux (aware, Europe/Paris) pour le jour donné,
+    dynamiquement selon les JuristGlobalAvailability.
     """
+
     tz = get_current_timezone()  # Toujours Europe/Paris si settings correct
     slots = []
-    if day.weekday() == TUESDAY:
-        hstart, hend = time(10, 30), time(13, 30)
-    elif day.weekday() == THURSDAY:
-        hstart, hend = time(14, 30), time(18, 0)
-    else:
-        return slots
 
-    current = datetime.combine(day, hstart)
-    end_dt = datetime.combine(day, hend)
-    while current <= end_dt:
-        # Rends l'objet aware en Europe/Paris !
-        aware_slot = make_aware(current, timezone=tz)
-        slots.append(aware_slot)
-        current += SLOT_DURATION
+    availabilities = JuristGlobalAvailability.objects.filter(day_of_week=day.weekday())
+    for avail in availabilities:
+        hstart, hend = avail.start_time, avail.end_time
+        current = datetime.combine(day, hstart)
+        end_dt = datetime.combine(day, hend)
+        # Boucle sur la plage, intervalle 30 min
+        while current + SLOT_DURATION <= end_dt:
+            aware_slot = make_aware(current, timezone=tz)
+            slots.append(aware_slot)
+            current += SLOT_DURATION
     return slots
 
 def get_available_slots_for_jurist(jurist, day):
     """
-    Retourne les créneaux disponibles (au format ISO string) pour ce juriste et ce jour.
+    Retourne les créneaux disponibles (au format ISO string) pour ce juriste et ce jour,
+    selon les plages globales.
     """
     from api.jurist_appointment.models import JuristAppointment
     all_slots = get_slots_for_day(day)

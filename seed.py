@@ -13,7 +13,8 @@ import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
 from api.opening_hours.models import OpeningHours
-from api.special_closing_period.models import SpecialClosingPeriod  # <- ajuste le chemin si besoin
+from api.jurist_availability_date.models import JuristGlobalAvailability
+from api.special_closing_period.models import SpecialClosingPeriod
 from api.comments.models import Comment
 from api.contracts.models import Contract
 from api.clients.models import Client
@@ -30,6 +31,7 @@ from api.appointment.models import Appointment
 from api.jurist_appointment.models import JuristAppointment
 from api.users.roles import UserRoles
 from api.utils.jurist_slots import get_slots_for_day
+from api.user_unavailability.models import UserUnavailability  # <-- à adapter selon ton chemin
 
 fake = Faker("fr_FR")
 
@@ -56,6 +58,24 @@ LeadStatus.objects.all().delete()
 StatutDossier.objects.all().delete()
 OpeningHours.objects.all().delete()
 SpecialClosingPeriod.objects.all().delete()
+JuristGlobalAvailability.objects.all().delete()
+UserUnavailability.objects.all().delete()  # <-- Ajouté pour remise à zéro
+
+# --- CRENEAUX GLOBAUX JURISTES ---
+print("📅 Création des créneaux globaux juriste...")
+
+JURIST_GLOBAL_AVAILABILITIES = [
+    {"day_of_week": 1, "start_time": time(10, 0), "end_time": time(13, 30)},  # Mardi
+    {"day_of_week": 3, "start_time": time(14, 30), "end_time": time(18, 0)},  # Jeudi
+]
+for slot in JURIST_GLOBAL_AVAILABILITIES:
+    obj, created = JuristGlobalAvailability.objects.get_or_create(
+        day_of_week=slot["day_of_week"],
+        start_time=slot["start_time"],
+        end_time=slot["end_time"],
+    )
+    print(f"  {'✅' if created else '⚠️'} {obj}")
+print("✅ Créneaux globaux juriste créés")
 
 # --- HORAIRES D'OUVERTURE PAR DÉFAUT (LUNDI à VENDREDI) ---
 print("🕰️ Création des horaires d'ouverture (lundi à vendredi)...")
@@ -177,6 +197,37 @@ for email, first, last, role in users_info:
 conseillers = [u for u in user_map.values() if u.role == UserRoles.CONSEILLER]
 juristes = [u for u in user_map.values() if u.role == UserRoles.JURISTE]
 
+# --- Indisponibilités utilisateurs ---
+print("⛔ Ajout d’indisponibilités utilisateurs...")
+total_unavails = 0
+for user in user_map.values():
+    for _ in range(random.randint(0, 2)):
+        start = fake.date_between_dates(
+            date_start=date.today() + timedelta(days=1),
+            date_end=date.today() + timedelta(days=60),
+        )
+        if random.random() < 0.5:
+            end = start
+        else:
+            end = start + timedelta(days=random.randint(1, 4))
+        label = random.choice([
+            "Vacances",
+            "Congé maladie",
+            "Absence personnelle",
+            "Formation",
+            "Raison inconnue",
+            "",
+            "",
+        ])
+        UserUnavailability.objects.create(
+            user=user,
+            start_date=start,
+            end_date=end,
+            label=label,
+        )
+        total_unavails += 1
+print(f"✅ {total_unavails} indisponibilités ajoutées pour les utilisateurs")
+
 # --- Leads avec multi-assignation conseiller et juriste ---
 print("📞 Création des leads variés (multi-assignation)...")
 leads = []
@@ -213,7 +264,7 @@ all_slots = []
 today = timezone.now().date()
 for i in range(60):
     d = today + timedelta(days=i)
-    all_slots.extend(get_slots_for_day(d))
+    all_slots.extend(get_slots_for_day(d))  # get_slots_for_day DOIT utiliser les créneaux globaux ici
 jurist_appointments = []
 used_slots = set()
 random.shuffle(all_slots)

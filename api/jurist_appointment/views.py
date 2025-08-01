@@ -13,6 +13,7 @@ from .serializers import (
 from api.leads.models import Lead
 from django.contrib.auth import get_user_model
 
+from ..user_unavailability.models import UserUnavailability
 from ..utils.email.appointments import (
     send_jurist_appointment_email,
     send_jurist_appointment_deleted_email,
@@ -55,12 +56,13 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
             return JuristAppointmentCreateSerializer
         return JuristAppointmentSerializer
 
+    from api.user_unavailability.models import UserUnavailability  # Adapte le chemin
+
     @action(detail=False, methods=["get"])
     def available_jurists(self, request):
         """
-        Retourne la liste des juristes dispos pour un lead et une date donnée.
-        - Si le lead a déjà un juriste assigné, retourne uniquement celui-ci si dispo.
-        - Sinon, retourne tous les juristes dispos pour cette date.
+        Retourne la liste des juristes dispos pour un lead et une date donnée,
+        en tenant compte de leurs périodes d'indisponibilité.
         """
         lead_id = request.query_params.get("lead_id")
         date_str = request.query_params.get("date")
@@ -73,20 +75,25 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
         day = parse_date(date_str)
         if not day or not is_valid_day(day):
-            return Response({"detail": "Date invalide (mardi/jeudi uniquement)."}, status=400)
+            return Response({"detail": "Date invalide (créneau global indisponible ce jour-là)."}, status=400)
 
-        jurist_assigned = getattr(lead, "jurists_assigned", None)
-        if jurist_assigned:
-            # S'il y a bien un juriste assigné, on vérifie s'il est dispo
-            slots = get_available_slots_for_jurist(jurist_assigned, day)
-            if slots:
-                serializer = JuristSerializer(jurist_assigned)
-                return Response([serializer.data])
-            else:
-                return Response([])
+        # Liste des IDs de juristes indisponibles ce jour-là
+        unavailable_ids = set(
+            UserUnavailability.objects.filter(
+                start_date__lte=day,
+                end_date__gte=day
+            ).values_list("user_id", flat=True)
+        )
 
-        # Sinon, tous les juristes dispo à cette date
-        jurists = User.objects.filter(role="JURISTE", is_active=True)
+        jurist_assigned = getattr(lead, "jurist_assigned", None)  # Adapte le nom du champ
+
+        if jurist_assigned and jurist_assigned.exists():
+            jurists = jurist_assigned.all().exclude(id__in=unavailable_ids)
+            available = [j for j in jurists if get_available_slots_for_jurist(j, day)]
+            serializer = JuristSerializer(available, many=True)
+            return Response(serializer.data)
+
+        jurists = User.objects.filter(role="JURISTE", is_active=True).exclude(id__in=unavailable_ids)
         available = [j for j in jurists if get_available_slots_for_jurist(j, day)]
         serializer = JuristSerializer(available, many=True)
         return Response(serializer.data)
