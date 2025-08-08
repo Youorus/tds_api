@@ -1,20 +1,27 @@
 from rest_framework import serializers
 from decimal import Decimal, ROUND_HALF_UP
 
+from api.clients.serializers import ClientSerializer
 from api.contracts.models import Contract
+from api.services.serializers import ServiceSerializer
 
 
 class ContractSerializer(serializers.ModelSerializer):
     amount_paid = serializers.SerializerMethodField()
     real_amount_due = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
+    # Ces deux lignes : version lecture seule pour l’affichage
+    client_details = ClientSerializer(source="client", read_only=True)
+    service_details = ServiceSerializer(source="service", read_only=True)
 
     class Meta:
         model = Contract
         fields = [
             "id",
-            "client",
-            "service",
+            "client",           # ← ID du client (clé étrangère) accepté à la création
+            "client_details",   # ← Détail complet, lecture seule
+            "service",          # ← ID du service (clé étrangère)
+            "service_details",  # ← Détail complet, lecture seule
             "amount_due",
             "discount_percent",
             "real_amount_due",
@@ -33,6 +40,8 @@ class ContractSerializer(serializers.ModelSerializer):
             "contract_url",
             "created_at",
             "created_by",
+            "client_details",
+            "service_details",
         ]
 
     def get_amount_paid(self, obj):

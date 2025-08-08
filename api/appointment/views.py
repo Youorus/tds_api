@@ -40,12 +40,12 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance.date, is_update=False)
+        send_appointment_created_or_updated_email(instance.lead, instance, is_update=False)
         return instance
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance.date, is_update=True)
+        send_appointment_created_or_updated_email(instance.lead, instance, is_update=True)
         return instance
 
     def perform_destroy(self, instance):

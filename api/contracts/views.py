@@ -21,8 +21,10 @@ class ContractViewSet(viewsets.ModelViewSet):
     permission_classes = [IsContractEditor]
 
     def perform_create(self, serializer):
+        # Affiche les données POST reçues pour debug
+        print("POST data:", self.request.data)
         contract = serializer.save(created_by=self.request.user)
-        contract.generate_pdf()   # Génère le PDF APRES création
+        contract.generate_pdf()  # Génère le PDF APRÈS création
 
     @action(detail=True, methods=["get"], url_path="receipts")
     def receipts(self, request, pk=None):

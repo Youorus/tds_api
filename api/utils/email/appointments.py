@@ -132,14 +132,15 @@ def send_jurist_appointment_email(jurist_appointment):
     )
 
 
-def send_appointment_created_or_updated_email(lead, appointment_date, is_update=False):
-    date_str, time_str = get_french_datetime_strings(appointment_date)
+def send_appointment_created_or_updated_email(lead, appointment, is_update=False):
+    date_str, time_str = get_french_datetime_strings(appointment.date)
     context = {
         "user": lead,
         "appointment": {
             "date": date_str,
             "time": time_str,
             "location": "11 rue de l'Arrivée, 75015 Paris",
+            "note": appointment.note or "",
         },
         "year": timezone.now().year,
     }

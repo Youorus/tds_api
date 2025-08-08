@@ -49,6 +49,12 @@
                   <li><strong>Lieu :</strong> 11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, depuis l’intérieur de la galerie)</li>
                 </ul>
 
+{% if appointment.note %}
+  <div style="margin:16px 0 0 0; background:#f1f5f9; color:#0e7490; font-size:15px; padding:10px 18px; border-left:4px solid #0e7490; border-radius:5px;">
+    <b>Note :</b> {{ appointment.note }}
+  </div>
+{% endif %}
+
                 <p style="font-size: 16px; color: #555; line-height: 1.6; margin-top: 30px;">
                   Merci de bien vouloir prendre note de ces changements.<br>
                   Un conseiller peut vous contacter pour confirmer ou préciser ce rendez-vous si besoin.

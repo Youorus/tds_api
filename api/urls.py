@@ -40,7 +40,6 @@ urlpatterns = [
     path('user-unavailability/', include('api.user_unavailability.urls')),
 
 
-
     # Statuts de dossier (pour contrats ou demandes)
     path('statut-dossiers/', include('api.statut_dossier.urls')),
 

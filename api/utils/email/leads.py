@@ -96,8 +96,13 @@ def send_contract_email_to_lead(contract):
         subject="Votre contrat – TDS France",
         template_name="email/contract_send.html",
         context=context,
-        attachments=[(pdf_filename, pdf_content, "application/pdf")]  # <-- Liste de tuples
+        attachments=[{
+            "filename": pdf_filename,
+            "content": pdf_content,
+            "mimetype": "application/pdf"
+        }]
     )
+
 
 def send_receipts_email_to_lead(lead, receipts):
     """

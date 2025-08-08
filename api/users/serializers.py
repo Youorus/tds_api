@@ -10,7 +10,7 @@ from api.users.roles import UserRoles
 class UserSerializer(serializers.ModelSerializer):
     """
     Sérialiseur principal pour les utilisateurs.
-    Gère la création et la mise à jour, avec des règles métier liées au rôle.
+    Gère la création, la mise à jour, et expose toujours l’avatar en URL absolue.
     """
     password = serializers.CharField(
         write_only=True,
@@ -24,15 +24,31 @@ class UserSerializer(serializers.ModelSerializer):
         required=True,
         help_text=_("Rôle de l'utilisateur")
     )
+    # Ajout PRO : toujours renvoyer une URL complète (http…) pour l’avatar
+    avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name",
             "role", "is_staff", "is_superuser", "is_active",
-            "date_joined", "password"
+            "date_joined", "avatar",   # Ajoute "avatar" ici
+            "password"
         ]
         read_only_fields = ("is_staff", "is_superuser", "date_joined", "id")
+
+    def get_avatar(self, obj):
+        """
+        Retourne toujours une URL absolue pour l’avatar,
+        que ce soit stocké comme URL ou chemin relatif.
+        """
+        if not obj.avatar:
+            return None
+        request = self.context.get("request")
+        # Si l'avatar n'est pas déjà une URL, on la construit
+        if request and not obj.avatar.startswith("http"):
+            return request.build_absolute_uri(obj.avatar)
+        return obj.avatar
 
     def create(self, validated_data):
         """

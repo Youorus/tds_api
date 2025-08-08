@@ -7,6 +7,7 @@ import phonenumbers
 from api.lead_status.models import LeadStatus
 from api.lead_status.serializer import LeadStatusSerializer
 from api.clients.serializers import ClientSerializer
+from api.leads.constants import RDV_CONFIRME, RDV_PLANIFIE
 from api.leads.models import Lead
 from api.statut_dossier.models import StatutDossier
 from api.statut_dossier.serializers import StatutDossierSerializer
@@ -14,14 +15,16 @@ from api.users.assigned_user_serializer import AssignedUserSerializer
 from api.users.models import User
 from api.users.roles import UserRoles
 
-# Fuseau horaire par défaut (zoneinfo)
 EUROPE_PARIS = ZoneInfo("Europe/Paris")
+
+# Les codes de statuts qui nécessitent obligatoirement un RDV (à adapter si besoin)
+STATUSES_REQUIRING_APPOINTMENT = {RDV_CONFIRME, RDV_PLANIFIE}
 
 class LeadSerializer(serializers.ModelSerializer):
     appointment_date = serializers.DateTimeField(
-        input_formats=['%d/%m/%Y %H:%M'],    # format reçu du front
-        default_timezone=EUROPE_PARIS,       # on l’interprète en Europe/Paris
-        format='%d/%m/%Y %H:%M',             # même chaîne renvoyée au front
+        input_formats=['%d/%m/%Y %H:%M'],
+        default_timezone=EUROPE_PARIS,
+        format='%d/%m/%Y %H:%M',
         allow_null=True,
         required=False,
     )
@@ -48,15 +51,6 @@ class LeadSerializer(serializers.ModelSerializer):
 
     contract_emitter_id = serializers.SerializerMethodField()
 
-    def get_contract_emitter_id(self, obj):
-        client = getattr(obj, 'form_data', None)
-        if not client:
-            return None
-        contract = client.contracts.order_by('-created_at').first()
-        if contract and contract.created_by:
-            return str(contract.created_by.id)
-        return None
-
     class Meta:
         model = Lead
         fields = [
@@ -68,34 +62,63 @@ class LeadSerializer(serializers.ModelSerializer):
             'jurist_assigned', 'jurist_assigned_ids',
         ]
         extra_kwargs = {
-            'first_name': {'allow_blank': False},
-            'last_name':  {'allow_blank': False},
-            'phone':      {'allow_blank': False},
+            'first_name': {'allow_blank': False, 'error_messages': {'blank': "Le prénom est requis", 'required': "Le prénom est requis"}},
+            'last_name':  {'allow_blank': False, 'error_messages': {'blank': "Le nom est requis", 'required': "Le nom est requis"}},
+            'phone':      {'allow_blank': False, 'error_messages': {'blank': "Le numéro de téléphone est requis", 'required': "Le numéro de téléphone est requis"}},
+            'email':      {'allow_blank': False, 'error_messages': {'blank': "L'email est requis", 'required': "L'email est requis"}},
             'created_at': {'read_only': True},
         }
 
+    def get_contract_emitter_id(self, obj):
+        client = getattr(obj, 'form_data', None)
+        if not client:
+            return None
+        contract = getattr(client, 'contracts', None)
+        if contract is not None:
+            contract = contract.order_by('-created_at').first()
+            if contract and contract.created_by:
+                return str(contract.created_by.id)
+        return None
+
     def validate_email(self, value):
-        if value and '@' not in value:
-            raise serializers.ValidationError(_("Veuillez entrer une adresse email valide."))
-        return value.lower().strip() if value else None
+        if not value:
+            raise serializers.ValidationError("L'email est requis")
+        if '@' not in value:
+            raise serializers.ValidationError("Veuillez entrer une adresse email valide")
+        email = value.lower().strip()
+        # Unicité
+        if self.instance:  # Update
+            if Lead.objects.exclude(pk=self.instance.pk).filter(email__iexact=email).exists():
+                raise serializers.ValidationError("Cet email est déjà utilisé par un autre prospect")
+        else:  # Create
+            if Lead.objects.filter(email__iexact=email).exists():
+                raise serializers.ValidationError("Cet email est déjà utilisé par un autre prospect")
+        return email
 
     def validate_first_name(self, value):
+        if not value:
+            raise serializers.ValidationError("Le prénom est requis")
         return value.capitalize()
 
     def validate_last_name(self, value):
+        if not value:
+            raise serializers.ValidationError("Le nom est requis")
         return value.capitalize()
 
     def validate_phone(self, value):
-        try:
-            parsed = phonenumbers.parse(value, None if value.startswith('+') else 'FR')
-            if not phonenumbers.is_valid_number(parsed):
-                raise serializers.ValidationError(_("Le numéro est invalide."))
-            return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
-        except phonenumbers.NumberParseException:
-            raise serializers.ValidationError(_("Format du numéro incorrect."))
+        if not value:
+            raise serializers.ValidationError("Le numéro de téléphone est requis")
+        return value
 
     def validate(self, data):
-        # logique métier (statut vs appointment_date, unicité, etc.)
+        status = data.get("status") or getattr(self.instance, "status", None)
+        appointment_date = data.get("appointment_date") or getattr(self.instance, "appointment_date", None)
+        # Validation métier pour statut nécessitant un rendez-vous
+        if status and hasattr(status, "code"):
+            if status.code in STATUSES_REQUIRING_APPOINTMENT and not appointment_date:
+                raise serializers.ValidationError({
+                    "appointment_date": f"Une date de rendez-vous est requise pour ce statut «{status.label}»."
+                })
         return super().validate(data)
 
     def to_representation(self, instance):

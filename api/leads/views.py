@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework import status as drf_status
 
 from api.lead_status.models import LeadStatus
 from api.leads.models import Lead
@@ -83,7 +84,10 @@ class LeadViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
+        print("=== RAW DATA REÇUE ===", self.request.data)
+
         data = serializer.validated_data
+        status_param = self.request.query_params.get("status")
         lead_status = data.get("status")
         if not lead_status:
             try:
