@@ -148,11 +148,24 @@ class LeadViewSet(viewsets.ModelViewSet):
     def public_create(self, request):
         """
         Route ouverte à tous pour créer un lead (landing page, prise de contact…).
+        Si aucun statut n'est fourni, applique le statut par défaut RDV_PLANIFIE
+        puis envoie la notification correspondante.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        lead = serializer.save()
-        # Optionnel : notification, selon besoin
+
+        data = serializer.validated_data
+        lead_status = data.get("status")
+        if not lead_status:
+            try:
+                default_status = LeadStatus.objects.get(code=RDV_PLANIFIE)
+            except LeadStatus.DoesNotExist:
+                raise NotFound("Le statut 'RDV_PLANIFIE' n'existe pas en base !")
+            lead = serializer.save(status=default_status)
+        else:
+            lead = serializer.save()
+
+        self.handle_lead_notification(lead)
         return Response(self.get_serializer(lead).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["get"], url_path="count-by-status")

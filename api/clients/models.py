@@ -19,6 +19,16 @@ class Client(models.Model):
         verbose_name=_('lead')
     )
 
+    has_anef_account = models.BooleanField(
+        _("a un compte ANEF ?"), null=True, blank=True
+    )
+    anef_email = models.CharField(
+        _("email du compte ANEF"), max_length=255, blank=True
+    )
+    anef_password = models.CharField(
+        _("mot de passe du compte ANEF"), max_length=255, blank=True
+    )
+
     # Source(s) d'information (enum JSON, liste)
     source = JSONField(
         blank=True,

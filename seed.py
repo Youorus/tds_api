@@ -324,6 +324,15 @@ clients = []
 for lead in leads:
     nb_enfants = random.randint(0, 3)
     type_demande_code = random.choice(list(service_map.keys()))
+
+    # Champs ANEF
+    has_anef = random.choice([True, False])
+    anef_email = fake.unique.email() if has_anef else ""
+    anef_password = (
+        fake.password(length=14, special_chars=True, digits=True, upper_case=True, lower_case=True)
+        if has_anef else ""
+    )
+
     client = Client.objects.create(
         lead=lead,
         source=random.sample([s[0] for s in SourceInformation.choices], k=2),
@@ -353,6 +362,10 @@ for lead in leads:
         nombre_fiches_paie=random.randint(1, 6),
         a_deja_eu_oqtf=random.choice([True, False]),
         remarques=fake.sentence(),
+        # --- Nouveaux champs ANEF ---
+        has_anef_account=has_anef,
+        anef_email=anef_email,
+        anef_password=anef_password,
     )
     clients.append(client)
     doc_urls = [
