@@ -12,6 +12,52 @@ from api.utils.email.leads import send_contract_email_to_lead
 
 
 class ContractViewSet(viewsets.ModelViewSet):
+    @action(detail=True, methods=["post"], url_path="refund")
+    def refund(self, request, pk=None):
+        """
+        Applique un remboursement partiel ou total sur un contrat.
+        Body attendu: { "refund_amount": number, "refund_note": string? }
+        Règles:
+        - refund_amount > 0
+        - refund_amount cumulée <= amount_paid (total perçu)
+        """
+        contract = self.get_object()
+        raw_amount = request.data.get("refund_amount")
+        refund_note = request.data.get("refund_note")  # optionnel si tu as ce champ côté modèle/serializer
+
+        from decimal import Decimal, InvalidOperation
+        try:
+            amount = Decimal(str(raw_amount))
+        except (InvalidOperation, TypeError):
+            return Response({"detail": "Montant invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if amount <= 0:
+            return Response({"detail": "Le montant doit être supérieur à 0."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Montants déjà payés et déjà remboursés
+        already_paid = contract.amount_paid  # propriété safe même sans reçus
+        already_refunded = contract.refund_amount or Decimal("0.00")
+        max_refundable = (Decimal(already_paid) - already_refunded)
+
+        if amount > max_refundable:
+            return Response({
+                "detail": f"Le montant dépasse le maximum remboursable ({max_refundable} €)."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Appliquer le remboursement (on cumule)
+        contract.refund_amount = (already_refunded + amount)
+        contract.is_refunded = bool(contract.refund_amount and contract.refund_amount > 0)
+
+        # Si tu gères une note de remboursement côté modèle/serializer, on peut la patcher via serializer
+        partial_data = {"refund_amount": str(contract.refund_amount), "is_refunded": contract.is_refunded}
+        if refund_note is not None:
+            partial_data["refund_note"] = refund_note
+
+        serializer = self.get_serializer(contract, data=partial_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
     """
     ViewSet principal pour la gestion CRUD des contrats,
     avec endpoints pour uploads PDF, receipts et filtrage par client.

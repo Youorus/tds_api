@@ -37,6 +37,9 @@
                 <li><b>Date initiale :</b> {{ appointment.date }}</li>
                 <li><b>Heure :</b> {{ appointment.time }}</li>
                 <li><b>Lieu :</b> {{ appointment.location }}</li>
+                   {% if appointment.with_name %}
+    <li><strong>{{ appointment.with_label }} :</strong> {{ appointment.with_name }}</li>
+  {% endif %}
               </ul>
               <div style="margin:20px 0; text-align:center;">
                 <span style="display:inline-block; background:#e11d48; color:#fff; padding:12px 24px; font-size:17px; border-radius:6px; font-weight:bold;">

@@ -14,6 +14,7 @@ from api.leads.models import Lead
 from django.contrib.auth import get_user_model
 
 from ..user_unavailability.models import UserUnavailability
+from ..users.roles import UserRoles
 from ..utils.email.appointments import (
     send_jurist_appointment_email,
     send_jurist_appointment_deleted_email,
@@ -40,16 +41,32 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         send_jurist_appointment_deleted_email(lead, jurist, appointment_date)
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        user = self.request.user
+        qs = super().get_queryset()
+
+        # --- Scope par rôle ---
+        if getattr(user, "role", None) == UserRoles.ADMIN:
+            pass  # admin : tout
+        elif getattr(user, "role", None) == UserRoles.CONSEILLER:
+            qs = qs.filter(lead__assigned_to=user)
+        elif getattr(user, "role", None) == UserRoles.JURISTE:
+            qs = qs.filter(jurist=user)
+        else:
+            return qs.none()
+
+        # --- Filtres additionnels ---
         lead = self.request.query_params.get("lead")
-        date = self.request.query_params.get("date")
-        if lead and date:
-            queryset = queryset.filter(lead_id=lead, date__date=date)
-        elif lead:
-            queryset = queryset.filter(lead_id=lead)
-        elif date:
-            queryset = queryset.filter(date__date=date)
-        return queryset
+        date_str = self.request.query_params.get("date")  # attendu: YYYY-MM-DD
+
+        if lead:
+            qs = qs.filter(lead_id=lead)
+
+        if date_str:
+            day = parse_date(date_str)
+            if day:
+                qs = qs.filter(date__date=day)
+
+        return qs
 
     def get_serializer_class(self):
         if self.action == "create":

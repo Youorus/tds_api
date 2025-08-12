@@ -9,6 +9,7 @@ from decimal import Decimal
 from datetime import timedelta, datetime, date, time
 from faker import Faker
 from django.utils import timezone
+from django.db import transaction
 import phonenumbers
 from phonenumbers import PhoneNumberFormat
 
@@ -382,43 +383,66 @@ print(f"✅ {len(clients)} clients créés avec documents mock")
 print("💶 Génération des paiements...")
 for client in clients:
     try:
-        service = client.type_demande
-        base_price = service.price
-        remise = random.choice([0, 10, 20])
-        discount = Decimal(remise)
-        ratio = (Decimal("100") - discount) / Decimal("100")
-        real_amount_due = (base_price * ratio).quantize(Decimal("0.01"))
-        contract = Contract.objects.create(
-            client=client,
-            created_by=random.choice(conseillers),
-            service=service,
-            amount_due=base_price,
-            discount_percent=discount,
-        )
-        total_receipts = random.choice([1, 2, 3])
-        receipt_amount = (real_amount_due / total_receipts).quantize(Decimal("0.01"))
-        total_paid = Decimal("0.00")
-        today = timezone.now().date()
-        for i in range(total_receipts):
-            is_last = (i == total_receipts - 1)
-            remaining = (real_amount_due - total_paid).quantize(Decimal("0.01"))
-            actual_amount = remaining if is_last else min(receipt_amount, remaining)
-            if actual_amount <= Decimal("0.00"):
-                break
-            next_due = (today + timedelta(days=30 * (i + 1))) if not is_last else None
-            PaymentReceipt.objects.create(
+        with transaction.atomic():
+            service = client.type_demande
+            base_price = service.price if isinstance(service.price, Decimal) else Decimal(str(service.price))
+            remise = random.choice([0, 10, 20])
+            discount = Decimal(remise)
+            ratio_discount = (Decimal("100") - discount) / Decimal("100")
+            real_amount_due = (base_price * ratio_discount).quantize(Decimal("0.01"))
+
+            # Crée et SAUVEGARDE le contrat pour obtenir une PK immédiatement
+            contract = Contract.objects.create(
                 client=client,
-                contract=contract,
-                amount=actual_amount,
-                mode=random.choice([m[0] for m in PaymentMode.choices]),
-                payment_date=timezone.now(),
                 created_by=random.choice(conseillers),
-                next_due_date=next_due,
+                service=service,
+                amount_due=base_price,
+                discount_percent=discount,
             )
-            total_paid += actual_amount
-        print(f"✅ Contrat {contract.id} créé avec {total_receipts} reçu(s) pour client {client.id}")
+
+            # Générer des reçus de paiement
+            total_receipts = random.choice([1, 2, 3])
+            receipt_amount = (real_amount_due / total_receipts).quantize(Decimal("0.01"))
+            total_paid = Decimal("0.00")
+            today = timezone.now().date()
+
+            for i in range(total_receipts):
+                is_last = (i == total_receipts - 1)
+                remaining = (real_amount_due - total_paid).quantize(Decimal("0.01"))
+                actual_amount = remaining if is_last else min(receipt_amount, remaining)
+                if actual_amount <= Decimal("0.00"):
+                    break
+                next_due = (today + timedelta(days=30 * (i + 1))) if not is_last else None
+                # Utilise contract_id pour éviter tout accès relationnel précoce
+                PaymentReceipt.objects.create(
+                    client=client,
+                    contract_id=contract.id,
+                    amount=actual_amount,
+                    mode=random.choice([m[0] for m in PaymentMode.choices]),
+                    payment_date=timezone.now(),
+                    created_by=random.choice(conseillers),
+                    next_due_date=next_due,
+                )
+                total_paid += actual_amount
+
+            # Remboursement optionnel (cohérent avec le total payé)
+            refund_amount = Decimal("0.00")
+            if total_paid > Decimal("0.00") and random.random() < 0.35:
+                ratio_refund = Decimal(random.choice([10, 25, 50, 100])) / Decimal("100")
+                refund_amount = (total_paid * ratio_refund).quantize(Decimal("0.01"))
+                if refund_amount > total_paid:
+                    refund_amount = total_paid
+                contract.refund_amount = refund_amount
+                # Sauvegarde *après* la création des reçus
+                contract.save(update_fields=["refund_amount", "is_refunded"])  # is_refunded mis à jour dans save()
+
+            msg = f"Contrat {contract.id} créé avec {total_receipts} reçu(s) pour client {client.id}"
+            if refund_amount > Decimal("0.00"):
+                msg += f" — remboursement {refund_amount} €"
+            print(f"✅ {msg}")
     except Exception as e:
         print(f"❌ Erreur pour client {client.id}: {e}")
+
 print("✅ Paiements et reçus générés")
 
 # --- Commentaires

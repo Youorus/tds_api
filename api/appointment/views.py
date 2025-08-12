@@ -1,6 +1,8 @@
 # api/appointment/views.py
 
 from datetime import datetime
+
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -27,16 +29,32 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = super().get_queryset()
-        if user.role in [UserRoles.ADMIN, UserRoles.ACCUEIL]:
-            return qs
-        elif user.role == UserRoles.CONSEILLER:
-            return qs.filter(lead__assigned_to=user)
-        elif user.role == UserRoles.JURISTE:
-            # Option : afficher les RDV classiques des leads dont le juriste a au moins un RDV, sinon retourne qs.none()
+
+        # --- Scope par rôle ---
+        if getattr(user, "role", None) == UserRoles.ADMIN:
+            pass  # admin : tout
+        elif getattr(user, "role", None) == UserRoles.CONSEILLER:
+            qs = qs.filter(lead__assigned_to=user)
+        elif getattr(user, "role", None) == UserRoles.JURISTE:
+            # RDV classiques des leads pour lesquels le juriste a au moins un RDV juriste
             lead_ids = JuristAppointment.objects.filter(jurist=user).values_list("lead_id", flat=True)
-            return qs.filter(lead_id__in=lead_ids)
+            qs = qs.filter(lead_id__in=lead_ids)
         else:
             return qs.none()
+
+        # --- Filtres additionnels ---
+        lead = self.request.query_params.get("lead")
+        date_str = self.request.query_params.get("date")  # attendu: YYYY-MM-DD
+
+        if lead:
+            qs = qs.filter(lead_id=lead)
+
+        if date_str:
+            day = parse_date(date_str)
+            if day:
+                qs = qs.filter(date__date=day)
+
+        return qs
 
     def perform_create(self, serializer):
         instance = serializer.save()

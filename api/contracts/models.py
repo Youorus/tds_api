@@ -1,4 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -16,6 +17,8 @@ class Contract(models.Model):
     contract_url = models.URLField(_("Contrat PDF"), blank=True, null=True)
     created_at = models.DateTimeField(_("Créé le"), default=timezone.now)
     is_signed = models.BooleanField(_("Signé ?"), default=False)
+    is_refunded = models.BooleanField(default=False)
+    refund_amount = models.DecimalField(_("Montant remboursé (€)"), max_digits=10, decimal_places=2, default=Decimal("0.00"))
 
     class Meta:
         ordering = ["-created_at"]
@@ -30,16 +33,63 @@ class Contract(models.Model):
 
     @property
     def amount_paid(self):
-        """Somme totale déjà payée via les reçus liés."""
+        """Somme totale déjà payée via les reçus liés.
+        Retourne 0.00 si l'objet n'a pas encore de PK (non sauvegardé)."""
+        if not self.pk:
+            return Decimal("0.00")
         return sum(receipt.amount for receipt in self.receipts.all())
+
+
+    @property
+    def net_paid(self):
+        """Total payé après déduction des remboursements."""
+        refund = self.refund_amount or Decimal("0.00")
+        total = (Decimal(self.amount_paid) - refund)
+        return total if total > 0 else Decimal("0.00")
+
+    @property
+    def balance_due(self):
+        """Solde restant dû (montant réel - payé net)."""
+        remaining = (self.real_amount - self.net_paid)
+        return remaining.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if remaining > 0 else Decimal("0.00")
 
     @property
     def is_fully_paid(self):
-        """Contrat soldé si montant réel dû <= total payé."""
-        return self.real_amount <= self.amount_paid
+        """Contrat soldé si le solde restant dû est nul."""
+        return self.balance_due == Decimal("0.00")
 
     def __str__(self):
         return f"Contrat {self.id} - {getattr(self.client, 'full_name', self.client.pk)}"
+
+    def clean(self):
+        super().clean()
+        # Normaliser le refund_amount à 0 si None
+        if self.refund_amount is None:
+            self.refund_amount = Decimal("0.00")
+        # Interdire les montants négatifs
+        if self.refund_amount < 0:
+            raise ValidationError({"refund_amount": _("Le montant remboursé ne peut pas être négatif.")})
+        # Un remboursement ne peut pas dépasser le total payé (avant remboursement)
+        # Vérification uniquement si l'objet est sauvegardé (possède une PK)
+        if self.pk and self.refund_amount > Decimal(self.amount_paid):
+            raise ValidationError({"refund_amount": _("Le remboursement ne peut pas dépasser le total payé." )})
+
+    def save(self, *args, **kwargs):
+        # Cohérence booléen/valeur
+        if self.refund_amount is None:
+            self.refund_amount = Decimal("0.00")
+        self.is_refunded = bool(self.refund_amount and self.refund_amount > 0)
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def apply_refund(self, amount: Decimal):
+        """Applique un remboursement additionnel et persiste la cohérence."""
+        if amount is None:
+            amount = Decimal("0.00")
+        if amount <= 0:
+            raise ValidationError({"refund_amount": _("Le montant de remboursement doit être positif.")})
+        self.refund_amount = (self.refund_amount or Decimal("0.00")) + Decimal(amount)
+        self.save(update_fields=["refund_amount", "is_refunded"])
 
     def generate_pdf(self):
         """

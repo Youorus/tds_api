@@ -47,6 +47,9 @@
                   <li><strong>Date :</strong> {{ appointment.date }}</li>
                   <li><strong>Heure :</strong> {{ appointment.time }}</li>
                   <li><strong>Lieu :</strong> 11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, depuis l’intérieur de la galerie)</li>
+                 {% if appointment.with_name %}
+    <li><strong>{{ appointment.with_label }} :</strong> {{ appointment.with_name }}</li>
+  {% endif %}
                 </ul>
 
 {% if appointment.note %}
