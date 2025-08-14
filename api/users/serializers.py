@@ -25,30 +25,26 @@ class UserSerializer(serializers.ModelSerializer):
         help_text=_("Rôle de l'utilisateur")
     )
     # Ajout PRO : toujours renvoyer une URL complète (http…) pour l’avatar
-    avatar = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name",
             "role", "is_staff", "is_superuser", "is_active",
-            "date_joined", "avatar",   # Ajoute "avatar" ici
+            "date_joined", "avatar", "avatar_url",   # Ajoute "avatar" ici
             "password"
         ]
         read_only_fields = ("is_staff", "is_superuser", "date_joined", "id")
 
-    def get_avatar(self, obj):
-        """
-        Retourne toujours une URL absolue pour l’avatar,
-        que ce soit stocké comme URL ou chemin relatif.
-        """
+    def get_avatar_url(self, obj):
         if not obj.avatar:
             return None
         request = self.context.get("request")
-        # Si l'avatar n'est pas déjà une URL, on la construit
-        if request and not obj.avatar.startswith("http"):
-            return request.build_absolute_uri(obj.avatar)
-        return obj.avatar
+        url = str(obj.avatar)
+        if request and not url.startswith(("http://", "https://")):
+            return request.build_absolute_uri(url)
+        return url
 
     def create(self, validated_data):
         """
