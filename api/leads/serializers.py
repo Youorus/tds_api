@@ -89,10 +89,11 @@ class LeadSerializer(serializers.ModelSerializer):
         # Unicité
         if self.instance:  # Update
             if Lead.objects.exclude(pk=self.instance.pk).filter(email__iexact=email).exists():
-                raise serializers.ValidationError("Cet email est déjà utilisé par un autre prospect")
+                raise serializers.ValidationError("Cet email est déjà utilisé par un autre utilisateur, veuillez nous contacter.")
         else:  # Create
             if Lead.objects.filter(email__iexact=email).exists():
-                raise serializers.ValidationError("Cet email est déjà utilisé par un autre prospect")
+                raise serializers.ValidationError(
+                    "Cet email est déjà utilisé par un autre utilisateur, veuillez nous contacter.")
         return email
 
     def validate_first_name(self, value):

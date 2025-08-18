@@ -1,126 +1,272 @@
-# api/contracts/contract_search.py
+# api/contracts/views.py
+from datetime import date, datetime, time
+from typing import Optional
+from decimal import Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import (
+    F, Value, Sum, Case, When, BooleanField,
+    ExpressionWrapper, DecimalField, Q, Count, Min, Max
+)
+from django.db.models.functions import Coalesce, Greatest
+from django.utils.dateparse import parse_datetime, parse_date
+from django.utils.timezone import make_aware, is_naive, get_current_timezone
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
-from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 from api.contracts.models import Contract
-from api.contracts.serializer import ContractSerializer
 
 
-def get_filtered_contracts(params):
-    queryset = Contract.objects.all()
+def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
+    if not dt:
+        return None
+    return parse_datetime(dt) or parse_date(dt)
 
-    # Recherche plein texte (client, service, créateur, etc)
-    search = params.get("search")
-    if search:
-        queryset = queryset.filter(
-            Q(client__first_name__icontains=search) |
-            Q(client__last_name__icontains=search) |
-            Q(service__label__icontains=search) |
-            Q(created_by__first_name__icontains=search) |
-            Q(created_by__last_name__icontains=search)
+def _to_aware(dt_or_d: Optional[object], end_of_day: bool = False) -> Optional[datetime]:
+    if dt_or_d is None:
+        return None
+    tz = get_current_timezone()
+    if isinstance(dt_or_d, date) and not isinstance(dt_or_d, datetime):
+        dtime = datetime.combine(
+            dt_or_d,
+            time(23, 59, 59, 999999) if end_of_day else time(0, 0, 0, 0)
+        )
+        return make_aware(dtime, timezone=tz)
+    if is_naive(dt_or_d):
+        return make_aware(dt_or_d, timezone=tz)
+    return dt_or_d
+
+def _normalize_avec_sans(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    v = value.strip().lower()
+    if v in {"avec", "oui", "with", "true", "1"}:
+        return "avec"
+    if v in {"sans", "non", "without", "false", "0"}:
+        return "sans"
+    return None
+
+def _to_dec(v: Optional[str]) -> Optional[Decimal]:
+    if v is None or v == "":
+        return None
+    try:
+        return Decimal(str(v))
+    except Exception:
+        return None
+
+def _to_int_or_str(v: Optional[str]) -> Optional[str]:
+    if v is None or str(v).strip() == "":
+        return None
+    return str(v).strip()
+
+def _dec(v: Optional[Decimal]) -> float:
+    return float(v or Decimal("0.00"))
+
+
+class ContractSearchView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        raw_date_from = request.query_params.get("date_from")
+        raw_date_to   = request.query_params.get("date_to")
+
+        is_signed_param   = _normalize_avec_sans(request.query_params.get("is_signed"))
+        is_refunded_param = _normalize_avec_sans(request.query_params.get("is_refunded"))
+        fully_paid_param  = _normalize_avec_sans(request.query_params.get("is_fully_paid"))
+        has_balance_param = _normalize_avec_sans(request.query_params.get("has_balance"))
+        with_discount     = _normalize_avec_sans(request.query_params.get("with_discount"))
+
+        service_id   = _to_int_or_str(request.query_params.get("service_id"))
+        service_code = request.query_params.get("service_code")
+        client_id    = _to_int_or_str(request.query_params.get("client_id"))
+        created_by   = _to_int_or_str(request.query_params.get("created_by"))
+
+        min_amount_due  = _to_dec(request.query_params.get("min_amount_due"))
+        max_amount_due  = _to_dec(request.query_params.get("max_amount_due"))
+        min_real_amount = _to_dec(request.query_params.get("min_real_amount"))
+        max_real_amount = _to_dec(request.query_params.get("max_real_amount"))
+        min_balance_due = _to_dec(request.query_params.get("min_balance_due"))
+        max_balance_due = _to_dec(request.query_params.get("max_balance_due"))
+
+        try:
+            page = max(int(request.query_params.get("page", 1)), 1)
+        except Exception:
+            page = 1
+        try:
+            page_size = min(max(int(request.query_params.get("page_size", 20)), 1), 200)
+        except Exception:
+            page_size = 20
+
+        allowed_ordering = {
+            "created_at", "-created_at",
+            "amount_due", "-amount_due",
+            "real_amount_due", "-real_amount_due",
+            "amount_paid", "-amount_paid",
+            "net_paid", "-net_paid",
+            "balance_due", "-balance_due",
+            "id", "-id",
+        }
+        ordering = request.query_params.get("ordering", "-created_at")
+        if ordering not in allowed_ordering:
+            ordering = "-created_at"
+
+        date_from = _to_aware(_parse_iso_any(raw_date_from), end_of_day=False)
+        date_to   = _to_aware(_parse_iso_any(raw_date_to),   end_of_day=True)
+
+        real_amount_due = ExpressionWrapper(
+            F("amount_due") * (
+                Value(1.0) - (Coalesce(F("discount_percent"), Value(Decimal("0.00"))) / Value(100.0))
+            ),
+            output_field=DecimalField(max_digits=12, decimal_places=2)
+        )
+        amount_paid = Coalesce(Sum("receipts__amount"), Value(Decimal("0.00")))
+        net_paid = Greatest(
+            Value(Decimal("0.00")),
+            ExpressionWrapper(
+                amount_paid - Coalesce(F("refund_amount"), Value(Decimal("0.00"))),
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
+        balance_due = Greatest(
+            Value(Decimal("0.00")),
+            ExpressionWrapper(
+                real_amount_due - net_paid,
+                output_field=DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
+        today = timezone.localdate()
+
+        qs = (
+            Contract.objects
+            .select_related("client", "service", "created_by")
+            .annotate(
+                real_amount_due=real_amount_due,
+                amount_paid=amount_paid,
+                net_paid=net_paid,
+                balance_due=balance_due,
+                # ⇩⇩⇩ ANNOTATION CLÉ pour les remises (évite toute comparaison d'expressions)
+                discount_abs=Coalesce(F("discount_percent"), Value(Decimal("0.00"))),
+            )
+            .annotate(
+                is_fully_paid=Case(
+                    When(balance_due=Decimal("0.00"), then=Value(True)),
+                    default=Value(False),
+                    output_field=BooleanField(),
+                ),
+                next_due_date=Min(
+                    "receipts__next_due_date",
+                    filter=Q(receipts__next_due_date__gte=today),
+                ),
+                last_payment_date=Max("receipts__payment_date"),
+            )
         )
 
-    # Filtre par service
-    service = params.get("service")
-    if service and service != "ALL":
-        queryset = queryset.filter(service_id=service)
+        if date_from:
+            qs = qs.filter(created_at__gte=date_from)
+        if date_to:
+            qs = qs.filter(created_at__lte=date_to)
 
-    service_in = params.get("service_in")
-    if service_in:
-        ids = [int(s) for s in service_in.split(",") if s.isdigit()]
-        queryset = queryset.filter(service_id__in=ids)
+        if is_signed_param == "avec":
+            qs = qs.filter(is_signed=True)
+        elif is_signed_param == "sans":
+            qs = qs.filter(is_signed=False)
 
-    # Filtre par client
-    client = params.get("client")
-    if client and client != "ALL":
-        queryset = queryset.filter(client_id=client)
+        if is_refunded_param == "avec":
+            qs = qs.filter(is_refunded=True)
+        elif is_refunded_param == "sans":
+            qs = qs.filter(is_refunded=False)
 
-    # Filtre par créateur
-    created_by = params.get("created_by")
-    if created_by and created_by != "ALL":
-        queryset = queryset.filter(created_by_id=created_by)
-    created_by_in = params.get("created_by_in")
-    if created_by_in:
-        ids = [int(s) for s in created_by_in.split(",") if s.isdigit()]
-        queryset = queryset.filter(created_by_id__in=ids)
+        if fully_paid_param == "avec":
+            qs = qs.filter(balance_due=Decimal("0.00"))
+        elif fully_paid_param == "sans":
+            qs = qs.filter(balance_due__gt=Decimal("0.00"))
 
-    # Filtre par signature
-    is_signed = params.get("is_signed")
-    if is_signed is not None:
-        if str(is_signed).lower() in ("1", "true", "oui", "yes"):
-            queryset = queryset.filter(is_signed=True)
-        elif str(is_signed).lower() in ("0", "false", "non", "no"):
-            queryset = queryset.filter(is_signed=False)
+        if has_balance_param == "avec":
+            qs = qs.filter(balance_due__gt=Decimal("0.00"))
+        elif has_balance_param == "sans":
+            qs = qs.filter(balance_due=Decimal("0.00"))
 
-    # Filtre par date de création
-    period_type = params.get("period_type")
-    date_field = params.get("date_field", "created_at")
-    if date_field not in ["created_at"]:
-        date_field = "created_at"
+        # ✅ Remplace toute comparaison « expression > Decimal » par un lookup sur l’annotation
+        if with_discount == "avec":
+            qs = qs.filter(discount_abs__gt=Decimal("0.00"))
+        elif with_discount == "sans":
+            qs = qs.filter(discount_abs__lte=Decimal("0.00"))
 
-    if period_type == "day":
-        day = params.get("date")
-        if day:
-            queryset = queryset.filter(**{f"{date_field}__date": day})
+        if service_id:
+            qs = qs.filter(service_id=service_id)
+        if service_code:
+            qs = qs.filter(service__code=service_code)
+        if client_id:
+            qs = qs.filter(client_id=client_id)
+        if created_by:
+            qs = qs.filter(created_by_id=created_by)
 
-    elif period_type == "range":
-        from_date = params.get("from")
-        to_date = params.get("to")
-        if from_date and to_date:
-            queryset = queryset.filter(**{
-                f"{date_field}__date__gte": from_date,
-                f"{date_field}__date__lte": to_date
-            })
+        if min_amount_due is not None:
+            qs = qs.filter(amount_due__gte=min_amount_due)
+        if max_amount_due is not None:
+            qs = qs.filter(amount_due__lte=max_amount_due)
+        if min_real_amount is not None:
+            qs = qs.filter(real_amount_due__gte=min_real_amount)
+        if max_real_amount is not None:
+            qs = qs.filter(real_amount_due__lte=max_real_amount)
+        if min_balance_due is not None:
+            qs = qs.filter(balance_due__gte=min_balance_due)
+        if max_balance_due is not None:
+            qs = qs.filter(balance_due__lte=max_balance_due)
 
-    elif period_type == "month":
-        month = params.get("month")
-        year = params.get("year")
-        if month and year:
-            queryset = queryset.filter(**{
-                f"{date_field}__year": int(year),
-                f"{date_field}__month": int(month)
-            })
+        # Agrégats (aucune comparaison Python entre expressions ici)
+        agg = qs.aggregate(
+            sum_amount_due=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
+            sum_real_amount_due=Coalesce(Sum("real_amount_due"), Value(Decimal("0.00"))),
+            sum_amount_paid=Coalesce(Sum("amount_paid"), Value(Decimal("0.00"))),
+            sum_net_paid=Coalesce(Sum("net_paid"), Value(Decimal("0.00"))),
+            sum_balance_due=Coalesce(Sum("balance_due"), Value(Decimal("0.00"))),
 
-    elif period_type == "year":
-        year = params.get("year")
-        if year:
-            queryset = queryset.filter(**{
-                f"{date_field}__year": int(year)
-            })
+            count_signed=Count("id", filter=Q(is_signed=True)),
+            count_refunded=Count("id", filter=Q(is_refunded=True)),
+            count_fully_paid=Count("id", filter=Q(balance_due=Decimal("0.00"))),
+            count_with_balance=Count("id", filter=Q(balance_due__gt=Decimal("0.00"))),
+            # ✅ utilisation de l’annotation discount_abs
+            count_reduced=Count("id", filter=Q(discount_abs__gt=Decimal("0.00"))),
+        )
 
-    return queryset.order_by("-created_at")
+        total = qs.count()
 
+        qs = qs.order_by(ordering)
+        start = (page - 1) * page_size
+        end = start + page_size
 
-class ContractSearchAPIView(APIView):
-    """
-    Recherche avancée de contrats avec stats (somme, etc).
-    """
-    def get(self, request):
-        params = request.query_params
-        queryset = get_filtered_contracts(params)
+        rows = list(qs.values(
+            "id", "client_id", "service_id", "created_by_id",
+            "client__lead__first_name", "client__lead__last_name",
+            "client__lead__email", "client__lead__phone",
+            "service__code", "service__label", "service__price",
+            "created_by__first_name", "created_by__last_name",
+            "amount_due", "discount_percent", "real_amount_due",
+            "amount_paid", "net_paid", "balance_due",
+            "is_fully_paid", "is_refunded", "refund_amount",
+            "is_signed", "contract_url", "created_at",
+            "next_due_date",
+            "last_payment_date",
+        )[start:end])
 
-        paginator = PageNumberPagination()
-        paginator.page_size_query_param = "page_size"
-        page = paginator.paginate_queryset(queryset, request)
-        serializer = ContractSerializer(page, many=True) if page is not None else ContractSerializer(queryset, many=True)
-
-        # Calcul du montant total dû (et éventuellement autres agrégats)
-        total_amount_due = queryset.aggregate(total=Sum("amount_due"))["total"] or 0
-
-        response_data = {
-            "results": serializer.data,
-            "count": queryset.count(),
-            "total_amount_due": float(total_amount_due),  # Pour JS/TS côté front
-        }
-
-        if page is not None:
-            # Ajoute total à la pagination DRF (custom)
-            paginated_response = paginator.get_paginated_response(serializer.data)
-            paginated_response.data["total_amount_due"] = float(total_amount_due)
-            return paginated_response
-        else:
-            return Response(response_data, status=status.HTTP_200_OK)
+        return Response({
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "ordering": ordering,
+            "aggregates": {
+                "sum_amount_due":      _dec(agg["sum_amount_due"]),
+                "sum_real_amount_due": _dec(agg["sum_real_amount_due"]),
+                "sum_amount_paid":     _dec(agg["sum_amount_paid"]),
+                "sum_net_paid":        _dec(agg["sum_net_paid"]),
+                "sum_balance_due":     _dec(agg["sum_balance_due"]),
+                "count_signed":        int(agg["count_signed"] or 0),
+                "count_refunded":      int(agg["count_refunded"] or 0),
+                "count_fully_paid":    int(agg["count_fully_paid"] or 0),
+                "count_with_balance":  int(agg["count_with_balance"] or 0),
+                "count_reduced":       int(agg["count_reduced"] or 0),
+            },
+            "items": rows,
+        })
