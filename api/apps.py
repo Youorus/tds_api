@@ -19,3 +19,5 @@ class ApiConfig(AppConfig):
         """
         # Signaux WebSocket pour notifier les événements Lead
         import api.websocket.signals.leads  # noqa: F401
+        import api.websocket.signals.clients # noqa: F401
+        import api.websocket.signals.comments  # noqa: F401
