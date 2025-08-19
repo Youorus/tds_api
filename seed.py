@@ -32,7 +32,8 @@ from api.appointment.models import Appointment
 from api.jurist_appointment.models import JuristAppointment
 from api.users.roles import UserRoles
 from api.utils.jurist_slots import get_slots_for_day
-from api.user_unavailability.models import UserUnavailability  # <-- à adapter selon ton chemin
+from api.user_unavailability.models import UserUnavailability
+from api.booking.models import SlotQuota
 
 fake = Faker("fr_FR")
 
@@ -60,6 +61,7 @@ StatutDossier.objects.all().delete()
 OpeningHours.objects.all().delete()
 SpecialClosingPeriod.objects.all().delete()
 JuristGlobalAvailability.objects.all().delete()
+SlotQuota.objects.all().delete()
 UserUnavailability.objects.all().delete()  # <-- Ajouté pour remise à zéro
 
 # --- CRENEAUX GLOBAUX JURISTES ---
@@ -78,22 +80,31 @@ for slot in JURIST_GLOBAL_AVAILABILITIES:
     print(f"  {'✅' if created else '⚠️'} {obj}")
 print("✅ Créneaux globaux juriste créés")
 
-# --- HORAIRES D'OUVERTURE PAR DÉFAUT (LUNDI à VENDREDI) ---
-print("🕰️ Création des horaires d'ouverture (lundi à vendredi)...")
+# --- HORAIRES D'OUVERTURE PAR DÉFAUT (LUNDI à DIMANCHE) ---
+print("🕰️ Création des horaires d'ouverture (lundi à dimanche)...")
+# day_of_week, open_time, close_time, slot_minutes, capacity, is_active
 opening_hours_defaults = [
-    (0, time(9, 0), time(18, 0)),   # Lundi
-    (1, time(9, 0), time(18, 0)),   # Mardi
-    (2, time(9, 0), time(18, 0)),   # Mercredi
-    (3, time(9, 0), time(18, 0)),   # Jeudi
-    (4, time(9, 0), time(18, 0)),   # Vendredi
+    (0, time(9, 0), time(18, 0), 30, 2, True),   # Lundi
+    (1, time(9, 0), time(18, 0), 30, 2, True),   # Mardi
+    (2, time(9, 0), time(18, 0), 30, 2, True),   # Mercredi
+    (3, time(9, 0), time(18, 0), 30, 2, True),   # Jeudi
+    (4, time(9, 0), time(18, 0), 30, 2, True),   # Vendredi
+    (5, None,       None,        30, 1, False),  # Samedi (fermé par défaut)
+    (6, None,       None,        30, 1, False),  # Dimanche (fermé par défaut)
 ]
-for day, open_time, close_time in opening_hours_defaults:
-    obj, created = OpeningHours.objects.get_or_create(
+for day, open_t, close_t, slot_min, capacity, active in opening_hours_defaults:
+    obj, created = OpeningHours.objects.update_or_create(
         day_of_week=day,
-        defaults={"open_time": open_time, "close_time": close_time}
+        defaults={
+            "open_time": open_t,
+            "close_time": close_t,
+            "slot_duration_minutes": slot_min,
+            "capacity_per_slot": capacity,
+            "is_active": active,
+        },
     )
-    print(f"  {'✅' if created else '⚠️'} {obj}")
-print("✅ Horaires créés ou mis à jour (lundi-vendredi)")
+    print(f"  {'✅' if created else '♻️'} {obj}")
+print("✅ Horaires créés/mis à jour (lundi-dimanche)")
 
 # --- FERMETURES EXCEPTIONNELLES ---
 print("🚫 Ajout de fermetures exceptionnelles...")
@@ -232,7 +243,7 @@ print(f"✅ {total_unavails} indisponibilités ajoutées pour les utilisateurs")
 # --- Leads avec multi-assignation conseiller et juriste ---
 print("📞 Création des leads variés (multi-assignation)...")
 leads = []
-for i in range(15):
+for i in range(100):
     status = random.choice(list(lead_status_map.values()))
     dossier_status = random.choice(list(dossier_status_map.values()))
     now = timezone.now()

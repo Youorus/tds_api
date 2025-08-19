@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "api.services",
     "api.statut_dossier",
     "api.users",
+    "api.booking",
     "api.appointment",
     "api.jurist_appointment",
     "api.websocket",

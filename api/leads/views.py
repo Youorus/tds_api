@@ -1,14 +1,16 @@
 # api/leads/views.py
+from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.db.models import Q
+from django.db.models import Q, F
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework import status as drf_status
 
+from api.booking.models import SlotQuota
 from api.lead_status.models import LeadStatus
 from api.leads.models import Lead
 from api.leads.serializers import LeadSerializer
@@ -147,23 +149,44 @@ class LeadViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"], url_path="public-create", permission_classes=[AllowAny])
     def public_create(self, request):
         """
-        Route ouverte à tous pour créer un lead (landing page, prise de contact…).
-        Si aucun statut n'est fourni, applique le statut par défaut RDV_PLANIFIE
-        puis envoie la notification correspondante.
+        Crée un lead et incrémente le compteur du créneau réservé.
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        data = serializer.validated_data
-        lead_status = data.get("status")
-        if not lead_status:
-            try:
-                default_status = LeadStatus.objects.get(code=RDV_PLANIFIE)
-            except LeadStatus.DoesNotExist:
-                raise NotFound("Le statut 'RDV_PLANIFIE' n'existe pas en base !")
-            lead = serializer.save(status=default_status)
-        else:
-            lead = serializer.save()
+        appt_dt = serializer.validated_data.get("appointment_date")
+        if not appt_dt:
+            raise ValidationError({"appointment_date": "Champ requis."})
+
+        with transaction.atomic():
+            # Récupérer ou créer le créneau
+            sq, _ = SlotQuota.objects.get_or_create(
+                start_at=appt_dt,
+                defaults={"capacity": 1, "booked": 0},  # fallback basique
+            )
+
+            # Vérifier la capacité et incrémenter
+            updated = (
+                SlotQuota.objects
+                .filter(pk=sq.pk, booked__lt=F("capacity"))
+                .update(booked=F("booked") + 1)
+            )
+            if updated == 0:
+                return Response(
+                    {"detail": "Créneau complet. Veuiller choisir uun autre horaire"},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            # Créer le lead avec statut défaut si pas fourni
+            lead_status = serializer.validated_data.get("status")
+            if not lead_status:
+                try:
+                    default_status = LeadStatus.objects.get(code=RDV_PLANIFIE)
+                except LeadStatus.DoesNotExist:
+                    raise NotFound("Le statut 'RDV_PLANIFIE' n'existe pas.")
+                lead = serializer.save(status=default_status)
+            else:
+                lead = serializer.save()
 
         self.handle_lead_notification(lead)
         return Response(self.get_serializer(lead).data, status=status.HTTP_201_CREATED)

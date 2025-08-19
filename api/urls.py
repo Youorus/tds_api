@@ -46,6 +46,7 @@ urlpatterns = [
     # Documents clients (upload et gestion)
     path('documents/', include('api.documents.urls')),
 
+    path("booking/", include("api.booking.urls")),
     path('appointments/', include('api.appointment.urls')),
 
     # Gestion des avatars utilisateurs (upload/profil)

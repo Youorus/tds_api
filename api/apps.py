@@ -21,3 +21,5 @@ class ApiConfig(AppConfig):
         import api.websocket.signals.leads  # noqa: F401
         import api.websocket.signals.clients # noqa: F401
         import api.websocket.signals.comments  # noqa: F401
+        import api.websocket.signals.contracts  # noqa: F401
+        import api.websocket.signals.payments # noqa: F401

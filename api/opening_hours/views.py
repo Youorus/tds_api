@@ -13,6 +13,6 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         return request.user and request.user.is_staff
 
 class OpeningHoursViewSet(viewsets.ModelViewSet):
-    queryset = OpeningHours.objects.all()
+    queryset = OpeningHours.objects.all().order_by("day_of_week")
     serializer_class = OpeningHoursSerializer
     permission_classes = [IsAdminOrReadOnly]
