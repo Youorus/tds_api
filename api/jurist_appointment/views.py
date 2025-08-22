@@ -13,6 +13,7 @@ from .serializers import (
 from api.leads.models import Lead
 from django.contrib.auth import get_user_model
 
+from ..leads.serializers import LeadSerializer
 from ..user_unavailability.models import UserUnavailability
 from ..users.roles import UserRoles
 from ..utils.email.appointments import (
@@ -41,19 +42,7 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         send_jurist_appointment_deleted_email(lead, jurist, appointment_date)
 
     def get_queryset(self):
-        user = self.request.user
         qs = super().get_queryset()
-
-        # --- Scope par rôle ---
-        if getattr(user, "role", None) == UserRoles.ADMIN:
-            pass  # admin : tout
-        elif getattr(user, "role", None) == UserRoles.CONSEILLER:
-            qs = qs.filter(lead__assigned_to=user)
-        elif getattr(user, "role", None) == UserRoles.JURISTE:
-            qs = qs.filter(jurist=user)
-        else:
-            return qs.none()
-
         # --- Filtres additionnels ---
         lead = self.request.query_params.get("lead")
         date_str = self.request.query_params.get("date")  # attendu: YYYY-MM-DD
@@ -140,12 +129,12 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def upcoming_for_lead(self, request):
         lead_id = request.query_params.get("lead_id")
+        print(lead_id)
         if not lead_id:
             return Response({"detail": "lead_id requis."}, status=400)
-        now = timezone.now()
         appointments = self.get_queryset().filter(
-            lead_id=lead_id,
-            date__gte=now
+            lead_id=lead_id
         ).order_by("date")
+        print(appointments)
         serializer = self.get_serializer(appointments, many=True)
         return Response(serializer.data)

@@ -1,10 +1,11 @@
-# api/booking/urls.py
-from django.urls import path
-from api.booking import views
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
-app_name = "booking"
+from api.clients.views import ClientViewSet
+
+router = DefaultRouter()
+router.register(r"", ClientViewSet, basename="clients")
 
 urlpatterns = [
-    path("slots/", views.slots_for_date, name="slots-for-date"),
-    path("book/", views.public_book, name="public-book"),
+    path("", include(router.urls)),
 ]

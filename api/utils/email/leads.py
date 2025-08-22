@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from urllib.parse import quote_plus
 
@@ -33,7 +34,8 @@ def send_lead_assignment_confirmation_to_conseiller(conseiller, lead):
 def send_formulaire_email(self, lead):
     # Encode le nom proprement dans l’URL
     name_param = quote_plus(f"{lead.first_name} {lead.last_name}")
-    formulaire_url = f"{settings.FRONTEND_BASE_URL}/formulaire?id={lead.id}&name={name_param}"
+    frontend_url = os.environ.get("FRONTEND_URL")
+    formulaire_url = f"{frontend_url}/formulaire?id={lead.id}&name={name_param}"
 
     context = {
         "user": lead,

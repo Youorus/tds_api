@@ -15,9 +15,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ==================== DJANGO CORE ====================
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-default')
 DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 'yes')
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "tds.local"]
 
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:3001")
 
 
 # ==================== INSTALLED APPS ====================
@@ -137,10 +136,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 ]
 
+
 # ==================== REST FRAMEWORK ====================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        "api.custom_auth.authentication.CookieJWTAuthentication",
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -152,21 +152,25 @@ REST_FRAMEWORK = {
 WKHTMLTOPDF_PATH = "/usr/local/bin/wkhtmltopdf"
 
 SIMPLE_JWT = {
-    'AUTH_COOKIE': None,
+    'AUTH_COOKIE': 'access_token',
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
 # ==================== CORS ====================
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3001",
-    "http://192.168.1.159:3001",
-]
+CORS_ALLOWED_ORIGINS = ["https://tds.local"]
+CSRF_TRUSTED_ORIGINS = ["https://tds.local"]
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = list(default_headers) + ['authorization', 'content-type']
+
+SECURE_SSL_REDIRECT = False  # True en production
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # ==================== STATIC / MEDIA ====================
 STATIC_URL = 'static/'
@@ -216,4 +220,3 @@ MEDIA_URL = (
 
 # ==================== AUTRES ====================
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
