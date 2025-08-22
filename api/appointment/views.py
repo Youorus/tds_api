@@ -60,30 +60,38 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="all-by-date")
     def all_by_date(self, request):
         """
-        GET /appointments/all-by-date/?date=YYYY-MM-DD
+        GET /appointments/all-by-date/?date=YYYY-MM-DD&lead=<id>
         Retourne tous les rendez-vous classiques (et juristes uniquement pour les admins)
-        pour une date donnée.
+        pour une date donnée, et optionnellement filtrés par lead.
         """
         user = request.user
         date_str = request.query_params.get("date")
+        lead_id = request.query_params.get("lead")  # <-- lead en paramètre optionnel
+
         if not date_str:
             return Response({"error": "Paramètre 'date' requis, format YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             day = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return Response({"error": "Format de date invalide, attendu YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Format de date invalide, attendu YYYY-MM-DD"},
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        # RDV classiques (filtrés via get_queryset)
+        # RDV classiques
         appointments_qs = self.get_queryset().filter(date__date=day)
+        if lead_id:
+            appointments_qs = appointments_qs.filter(lead_id=lead_id)
+
         appointments_data = AppointmentSerializer(appointments_qs, many=True).data
 
-        # RDV juristes (uniquement pour les admins)
+        # RDV juristes : uniquement visibles pour les admins
+        jurist_appointments_data = []
         if user.role == UserRoles.ADMIN:
             jurist_qs = JuristAppointment.objects.filter(date__date=day)
+            if lead_id:
+                jurist_qs = jurist_qs.filter(lead_id=lead_id)
+
             jurist_appointments_data = JuristAppointmentSerializer(jurist_qs, many=True).data
-        else:
-            jurist_appointments_data = []
 
         return Response({
             "appointments": appointments_data,
