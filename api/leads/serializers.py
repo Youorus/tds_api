@@ -20,6 +20,17 @@ EUROPE_PARIS = ZoneInfo("Europe/Paris")
 # Les codes de statuts qui nécessitent obligatoirement un RDV (à adapter si besoin)
 STATUSES_REQUIRING_APPOINTMENT = {RDV_CONFIRME, RDV_PLANIFIE}
 
+"""
+Sérialiseur principal pour le modèle Lead.
+
+Gère la validation, la sérialisation et la désérialisation des données liées à un lead,
+y compris les relations avec les statuts, les juristes, les conseillers et les données du client.
+
+Comporte également une validation métier spécifique : certains statuts nécessitent obligatoirement
+une date de rendez-vous, et les emails doivent être uniques.
+
+Formatte la date du rendez-vous selon le fuseau Europe/Paris.
+"""
 class LeadSerializer(serializers.ModelSerializer):
     appointment_date = serializers.DateTimeField(
         input_formats=['%d/%m/%Y %H:%M'],

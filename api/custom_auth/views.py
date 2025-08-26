@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.custom_auth.serializers import LoginSerializer
@@ -106,11 +107,37 @@ class CustomTokenRefreshView(TokenRefreshView):
     """
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get("refresh_token")
-        if not refresh_token:
-            return Response({"detail": "Missing refresh token in cookies"}, status=status.HTTP_400_BAD_REQUEST)
+        print("🔁 refresh_token from cookie:", refresh_token)
 
-        # Injecte le token dans request.data pour compatibilité avec TokenRefreshSerializer
-        request.data._mutable = True  # nécessaire si QueryDict
+        if not refresh_token:
+            return Response(
+                {"detail": "Missing refresh token in cookies"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🧠 Injecte le token dans request.data
         request.data["refresh"] = refresh_token
 
-        return super().post(request, *args, **kwargs)
+        # Appelle la vue parent avec le body modifié
+        response = super().post(request, *args, **kwargs)
+
+        # Ajoute access_token en cookie s’il est là
+        if response.status_code == 200 and "access" in response.data:
+            access_token = response.data["access"]
+            from django.conf import settings
+            IS_HTTPS = not settings.DEBUG
+
+            response.set_cookie(
+                key="access_token",
+                value=access_token,
+                httponly=True,
+                secure=IS_HTTPS,
+                samesite="Lax",
+                path="/",
+                max_age=60 * 60  # 1 heure
+            )
+
+            # Optionnel : retire le token du body
+            # del response.data["access"]
+
+        return response

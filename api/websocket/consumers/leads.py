@@ -1,4 +1,4 @@
-# api/websocket/consumers/leads.py
+# api/websocket/consumers/notif.py
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 

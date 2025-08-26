@@ -158,6 +158,17 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
+CELERY_BEAT_SCHEDULE = {
+    "send-lead-reminders": {
+        "task": "api.leads.tasks.send_reminder_emails",
+        "schedule": crontab(minute="0", hour="*/1"),
+    },
+    "mark-leads-as-absent": {
+        "task": "api.leads.tasks.mark_absent_leads",
+        "schedule": crontab(minute="*"),
+    },
+}
+
 # ==================== CORS ====================
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
@@ -165,6 +176,24 @@ CORS_ALLOWED_ORIGINS = ["https://tds.local"]
 CSRF_TRUSTED_ORIGINS = ["https://tds.local"]
 CORS_ALLOW_METHODS = ['DELETE', 'GET', 'OPTIONS', 'PATCH', 'POST', 'PUT']
 CORS_ALLOW_HEADERS = list(default_headers) + ['authorization', 'content-type']
+
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
 
 SECURE_SSL_REDIRECT = False  # True en production
 SESSION_COOKIE_SECURE = True

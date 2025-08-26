@@ -1,4 +1,4 @@
-# api/appointments/serializers.py
+# api/appointments/test_serializers.py
 
 from rest_framework import serializers
 from django.utils import timezone

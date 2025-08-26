@@ -1,4 +1,4 @@
-# models.py
+# test_models.py
 
 from django.db import models
 

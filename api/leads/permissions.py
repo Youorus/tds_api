@@ -1,4 +1,4 @@
-# api/leads/permissions.py
+# api/leads/test_permissions.py
 
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from api.users.roles import UserRoles

@@ -1,4 +1,4 @@
-# users/permissions.py
+# users/test_permissions.py
 from rest_framework.permissions import BasePermission
 
 

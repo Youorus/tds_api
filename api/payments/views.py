@@ -8,7 +8,7 @@ from api.payments.models import PaymentReceipt
 from api.payments.permissions import IsPaymentEditor
 from api.payments.serializers import PaymentReceiptSerializer
 from api.storage_backends import MinioReceiptStorage
-from api.utils.email.leads import send_receipts_email_to_lead
+from api.utils.email.notif import send_receipts_email_to_lead
 
 
 # from api.permissions.payment import IsPaymentEditor  # Active si tu veux

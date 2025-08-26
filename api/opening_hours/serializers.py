@@ -1,4 +1,4 @@
-# api/opening_hours/serializers.py
+# api/opening_hours/test_serializers.py
 from rest_framework import serializers
 from api.opening_hours.models import OpeningHours
 

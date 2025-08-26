@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Confirmation de rendez-vous – TDS France</title>
+    <title>Formulaire de suivi – TDS France</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       @media only screen and (max-width: 600px) {
@@ -10,20 +10,25 @@
           width: 100% !important;
           padding: 20px !important;
         }
-        .button {
-          width: 100% !important;
-          display: block !important;
-          text-align: center !important;
-        }
         .logo {
           width: 100% !important;
           max-width: 200px !important;
         }
       }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        font-size: 16px;
+        color: #fff !important;
+        background-color: #3b82f6;
+        border-radius: 6px;
+        text-decoration: none;
+        margin-top: 20px;
+      }
     </style>
   </head>
-  <body style="margin: 0; padding: 0; background-color: #f6f8fb; font-family: Arial, sans-serif;">
 
+  <body style="margin: 0; padding: 0; background-color: #f6f8fb; font-family: Arial, sans-serif;">
     <table width="100%" bgcolor="#f6f8fb" cellpadding="0" cellspacing="0" style="padding: 40px 0;">
       <tr>
         <td align="center">
@@ -32,32 +37,31 @@
             <!-- Logo -->
             <tr>
               <td align="center" style="padding-bottom: 30px;">
-                <img  src="https://i.imgur.com/iSzPCvI.jpeg" alt="TDS France" style="display: block; max-width: 300px; width: 100%; height: auto;" class="logo" />
+                <img src="https://i.imgur.com/iSzPCvI.jpeg" alt="TDS France" style="display: block; max-width: 300px; width: 100%; height: auto;" class="logo" />
               </td>
             </tr>
 
             <!-- Message principal -->
             <tr>
               <td>
-                <h2 style="color: #2196F3; font-size: 22px; margin-top: 0; text-align: center">Votre rendez-vous est confirmé</h2>
+                <h2 style="color: #1f2937; font-size: 22px; margin-top: 0; text-align: center;">Merci de compléter votre formulaire</h2>
+
                 <p style="font-size: 16px; color: #555; line-height: 1.6;">
                   Bonjour {{ user.first_name|capfirst }} {{ user.last_name|capfirst }},
-                  <br><br>
-                  Nous vous confirmons que votre rendez-vous avec <strong>TDS France</strong> a bien été enregistré. Voici les détails :
+                  <br /><br />
+                  Nous vous remercions pour votre prise de contact avec <strong>TDS France</strong>. Afin de mieux comprendre votre situation, nous vous invitons à remplir le formulaire suivant :
                 </p>
 
-                <ul style="font-size: 15px; color: #333; line-height: 1.6; padding-left: 20px;">
-                  <li><strong>Date :</strong> {{ appointment.date }}</li>
-                  <li><strong>Heure :</strong> {{ appointment.time }}</li>
-                 <li><strong>Lieu :</strong> 11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, depuis l’intérieur de la galerie)</li>
-                </ul>
-
-                <p style="font-size: 16px; color: #555; line-height: 1.6; margin-top: 30px;">
-                  Merci de vous présenter quelques minutes à l’avance avec les documents nécessaires.
+                <p style="text-align: center;">
+                  <a href="{{ formulaire_url }}" target="_blank" class="button">Accéder au formulaire</a>
                 </p>
 
-                <p style="font-size: 14px; color: #555; margin-top: 20px;">
-                  Pour toute modification ou question, Contactez-nous au <strong>06 95 59 70 43</strong>.
+                <p style="font-size: 14px; color: #555; margin-top: 30px; line-height: 1.6;">
+                  Ce formulaire nous permettra de mieux suivre votre dossier. Merci de le remplir avec sincérité et précision.
+                </p>
+
+                <p style="font-size: 14px; color: #777; line-height: 1.6;">
+                  En cas de difficulté, vous pouvez nous contacter au <strong>{{ phone }}</strong>.
                 </p>
 
                 <p style="font-size: 14px; color: #777; line-height: 1.6;">
@@ -68,9 +72,9 @@
             </tr>
 
             <!-- Footer -->
-            <tr>
+           <tr>
               <td style="border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #999; text-align: center;">
-                TDS France © {{ year }} – Tous droits réservés<br />
+                {{ copyright }}<br />
                 Cet e-mail est automatique, merci de ne pas y répondre directement.
               </td>
             </tr>
@@ -79,6 +83,5 @@
         </td>
       </tr>
     </table>
-
   </body>
 </html>

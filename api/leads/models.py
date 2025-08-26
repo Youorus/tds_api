@@ -8,11 +8,11 @@ from api.leads.constants import RDV_PLANIFIE, RDV_CONFIRME
 
 class Lead(models.Model):
     """
-    Modèle représentant un prospect (Lead) pour le suivi commercial.
+    Modèle représentant un prospect (Lead) utilisé pour le suivi commercial.
 
     Ce modèle centralise toutes les informations nécessaires à la gestion
-    et à la qualification d’un lead (prospect), de la création à la prise de rendez-vous,
-    en passant par l’assignation à un conseiller et le suivi du statut.
+    et à la qualification d’un lead (prospect), depuis sa création jusqu’à la prise de rendez-vous,
+    incluant l’assignation à un conseiller et le suivi du statut.
     """
 
     id = models.AutoField(
@@ -64,7 +64,7 @@ class Lead(models.Model):
     created_at = models.DateTimeField(
         default=timezone.now,
         verbose_name=_('date de création'),
-        help_text=_('Date et heure de création du lead')
+        help_text=_('Date et heure de création du lead, utilisée pour la traçabilité et le suivi historique')
     )
 
     status = models.ForeignKey(
@@ -107,11 +107,18 @@ class Lead(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Surcharge la méthode save pour :
-        - Affecter un statut par défaut 'RDV_PLANIFIE' si aucun statut n'est défini.
-        - Passer à 'RDV_CONFIRME' si une date de rendez-vous est fixée, quel que soit le statut courant.
-        """
+        Surcharge de la méthode save pour gérer la logique métier liée au statut du lead.
 
+        Étapes appliquées lors de la sauvegarde :
+        1. Affectation d'un statut par défaut 'RDV_PLANIFIE' si aucun statut n'est défini.
+           Cela garantit qu'un lead possède toujours un statut initial cohérent.
+        2. Si une date de rendez-vous est renseignée (appointment_date non nulle),
+           le statut est automatiquement mis à jour en 'RDV_CONFIRME', quel que soit le statut actuel.
+           Ceci reflète la confirmation effective du rendez-vous dans le suivi du lead.
+
+        Ces règles permettent d'assurer la cohérence des statuts en fonction des informations disponibles
+        et facilitent le suivi commercial automatisé.
+        """
         # 1. Statut par défaut si absent
         if not self.status:
             try:

@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Rendez-vous planifié – TDS France</title>
+    <title>Rendez-vous manqué – TDS France</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       @media only screen and (max-width: 600px) {
@@ -34,32 +34,30 @@
             <!-- Message principal -->
             <tr>
               <td>
-<h2 style="color: green; font-size: 22px; margin-top: 0; text-align: center">
-    Votre rendez-vous a été planifié
-                </h2>
+                <h2 style="color: #f44336; font-size: 22px; margin-top: 0; text-align: center;">Vous avez manqué votre rendez-vous</h2>
+
                 <p style="font-size: 16px; color: #555; line-height: 1.6;">
-                  Bonjour {{ user.first_name|capfirst }} {{ user.last_name|capfirst }},
+                 Bonjour {{ user.first_name|capfirst }} {{ user.last_name|capfirst }},
                   <br><br>
-                  Nous vous informons que votre rendez-vous avec <strong>TDS France</strong> a bien été <strong>planifié</strong>. Voici les détails :
+                  Nous avons constaté que vous n’avez pas pu vous présenter à votre rendez-vous prévu avec <strong>TDS France</strong> :
                 </p>
 
                 <ul style="font-size: 15px; color: #333; line-height: 1.6; padding-left: 20px;">
                   <li><strong>Date :</strong> {{ appointment.date }}</li>
                   <li><strong>Heure :</strong> {{ appointment.time }}</li>
-                  <li><strong>Lieu :</strong> 11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, depuis l’intérieur de la galerie)</li>
+                  <li><strong>Lieu :</strong> {{ appointment.location }}</li>
                 </ul>
 
                 <p style="font-size: 16px; color: #555; line-height: 1.6; margin-top: 30px;">
-                  Nous vous remercions pour votre confiance.<br>
-                  Un conseiller peut vous contacter pour confirmer ou préciser votre rendez-vous si besoin.
+                  Si vous avez rencontré un empêchement, n'hésitez pas à reprendre contact avec nous afin de reprogrammer un rendez-vous.
                 </p>
 
                 <p style="font-size: 14px; color: #555; margin-top: 20px;">
-                  Pour toute modification ou question, contactez-nous au <strong>06 95 59 70 43</strong>.
+                  Notre équipe reste à votre disposition au <strong>{{ phone }}</strong> pour toute demande ou information complémentaire.
                 </p>
 
                 <p style="font-size: 14px; color: #777; line-height: 1.6;">
-                  À bientôt,<br />
+                  Merci de votre compréhension,<br />
                   L’équipe TDS France
                 </p>
               </td>
@@ -68,7 +66,7 @@
             <!-- Footer -->
             <tr>
               <td style="border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #999; text-align: center;">
-                TDS France © {{ year }} – Tous droits réservés<br />
+                {{ copyright }}<br />
                 Cet e-mail est automatique, merci de ne pas y répondre directement.
               </td>
             </tr>

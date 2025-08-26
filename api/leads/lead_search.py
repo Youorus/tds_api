@@ -1,4 +1,4 @@
-# api/leads/views.py
+# api/leads/test_views.py
 from datetime import date, datetime, time
 from typing import Optional
 
@@ -14,10 +14,13 @@ from api.leads.models import Lead
 
 def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
     """
-    Essaie de parser une string ISO en datetime OU date.
-    - 'YYYY-MM-DDTHH:MM(:SS)' -> datetime (naïf)
-    - 'YYYY-MM-DD'            -> date
-    - None/''                 -> None
+    Parse une chaîne ISO en datetime ou date, selon le format.
+
+    Cette fonction tente d'interpréter une chaîne donnée comme un datetime ISO 8601 (ex: 'YYYY-MM-DDTHH:MM(:SS)') ou une date ISO (ex: 'YYYY-MM-DD').
+    Si la chaîne est vide ou None, elle retourne None.
+    Si le parsing échoue, elle retourne None.
+
+    Retourne un objet datetime (naïf) si le format datetime est détecté, ou un objet date si le format date est détecté.
     """
     if not dt:
         return None
@@ -26,10 +29,12 @@ def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
 
 def _to_aware(dt_or_d: Optional[object], end_of_day: bool = False) -> Optional[datetime]:
     """
-    Convertit une valeur (date ou datetime) en datetime timezone-aware, dans le TZ courant du projet.
-    - Si 'date': construit un datetime à 00:00:00 (ou fin de journée si end_of_day=True).
-    - Si 'datetime' naïf: make_aware().
-    - Si 'datetime' déjà aware: inchangé.
+    Convertit une date ou un datetime en datetime timezone-aware selon le fuseau horaire courant.
+
+    - Si l'entrée est un objet date (sans heure), construit un datetime à minuit (00:00:00) ou à la fin de la journée (23:59:59.999999) si end_of_day=True.
+    - Si l'entrée est un datetime naïf (sans information de fuseau), la rend aware avec le fuseau courant.
+    - Si l'entrée est déjà un datetime aware, la retourne telle quelle.
+    - Si l'entrée est None, retourne None.
     """
     if dt_or_d is None:
         return None
@@ -50,7 +55,12 @@ def _to_aware(dt_or_d: Optional[object], end_of_day: bool = False) -> Optional[d
 
 
 def _normalize_avec_sans(value: Optional[str]) -> Optional[str]:
-    """Normalise 'avec'/'sans' (et alias) ou None."""
+    """
+    Normalise une chaîne en 'avec', 'sans' ou None.
+
+    Reconnaît plusieurs variantes pour indiquer la présence ('avec', 'oui', 'with', 'true', '1') ou l'absence ('sans', 'non', 'without', 'false', '0').
+    Si la valeur est None, vide ou ne correspond pas à ces variantes, retourne None.
+    """
     if not value:
         return None
     v = value.strip().lower()
@@ -62,7 +72,11 @@ def _normalize_avec_sans(value: Optional[str]) -> Optional[str]:
 
 
 def _to_int_or_none(val: Optional[str]) -> Optional[int]:
-    """Convertit une string en int si possible, sinon None."""
+    """
+    Tente de convertir une chaîne de caractères en entier.
+
+    Si la conversion échoue (valeur invalide ou None), retourne None.
+    """
     if val is None:
         return None
     try:
@@ -72,6 +86,29 @@ def _to_int_or_none(val: Optional[str]) -> Optional[int]:
 
 
 class LeadSearchView(APIView):
+    """
+    Vue API permettant la recherche et la filtration des leads.
+
+    Cette vue supporte plusieurs filtres sur les dates de création et de rendez-vous, les statuts (par code ou ID),
+    la présence ou absence de juriste et conseiller, ainsi que la pagination et le tri des résultats.
+
+    Filtres acceptés :
+    - date_from, date_to : bornes sur la date de création des leads
+    - appt_from, appt_to : bornes sur la date de rendez-vous
+    - status_code, status_id : filtre sur le statut du lead
+    - dossier_code, dossier_id : filtre sur le statut du dossier
+    - has_jurist : 'avec' ou 'sans' pour filtrer selon la présence d'un juriste assigné
+    - has_conseiller : 'avec' ou 'sans' pour filtrer selon la présence d'un conseiller assigné
+
+    Pagination :
+    - page : numéro de page (min 1, défaut 1)
+    - page_size : nombre d'éléments par page (entre 1 et 200, défaut 20)
+
+    Tri :
+    - ordering : champ de tri parmi une liste blanche (par défaut '-created_at')
+
+    La réponse contient le total des résultats, la page courante, la taille de page, le critère de tri et la liste des leads.
+    """
     permission_classes = [IsAuthenticated]  # ajuste selon ton contexte
 
     def get(self, request):

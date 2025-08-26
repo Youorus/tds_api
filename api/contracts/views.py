@@ -8,7 +8,7 @@ from api.contracts.permissions import IsContractEditor
 from api.contracts.serializer import ContractSerializer
 from api.payments.serializers import PaymentReceiptSerializer
 from api.storage_backends import MinioReceiptStorage, MinioContractStorage
-from api.utils.email.leads import send_contract_email_to_lead
+from api.utils.email.notif import send_contract_email_to_lead
 
 
 class ContractViewSet(viewsets.ModelViewSet):
