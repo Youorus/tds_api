@@ -1,3 +1,14 @@
+"""
+Sérialiseurs pour l’application Clients.
+
+Ce module définit le serializer principal pour le modèle Client. Il prend en charge :
+- la sérialisation complète des données client pour les opérations d’API (lecture et écriture),
+- la validation individuelle et croisée des champs du formulaire,
+- la gestion du champ `type_demande` (lecture avec détails, écriture via l'ID).
+
+Il garantit que les données saisies sont cohérentes et conformes aux règles métier avant enregistrement.
+"""
+
 from rest_framework import serializers
 from django.utils import timezone
 
