@@ -165,7 +165,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     "mark-leads-as-absent": {
         "task": "api.leads.tasks.mark_absent_leads",
-        "schedule": crontab(minute="*"),
+        "schedule": crontab(minute="*/30"),
     },
 }
 

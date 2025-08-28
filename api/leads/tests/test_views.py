@@ -50,7 +50,7 @@ def client_for():
         return client
     return _client
 
-@patch("api.utils.email.tasks.send_appointment_planned_task.delay")
+@patch("api.utils.email.leads.tasks.send_appointment_planned_task.delay")
 def test_create_lead_success(mock_notify, client_for, admin_user, lead_status):
     client = client_for(admin_user)
     url = reverse("lead-list")
@@ -161,7 +161,7 @@ def test_assign_juriste_admin(client_for, admin_user, juriste_user, lead_status)
     lead.refresh_from_db()
     assert juriste_user in lead.jurist_assigned.all()
 
-@patch("api.utils.email.tasks.send_formulaire_task.delay")
+@patch("api.utils.email.leads.tasks.send_formulaire_task.delay")
 def test_send_formulaire_email(mock_task, client_for, admin_user, lead_status):
     lead = Lead.objects.create(
         first_name="Form",
