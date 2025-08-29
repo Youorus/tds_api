@@ -89,6 +89,15 @@ def send_formulaire_email(lead):
 def send_dossier_status_email(lead):
     """
     Envoie un e-mail au lead pour l’informer d’un changement de statut de dossier.
+
+    Conditions :
+    - L’e-mail du lead doit être renseigné.
+    - Le statut de dossier (`statut_dossier`) doit être défini.
+
+    L’email contient :
+    - Le prénom et nom du lead
+    - Le code, le label et la couleur du statut de dossier
+    - Un lien ou un contact de suivi
     """
     if not lead.email or not lead.statut_dossier:
         return

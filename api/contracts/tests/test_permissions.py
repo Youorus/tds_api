@@ -1,27 +1,79 @@
 import pytest
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.test import APIRequestFactory
+from django.contrib.auth.models import AnonymousUser
+
 from api.contracts.permissions import IsContractEditor
-from api.users.models import User, UserRoles
+from api.users.models import User
+from api.users.roles import UserRoles
+
+
+@pytest.fixture
+def user_factory():
+    """
+    Fabrique un utilisateur avec tous les champs requis.
+    """
+    def create_user(role):
+        return User.objects.create_user(
+            email=f"{role.lower()}@tds.fr",
+            password="12345678",
+            first_name="Jean",
+            last_name="Test",
+            role=role,
+        )
+    return create_user
+
+
+@pytest.mark.parametrize("role", [
+    UserRoles.ADMIN,
+    UserRoles.CONSEILLER,
+    UserRoles.JURISTE,
+    UserRoles.ACCUEIL,
+])
+@pytest.mark.parametrize("method", SAFE_METHODS)
+@pytest.mark.django_db
+def test_contract_permission_safe_methods_all_roles(role, method, user_factory):
+    """
+    Tous les utilisateurs authentifiés ont accès en lecture (SAFE_METHODS), quel que soit leur rôle.
+    """
+    user = user_factory(role)
+    factory = APIRequestFactory()
+    request = factory.generic(method, "/fake-url/")
+    request.user = user
+
+    permission = IsContractEditor()
+    assert permission.has_permission(request, view=None) is True
+
+
+@pytest.mark.parametrize("role, expected", [
+    (UserRoles.ADMIN, True),
+    (UserRoles.CONSEILLER, True),
+    (UserRoles.JURISTE, True),
+    (UserRoles.ACCUEIL, False),
+])
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+@pytest.mark.django_db
+def test_contract_permission_write_methods(role, expected, method, user_factory):
+    """
+    Seuls ADMIN, JURISTE, CONSEILLER peuvent effectuer des requêtes en écriture.
+    """
+    user = user_factory(role)
+    factory = APIRequestFactory()
+    request = factory.generic(method, "/fake-url/")
+    request.user = user
+
+    permission = IsContractEditor()
+    assert permission.has_permission(request, view=None) is expected
+
 
 @pytest.mark.django_db
-class TestIsContractEditor:
-    def test_admin_has_permission(self):
-        user = User.objects.create_user(email="admin@ex.com", first_name="Admin", last_name="User", password="pwd", role=UserRoles.ADMIN)
-        request = APIRequestFactory().get("/")
-        request.user = user
-        perm = IsContractEditor()
-        assert perm.has_permission(request, None)
+def test_contract_permission_unauthenticated_user():
+    """
+    Aucun accès (même en lecture) pour utilisateur non authentifié.
+    """
+    factory = APIRequestFactory()
+    request = factory.get("/fake-url/")
+    request.user = AnonymousUser()
 
-    def test_juriste_has_permission(self):
-        user = User.objects.create_user(email="juriste@ex.com", first_name="Juriste", last_name="User", password="pwd", role=UserRoles.JURISTE)
-        request = APIRequestFactory().post("/")
-        request.user = user
-        perm = IsContractEditor()
-        assert perm.has_permission(request, None)
-
-    def test_random_user_no_permission(self):
-        user = User.objects.create_user(email="foo@ex.com", first_name="Foo", last_name="Bar", password="pwd", role="CLIENT")
-        request = APIRequestFactory().delete("/")
-        request.user = user
-        perm = IsContractEditor()
-        assert not perm.has_permission(request, None)
+    permission = IsContractEditor()
+    assert permission.has_permission(request, view=None) is False

@@ -1,4 +1,4 @@
-# api/utils/email/notification.py
+# api/utils/email/notifications.py
 from PIL.TiffImagePlugin import COPYRIGHT
 
 from api.utils.email import send_html_email

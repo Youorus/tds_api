@@ -1,6 +1,6 @@
 
 
-from api.utils.email.clients.notification import send_client_account_created_email
+from api.utils.email.clients.notifications import send_client_account_created_email
 
 
 from celery import shared_task

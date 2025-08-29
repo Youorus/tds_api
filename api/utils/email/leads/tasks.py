@@ -3,7 +3,7 @@ from api.leads.models import Lead
 import logging
 
 from api.utils.email import send_appointment_confirmation_email
-from api.utils.email.leads.notification import send_appointment_planned_email, send_dossier_status_email, \
+from api.utils.email.leads.notifications import send_appointment_planned_email, send_dossier_status_email, \
     send_formulaire_email
 
 logger = logging.getLogger(__name__)
