@@ -24,20 +24,25 @@
       margin: 0 auto;
     }
 
-    .logo-container {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .logo {
-      height: 80px;
-    }
-
-    .company-info {
-      text-align: center;
-      font-size: 12px;
+    .header-flex {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 30px;
+      gap: 32px;
+    }
+
+    .logo-big {
+      height: 110px;
+      width: auto;
+      display: block;
+    }
+
+    .company-info-right {
+      text-align: right;
+      font-size: 14px;
       color: #555;
+      line-height: 1.7;
     }
 
     h1 {
@@ -135,15 +140,14 @@
 </head>
 <body>
   <div class="container">
-    <div class="logo-container">
-      <img src="{{ company.logo_url }}" alt="Logo" class="logo" />
-    </div>
-
-    <div class="company-info">
-      <strong>{{ company.name }}</strong><br>
-      {{ company.email }}<br>
-      {{ company.website }}<br>
-      SIRET : {{ company.siret }}<br>
+    <div class="header-flex">
+      <img src="{{ company.logo_url }}" alt="Logo" class="logo-big" />
+      <div class="company-info-right">
+        <strong>{{ company.name }}</strong><br>
+        {{ company.email }}<br>
+        {{ company.website }}<br>
+        SIRET : {{ company.siret }}
+      </div>
     </div>
 
     <h1>Reçu de Paiement</h1>

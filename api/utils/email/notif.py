@@ -6,34 +6,7 @@ from api.utils.email import send_html_email
 from api.utils.utils import download_file
 from tds import settings
 
-def send_contract_email_to_lead(contract):
-    client = contract.client
-    lead = getattr(client, "lead", None)
-    if not lead or not lead.email:
-        raise ValueError("Aucun email client associé au lead.")
 
-    # Télécharge le PDF du contrat depuis Minio ou autre storage
-    pdf_content, pdf_filename = download_file(contract.contract_url)
-    if not pdf_content or not pdf_filename:
-        raise ValueError("Impossible de récupérer le PDF du contrat.")
-
-    context = {
-        "user": lead,
-        "contract": contract,
-        "year": datetime.now().year,
-    }
-
-    send_html_email(
-        to_email=lead.email,
-        subject="Votre contrat – TDS France",
-        template_name="email/contract_send.html",
-        context=context,
-        attachments=[{
-            "filename": pdf_filename,
-            "content": pdf_content,
-            "mimetype": "application/pdf"
-        }]
-    )
 
 
 def send_receipts_email_to_lead(lead, receipts):

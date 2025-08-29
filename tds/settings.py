@@ -167,6 +167,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "api.leads.tasks.mark_absent_leads",
         "schedule": crontab(minute="*/30"),
     },
+    "send-payment-due-reminders": {
+        "task": "api.payments.tasks.send_payment_due_reminders",
+        "schedule": crontab(hour=7, minute=0),
+    },
 }
 
 # ==================== CORS ====================
