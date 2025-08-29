@@ -47,7 +47,7 @@ def send_receipts_email_to_lead(lead, receipts):
     send_html_email(
         to_email=lead.email,
         subject="Vos reçus de paiement – TDS France",
-        template_name="email/receipts_send.html",
+        template_name="email/recus/receipts_send.html",
         context=context,
         attachments=attachments,
     )

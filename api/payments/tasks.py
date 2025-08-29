@@ -23,7 +23,7 @@ def send_payment_due_reminders():
 
     # 💡 Filtre les reçus dont l'échéance est dans 1 ou 3 jours
     receipts = PaymentReceipt.objects.filter(
-        next_due_date__in=[in_3_day, in_1_day]
+        next_due_date__in=[in_3_days, in_1_day]
     ).select_related("client", "contract")
 
     for receipt in receipts:

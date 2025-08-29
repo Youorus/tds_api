@@ -42,7 +42,7 @@ def send_contract_email_to_lead(contract):
     send_html_email(
         to_email=lead.email,
         subject="Votre contrat – TDS France",
-        template_name="email/contract_send.html",
+        template_name="email/contract/contract_send.html",
         context=context,
         attachments=[{
             "filename": pdf_filename,
