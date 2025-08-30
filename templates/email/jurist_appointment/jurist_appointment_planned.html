@@ -2,12 +2,18 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>Annulation rendez-vous juriste – TDS France</title>
+    <title>Rendez-vous suivi de dossier – TDS France</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       @media only screen and (max-width: 600px) {
-        .container { width: 100% !important; padding: 20px !important; }
-        .logo { width: 100% !important; max-width: 200px !important; }
+        .container {
+          width: 100% !important;
+          padding: 20px !important;
+        }
+        .logo {
+          width: 100% !important;
+          max-width: 200px !important;
+        }
       }
     </style>
   </head>
@@ -23,27 +29,28 @@
             </tr>
             <tr>
               <td>
-                <h2 style="color:#e11d48; font-size:22px; margin-top:0; text-align:center">
-                  Rendez-vous juriste annulé
+                <h2 style="color:#0e7490; font-size:22px; margin-top:0; text-align:center">
+                  Rendez-vous de suivi de dossier planifié
                 </h2>
                 <p style="font-size:16px; color:#555; line-height:1.6;">
                   Bonjour {{ user.first_name|capfirst }} {{ user.last_name|capfirst }},
                   <br><br>
-                  Nous vous informons que votre rendez-vous de <b>suivi de dossier avec un juriste</b> TDS France, prévu initialement :
+                  Votre rendez-vous de <b>suivi de dossier</b> avec un juriste TDS France est confirmé. Voici les détails :
                 </p>
                 <ul style="font-size:15px; color:#333; line-height:1.6; padding-left:20px;">
                   <li><b>Date :</b> {{ appointment.date }}</li>
                   <li><b>Heure :</b> {{ appointment.time }}</li>
                   <li><b>Lieu :</b> {{ appointment.location }}</li>
-                  <li><b>Juriste référent :</b> {{ jurist.first_name|capfirst }} {{ jurist.last_name|upper }}</li>
+                  <li><b>Juriste référent :</b> {{ appointment.with_name }}</li>
                 </ul>
                 <div style="margin:20px 0; text-align:center;">
-                  <span style="display:inline-block; background:#e11d48; color:#fff; padding:12px 24px; font-size:17px; border-radius:6px; font-weight:bold;">
-                    ANNULÉ
+                  <span style="display:inline-block; background:#0e7490; color:#fff; padding:12px 24px; font-size:17px; border-radius:6px; font-weight:bold;">
+                    {{ appointment.date }} à {{ appointment.time }}
                   </span>
                 </div>
                 <p style="font-size:16px; color:#555; line-height:1.6;">
-                  Pour toute question ou reprogrammation, contactez-nous au <b>06 95 59 70 43</b>.
+                  Merci pour votre confiance.<br />
+                  Pour toute question, contactez-nous au <b>{{ phone }}</b>.
                 </p>
                 <p style="font-size:14px; color:#777; line-height:1.6;">
                   À bientôt,<br/>

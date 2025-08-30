@@ -15,11 +15,9 @@ from api.appointment.serializers import AppointmentSerializer
 from api.jurist_appointment.serializers import JuristAppointmentSerializer
 from api.leads.models import Lead
 from api.users.models import UserRoles  # <-- adapte si besoin
+from api.utils.email.appointment.tasks import send_appointment_deleted_task, send_appointment_updated_task, \
+    send_appointment_created_task
 
-from api.utils.email.appointments import (
-    send_appointment_created_or_updated_email,
-    send_appointment_deleted_email,
-)
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.select_related("lead", "created_by")
@@ -43,19 +41,24 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance, is_update=False)
+        send_appointment_created_task.delay(instance.id)
         return instance
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance, is_update=True)
+        send_appointment_updated_task.delay(instance.id)
         return instance
 
     def perform_destroy(self, instance):
         lead = instance.lead
-        appointment_date = instance.date
+
+        # ⛔️ Ne pas envoyer un datetime.isoformat(), mais plutôt un dict sérialisé
+        appointment_data = {
+            "date": instance.date.isoformat(),
+        }
         instance.delete()
-        send_appointment_deleted_email(lead, appointment_date)
+
+        send_appointment_deleted_task.delay(lead.id, appointment_data)
 
     @action(detail=False, methods=["get"], url_path="all-by-date")
     def all_by_date(self, request):
@@ -66,7 +69,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         """
         user = request.user
         date_str = request.query_params.get("date")
-        lead_id = request.query_params.get("lead")  # <-- lead en paramètre optionnel
+        lead_id = request.query_params.get("lead")
 
         if not date_str:
             return Response({"error": "Paramètre 'date' requis, format YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)

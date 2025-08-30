@@ -1,4 +1,3 @@
-# test_views.py
 from rest_framework import viewsets
 from .models import Service
 from .serializers import ServiceSerializer

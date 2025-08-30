@@ -16,10 +16,8 @@ from django.contrib.auth import get_user_model
 from ..leads.serializers import LeadSerializer
 from ..user_unavailability.models import UserUnavailability
 from ..users.roles import UserRoles
-from ..utils.email.appointments import (
-    send_jurist_appointment_email,
-    send_jurist_appointment_deleted_email,
-)
+from ..utils.email.jurist_appointment.tasks import send_jurist_appointment_created_task, \
+    send_jurist_appointment_deleted_task
 from ..utils.jurist_slots import is_valid_day, get_available_slots_for_jurist
 
 User = get_user_model()
@@ -32,14 +30,18 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        send_jurist_appointment_email(instance)
+        send_jurist_appointment_created_task.delay(instance.id)
 
     def perform_destroy(self, instance):
         lead = instance.lead
         jurist = instance.jurist
         appointment_date = instance.date
         instance.delete()
-        send_jurist_appointment_deleted_email(lead, jurist, appointment_date)
+        send_jurist_appointment_deleted_task.delay(
+            lead.id,
+            jurist.id,
+            appointment_date.isoformat()
+        )
 
     def get_queryset(self):
         qs = super().get_queryset()

@@ -54,7 +54,7 @@
 
 {% if appointment.note %}
   <div style="margin:16px 0 0 0; background:#f1f5f9; color:#0e7490; font-size:15px; padding:10px 18px; border-left:4px solid #0e7490; border-radius:5px;">
-    <b>Note :</b> {{ appointment.note }}
+    <b>Motif :</b> {{ appointment.note }}
   </div>
 {% endif %}
 
@@ -64,7 +64,8 @@
                 </p>
 
                 <p style="font-size: 14px; color: #555; margin-top: 20px;">
-                  Pour toute modification ou question, contactez-nous au <strong>06 95 59 70 43</strong>.
+                                Notre équipe reste à votre disposition au <strong>{{ phone }}</strong> pour toute demande ou information complémentaire.
+
                 </p>
 
                 <p style="font-size: 14px; color: #777; line-height: 1.6;">
@@ -77,7 +78,7 @@
             <!-- Footer -->
             <tr>
               <td style="border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #999; text-align: center;">
-                TDS France © {{ year }} – Tous droits réservés<br />
+                {{ copyright }}<br />
                 Cet e-mail est automatique, merci de ne pas y répondre directement.
               </td>
             </tr>
