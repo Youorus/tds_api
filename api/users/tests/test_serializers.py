@@ -3,7 +3,7 @@ from rest_framework.exceptions import ValidationError
 
 from api.users.models import User
 from api.users.roles import UserRoles
-from api.users.serializers import UserSerializer, PasswordChangeSerializer
+from api.users.serializers import PasswordChangeSerializer, UserSerializer
 
 
 @pytest.mark.django_db
@@ -26,7 +26,6 @@ def test_user_serializer_create_success():
     assert user.check_password("strongpassword")
 
 
-
 @pytest.mark.django_db
 def test_user_serializer_update_role():
     user = User.objects.create_user(
@@ -34,7 +33,7 @@ def test_user_serializer_update_role():
         first_name="Old",
         last_name="Name",
         password="password123",
-        role=UserRoles.CONSEILLER
+        role=UserRoles.CONSEILLER,
     )
     data = {"first_name": "New", "role": UserRoles.ADMIN}
     serializer = UserSerializer(instance=user, data=data, partial=True)
@@ -42,7 +41,9 @@ def test_user_serializer_update_role():
     updated_user = serializer.save()
     assert updated_user.first_name == "New"
     assert updated_user.role == UserRoles.ADMIN
-    assert updated_user.is_superuser is True  # Vérifie que les permissions sont mises à jour
+    assert (
+        updated_user.is_superuser is True
+    )  # Vérifie que les permissions sont mises à jour
 
 
 @pytest.mark.django_db
@@ -51,15 +52,15 @@ def test_password_change_serializer_success():
         email="passchange@example.com",
         first_name="Test",
         last_name="User",
-        role=UserRoles.ADMIN
+        role=UserRoles.ADMIN,
     )
     user.set_password("oldpass123")
     user.save()
 
-    serializer = PasswordChangeSerializer(data={
-        "old_password": "oldpass123",
-        "new_password": "newpass456"
-    }, context={"user": user})
+    serializer = PasswordChangeSerializer(
+        data={"old_password": "oldpass123", "new_password": "newpass456"},
+        context={"user": user},
+    )
 
     assert serializer.is_valid(), serializer.errors
     validated = serializer.validated_data
@@ -72,15 +73,15 @@ def test_password_change_serializer_wrong_old_password():
         email="wrongold@example.com",
         first_name="Wrong",
         last_name="Pass",
-        role=UserRoles.ADMIN
+        role=UserRoles.ADMIN,
     )
     user.set_password("correctpass")
     user.save()
 
-    serializer = PasswordChangeSerializer(data={
-        "old_password": "wrongpass",
-        "new_password": "newpass"
-    }, context={"user": user})
+    serializer = PasswordChangeSerializer(
+        data={"old_password": "wrongpass", "new_password": "newpass"},
+        context={"user": user},
+    )
 
     assert not serializer.is_valid()
     assert "old_password" in serializer.errors
@@ -92,15 +93,15 @@ def test_password_change_serializer_short_new_password():
         email="shortpass@example.com",
         first_name="Short",
         last_name="Pass",
-        role=UserRoles.CONSEILLER
+        role=UserRoles.CONSEILLER,
     )
     user.set_password("oldpass123")
     user.save()
 
-    serializer = PasswordChangeSerializer(data={
-        "old_password": "oldpass123",
-        "new_password": "123"
-    }, context={"user": user})
+    serializer = PasswordChangeSerializer(
+        data={"old_password": "oldpass123", "new_password": "123"},
+        context={"user": user},
+    )
 
     assert not serializer.is_valid()
     assert "new_password" in serializer.errors

@@ -7,22 +7,41 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='SpecialClosingPeriod',
+            name="SpecialClosingPeriod",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('label', models.CharField(help_text="Nom ou motif de la fermeture (ex : 'Noël', 'Vacances d'été', 'Travaux', etc.)", max_length=100)),
-                ('start_date', models.DateField(help_text='Premier jour fermé (inclusif)')),
-                ('end_date', models.DateField(help_text='Dernier jour fermé (inclusif)')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "label",
+                    models.CharField(
+                        help_text="Nom ou motif de la fermeture (ex : 'Noël', 'Vacances d'été', 'Travaux', etc.)",
+                        max_length=100,
+                    ),
+                ),
+                (
+                    "start_date",
+                    models.DateField(help_text="Premier jour fermé (inclusif)"),
+                ),
+                (
+                    "end_date",
+                    models.DateField(help_text="Dernier jour fermé (inclusif)"),
+                ),
             ],
             options={
-                'verbose_name': 'Fermeture exceptionnelle',
-                'verbose_name_plural': 'Fermetures exceptionnelles',
-                'ordering': ['start_date'],
+                "verbose_name": "Fermeture exceptionnelle",
+                "verbose_name_plural": "Fermetures exceptionnelles",
+                "ordering": ["start_date"],
             },
         ),
     ]

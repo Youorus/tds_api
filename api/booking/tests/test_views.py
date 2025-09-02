@@ -1,13 +1,14 @@
+from datetime import time, timedelta
+
 import pytest
 from django.utils import timezone
-from datetime import timedelta, time
-from rest_framework.test import APIClient
 from rest_framework import status
-from api.leads.models import Lead, LeadStatus
-from api.opening_hours.models import OpeningHours
+from rest_framework.test import APIClient
+
 from api.booking.models import SlotQuota
 from api.leads.constants import RDV_PLANIFIE
-
+from api.leads.models import Lead, LeadStatus
+from api.opening_hours.models import OpeningHours
 
 pytestmark = pytest.mark.django_db
 
@@ -57,13 +58,16 @@ def test_slots_for_date_requires_valid_date(client):
     assert "date" in response.data["detail"].lower()
 
 
-def test_public_book_fails_on_full_slot(client, lead_status_rdv_planifie, opening_hours_mardi):
+def test_public_book_fails_on_full_slot(
+    client, lead_status_rdv_planifie, opening_hours_mardi
+):
     # on force un créneau plein
     date = timezone.now().date()
     while date.weekday() != 1:
         date += timedelta(days=1)
 
     from api.booking.services import try_book_slot
+
     slot_time = timezone.make_aware(timezone.datetime.combine(date, time(10, 0)))
     try_book_slot(slot_time)
     try_book_slot(slot_time)  # 2/2 → plein

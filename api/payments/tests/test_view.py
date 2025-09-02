@@ -1,18 +1,19 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.clients.models import Client
+from api.contracts.models import Contract
 from api.lead_status.models import LeadStatus
 from api.leads.constants import RDV_PLANIFIE
-from api.services.models import Service
-from api.users.models import User, UserRoles
-from api.clients.models import Client
 from api.leads.models import Lead
-from api.contracts.models import Contract
 from api.payments.models import PaymentReceipt
+from api.services.models import Service
 from api.statut_dossier.models import StatutDossier
+from api.users.models import User, UserRoles
 
 
 @pytest.mark.django_db
@@ -24,13 +25,21 @@ class TestPaymentReceiptViewSet:
             password="pass",
             role=UserRoles.ADMIN,
             first_name="Admin",
-            last_name="User"
+            last_name="User",
         )
 
     @pytest.fixture
     def client_and_lead(self):
-        lead_status = LeadStatus.objects.create(code=RDV_PLANIFIE, label="RDV planifié", color="gray")
-        lead = Lead.objects.create(first_name="Marc", last_name="Test", email="marc@example.com", phone="+33600000000", status=lead_status)
+        lead_status = LeadStatus.objects.create(
+            code=RDV_PLANIFIE, label="RDV planifié", color="gray"
+        )
+        lead = Lead.objects.create(
+            first_name="Marc",
+            last_name="Test",
+            email="marc@example.com",
+            phone="+33600000000",
+            status=lead_status,
+        )
         lead.save()
         client = Client.objects.create(lead=lead)
         return client, lead
@@ -39,11 +48,11 @@ class TestPaymentReceiptViewSet:
     def contract(self, client_and_lead):
         client, _ = client_and_lead
         service = Service.objects.create(
-            code="TEST_SERVICE",
-            label="Service A",
-            price=Decimal("1000.00")
+            code="TEST_SERVICE", label="Service A", price=Decimal("1000.00")
         )
-        return Contract.objects.create(client=client, service=service, amount_due=Decimal("1000.00"))
+        return Contract.objects.create(
+            client=client, service=service, amount_due=Decimal("1000.00")
+        )
 
     @pytest.fixture
     def receipt(self, client_and_lead, contract, admin_user):
@@ -54,7 +63,7 @@ class TestPaymentReceiptViewSet:
             amount=Decimal("100.00"),
             mode="CARTE",
             created_by=admin_user,
-            receipt_url="https://dummy.url/receipt.pdf"
+            receipt_url="https://dummy.url/receipt.pdf",
         )
 
     @pytest.fixture

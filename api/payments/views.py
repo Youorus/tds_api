@@ -1,14 +1,15 @@
-from rest_framework import viewsets, permissions, status
+import logging
+from decimal import Decimal
+
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from decimal import Decimal
-import logging
 
 from api.leads.models import Lead
 from api.payments.models import PaymentReceipt
 from api.payments.permissions import IsPaymentEditor
 from api.payments.serializers import PaymentReceiptSerializer
-from api.storage_backends import MinioReceiptStorage
+from api.utils.cloud.scw.bucket_utils import delete_object
 from api.utils.email.recus.tasks import send_receipts_email_task
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     """
     API ViewSet pour gérer les reçus de paiement (PaymentReceipt).
     """
+
     queryset = PaymentReceipt.objects.select_related("client", "contract", "created_by")
     serializer_class = PaymentReceiptSerializer
     permission_classes = [IsPaymentEditor]
@@ -40,23 +42,27 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             return Response({"error": "Montant invalide."}, status=400)
 
         if amount <= 0:
-            return Response({"error": "Le montant doit être supérieur à zéro."}, status=400)
+            return Response(
+                {"error": "Le montant doit être supérieur à zéro."}, status=400
+            )
 
         return super().create(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
         """
-        Supprime aussi le PDF dans MinIO si présent.
+        Supprime aussi le PDF dans S3 (Scaleway/MinIO) si présent.
         """
         instance = self.get_object()
         if instance.receipt_url:
             try:
-                storage = MinioReceiptStorage()
-                bucket_name = storage.bucket_name
-                path = instance.receipt_url.split(f"/{bucket_name}/")[-1]
-                storage.delete(path)
+                from django.conf import settings
+
+                bucket_name = settings.SCW_BUCKETS["receipts"]
+                split_token = f"/{bucket_name}/"
+                path = instance.receipt_url.split(split_token, 1)[-1]
+                delete_object("receipts", path)
             except Exception as e:
-                logger.warning(f"Erreur suppression du reçu PDF MinIO : {e}")
+                logger.warning(f"Erreur suppression du reçu PDF S3 : {e}")
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=False, methods=["post"], url_path="send-email")
@@ -75,14 +81,16 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         if not lead_id or not receipt_ids:
             return Response(
                 {"detail": "lead_id et receipt_ids sont requis."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Sécurité : conversion explicite en entiers
         try:
             receipt_ids = [int(rid) for rid in receipt_ids]
         except (ValueError, TypeError):
-            return Response({"detail": "receipt_ids doit contenir des entiers."}, status=400)
+            return Response(
+                {"detail": "receipt_ids doit contenir des entiers."}, status=400
+            )
 
         try:
             lead = Lead.objects.get(pk=lead_id)
@@ -90,7 +98,9 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Lead introuvable."}, status=404)
 
         if not lead.email:
-            return Response({"detail": "Ce lead ne possède pas d’adresse email."}, status=400)
+            return Response(
+                {"detail": "Ce lead ne possède pas d’adresse email."}, status=400
+            )
 
         receipts = PaymentReceipt.objects.filter(id__in=receipt_ids, client__lead=lead)
         if not receipts.exists():
@@ -99,7 +109,11 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         try:
             send_receipts_email_task.delay(lead.id)
         except Exception as e:
-            logger.exception("Erreur lors du déclenchement de la task d’envoi des reçus.")
+            logger.exception(
+                "Erreur lors du déclenchement de la task d’envoi des reçus."
+            )
             return Response({"detail": f"Erreur technique : {str(e)}"}, status=500)
 
-        return Response({"detail": "Envoi des reçus programmé avec succès."}, status=200)
+        return Response(
+            {"detail": "Envoi des reçus programmé avec succès."}, status=200
+        )

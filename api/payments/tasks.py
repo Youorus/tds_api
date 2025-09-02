@@ -1,7 +1,8 @@
-from datetime import timedelta
-from django.utils import timezone
-from celery import shared_task
 import logging
+from datetime import timedelta
+
+from celery import shared_task
+from django.utils import timezone
 
 from api.payments.models import PaymentReceipt
 from api.utils.email.recus.notifications import send_payment_due_email
@@ -31,7 +32,9 @@ def send_payment_due_reminders():
         email = getattr(client.lead, "email", None)
 
         if not email:
-            logger.warning(f"⚠️ Aucun email pour le client #{client.id} - impossible d’envoyer un rappel.")
+            logger.warning(
+                f"⚠️ Aucun email pour le client #{client.id} - impossible d’envoyer un rappel."
+            )
             continue
 
         try:
@@ -42,9 +45,12 @@ def send_payment_due_reminders():
                 client=client,
                 receipt=receipt,
                 due_date=receipt.next_due_date,
-                amount=amount_due
+                amount=amount_due,
             )
             logger.info(
-                f"📧 Rappel de paiement envoyé à {email} (client #{client.id}, échéance le {receipt.next_due_date})")
+                f"📧 Rappel de paiement envoyé à {email} (client #{client.id}, échéance le {receipt.next_due_date})"
+            )
         except Exception as e:
-            logger.error(f"❌ Erreur lors de l’envoi du mail de rappel pour le client #{client.id} : {str(e)}")
+            logger.error(
+                f"❌ Erreur lors de l’envoi du mail de rappel pour le client #{client.id} : {str(e)}"
+            )

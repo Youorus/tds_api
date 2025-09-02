@@ -1,5 +1,7 @@
-import pytest
 from datetime import time
+
+import pytest
+
 from api.opening_hours.serializers import OpeningHoursSerializer
 
 pytestmark = pytest.mark.django_db

@@ -1,5 +1,6 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 
 from api.clients.models import Client
 from api.contracts.models import Contract

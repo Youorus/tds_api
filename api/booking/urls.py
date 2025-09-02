@@ -1,5 +1,6 @@
 # api/booking/urls.py
 from django.urls import path
+
 from api.booking import views
 
 app_name = "booking"

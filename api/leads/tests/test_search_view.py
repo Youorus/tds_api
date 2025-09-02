@@ -9,23 +9,36 @@ Ces tests couvrent :
 
 Tous les tests utilisent un `APIClient` authentifié avec un utilisateur ADMIN.
 """
+
 import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
-from api.leads.lead_search import _parse_iso_any, _normalize_avec_sans, _to_aware, _to_int_or_none
+
+from api.lead_status.models import LeadStatus
+from api.leads.constants import RDV_CONFIRME, RDV_PLANIFIE
+from api.leads.lead_search import (
+    _normalize_avec_sans,
+    _parse_iso_any,
+    _to_aware,
+    _to_int_or_none,
+)
+from api.leads.models import Lead
+from api.statut_dossier.models import StatutDossier
 from api.users.models import User
 from api.users.roles import UserRoles
-from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
-from api.statut_dossier.models import StatutDossier
-from api.leads.constants import RDV_PLANIFIE, RDV_CONFIRME
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
 def authenticated_client():
-    user = User.objects.create_user(email="test@example.com", password="pass", role=UserRoles.ADMIN, first_name="Admin", last_name="Test")
+    user = User.objects.create_user(
+        email="test@example.com",
+        password="pass",
+        role=UserRoles.ADMIN,
+        first_name="Admin",
+        last_name="Test",
+    )
     client = APIClient()
     client.force_authenticate(user=user)
     return client
@@ -55,6 +68,7 @@ def test_parse_iso_any_date_and_datetime():
 
 def test_to_aware_converts_naive_date():
     from datetime import date
+
     aware = _to_aware(date(2025, 8, 26))
     assert aware.tzinfo is not None
 
@@ -70,8 +84,15 @@ def test_to_int_or_none_behavior():
     assert _to_int_or_none("abc") is None
     assert _to_int_or_none(None) is None
 
+
 def test_filter_by_status_code(authenticated_client, lead_status):
-    Lead.objects.create(first_name="A", last_name="X", phone="+1", email="a@test.com", status=lead_status)
+    Lead.objects.create(
+        first_name="A",
+        last_name="X",
+        phone="+1",
+        email="a@test.com",
+        status=lead_status,
+    )
     url = reverse("lead-search") + f"?status_code={lead_status.code}"
     res = authenticated_client.get(url)
     assert res.status_code == 200
@@ -79,7 +100,13 @@ def test_filter_by_status_code(authenticated_client, lead_status):
 
 
 def test_filter_by_status_id(authenticated_client, lead_status):
-    Lead.objects.create(first_name="B", last_name="Y", phone="+2", email="b@test.com", status=lead_status)
+    Lead.objects.create(
+        first_name="B",
+        last_name="Y",
+        phone="+2",
+        email="b@test.com",
+        status=lead_status,
+    )
     url = reverse("lead-search") + f"?status_id={lead_status.id}"
     res = authenticated_client.get(url)
     assert res.status_code == 200
@@ -87,7 +114,14 @@ def test_filter_by_status_id(authenticated_client, lead_status):
 
 
 def test_filter_by_dossier_code(authenticated_client, lead_status, statut_dossier):
-    Lead.objects.create(first_name="C", last_name="Z", phone="+3", email="c@test.com", status=lead_status, statut_dossier=statut_dossier)
+    Lead.objects.create(
+        first_name="C",
+        last_name="Z",
+        phone="+3",
+        email="c@test.com",
+        status=lead_status,
+        statut_dossier=statut_dossier,
+    )
     url = reverse("lead-search") + f"?dossier_code={statut_dossier.code}"
     res = authenticated_client.get(url)
     assert res.status_code == 200
@@ -95,8 +129,20 @@ def test_filter_by_dossier_code(authenticated_client, lead_status, statut_dossie
 
 
 def test_filter_has_jurist(authenticated_client, lead_status):
-    jurist = User.objects.create_user(email="j@ex.com", password="pass", role=UserRoles.JURISTE, first_name="Juriste", last_name="Ex")
-    lead = Lead.objects.create(first_name="D", last_name="Z", phone="+4", email="d@test.com", status=lead_status)
+    jurist = User.objects.create_user(
+        email="j@ex.com",
+        password="pass",
+        role=UserRoles.JURISTE,
+        first_name="Juriste",
+        last_name="Ex",
+    )
+    lead = Lead.objects.create(
+        first_name="D",
+        last_name="Z",
+        phone="+4",
+        email="d@test.com",
+        status=lead_status,
+    )
     lead.jurist_assigned.add(jurist)
 
     url = reverse("lead-search") + "?has_jurist=avec"
@@ -106,8 +152,20 @@ def test_filter_has_jurist(authenticated_client, lead_status):
 
 
 def test_filter_has_conseiller(authenticated_client, lead_status):
-    conseiller = User.objects.create_user(email="c@ex.com", password="pass", role=UserRoles.CONSEILLER, first_name="Conseiller", last_name="Ex")
-    lead = Lead.objects.create(first_name="E", last_name="F", phone="+5", email="e@test.com", status=lead_status)
+    conseiller = User.objects.create_user(
+        email="c@ex.com",
+        password="pass",
+        role=UserRoles.CONSEILLER,
+        first_name="Conseiller",
+        last_name="Ex",
+    )
+    lead = Lead.objects.create(
+        first_name="E",
+        last_name="F",
+        phone="+5",
+        email="e@test.com",
+        status=lead_status,
+    )
     lead.assigned_to.add(conseiller)
 
     url = reverse("lead-search") + "?has_conseiller=avec"
@@ -117,8 +175,12 @@ def test_filter_has_conseiller(authenticated_client, lead_status):
 
 
 def test_ordering_and_pagination(authenticated_client, lead_status):
-    Lead.objects.create(first_name="A", last_name="A", phone="+1", email="a@x.com", status=lead_status)
-    Lead.objects.create(first_name="B", last_name="B", phone="+2", email="b@x.com", status=lead_status)
+    Lead.objects.create(
+        first_name="A", last_name="A", phone="+1", email="a@x.com", status=lead_status
+    )
+    Lead.objects.create(
+        first_name="B", last_name="B", phone="+2", email="b@x.com", status=lead_status
+    )
 
     url = reverse("lead-search") + "?ordering=created_at&page=1&page_size=1"
     res = authenticated_client.get(url)

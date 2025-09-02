@@ -1,4 +1,5 @@
 import pytest
+
 """
 Tests d’intégration pour les vues de l’API Lead.
 
@@ -10,17 +11,19 @@ Ces tests couvrent :
 
 Tous les tests nécessitent un accès à la base de données (pytestmark).
 """
-from django.urls import reverse
-from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from api.leads.models import Lead
+from django.urls import reverse
+from rest_framework.test import APIClient
+
 from api.lead_status.models import LeadStatus
 from api.leads.constants import RDV_PLANIFIE
+from api.leads.models import Lead
 from api.users.models import User
 from api.users.roles import UserRoles
 
 pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def lead_status():
@@ -29,17 +32,35 @@ def lead_status():
 
 @pytest.fixture
 def admin_user():
-    return User.objects.create_user(email="admin@test.com", password="123", role=UserRoles.ADMIN, first_name="Admin", last_name="User")
+    return User.objects.create_user(
+        email="admin@test.com",
+        password="123",
+        role=UserRoles.ADMIN,
+        first_name="Admin",
+        last_name="User",
+    )
 
 
 @pytest.fixture
 def conseiller_user():
-    return User.objects.create_user(email="conseiller@test.com", password="123", role=UserRoles.CONSEILLER, first_name="Conseiller", last_name="User")
+    return User.objects.create_user(
+        email="conseiller@test.com",
+        password="123",
+        role=UserRoles.CONSEILLER,
+        first_name="Conseiller",
+        last_name="User",
+    )
 
 
 @pytest.fixture
 def juriste_user():
-    return User.objects.create_user(email="juriste@test.com", password="123", role=UserRoles.JURISTE, first_name="Juriste", last_name="User")
+    return User.objects.create_user(
+        email="juriste@test.com",
+        password="123",
+        role=UserRoles.JURISTE,
+        first_name="Juriste",
+        last_name="User",
+    )
 
 
 @pytest.fixture
@@ -48,7 +69,9 @@ def client_for():
         client = APIClient()
         client.force_authenticate(user=user)
         return client
+
     return _client
+
 
 @patch("api.utils.email.leads.tasks.send_appointment_planned_task.delay")
 def test_create_lead_success(mock_notify, client_for, admin_user, lead_status):
@@ -69,7 +92,9 @@ def test_create_lead_success(mock_notify, client_for, admin_user, lead_status):
 
 
 def test_retrieve_lead(client_for, admin_user, lead_status):
-    lead = Lead.objects.create(first_name="X", last_name="Y", phone="+336", status=lead_status)
+    lead = Lead.objects.create(
+        first_name="X", last_name="Y", phone="+336", status=lead_status
+    )
     client = client_for(admin_user)
     url = reverse("lead-detail", kwargs={"pk": lead.pk})
     response = client.get(url)
@@ -78,32 +103,56 @@ def test_retrieve_lead(client_for, admin_user, lead_status):
 
 
 def test_filter_leads_by_status(client_for, admin_user, lead_status):
-    lead1 = Lead.objects.create(first_name="A", last_name="X", phone="+1", status=lead_status)
-    lead2 = Lead.objects.create(first_name="B", last_name="Y", phone="+2", status=lead_status)
+    lead1 = Lead.objects.create(
+        first_name="A", last_name="X", phone="+1", status=lead_status
+    )
+    lead2 = Lead.objects.create(
+        first_name="B", last_name="Y", phone="+2", status=lead_status
+    )
 
     client = client_for(admin_user)
     url = reverse("lead-list") + f"?status={lead_status.id}"
     response = client.get(url)
 
     assert response.status_code == 200
-    assert lead1.id in [item["id"] for item in response.data.get("results", response.data)]
-    assert lead2.id in [item["id"] for item in response.data.get("results", response.data)]
+    assert lead1.id in [
+        item["id"] for item in response.data.get("results", response.data)
+    ]
+    assert lead2.id in [
+        item["id"] for item in response.data.get("results", response.data)
+    ]
 
 
 def test_filter_leads_by_search(client_for, admin_user, lead_status):
-    Lead.objects.create(first_name="Jean", last_name="Doe", phone="+331", email="jean@example.com", status=lead_status)
-    Lead.objects.create(first_name="Marie", last_name="Curie", phone="+332", email="marie@example.com", status=lead_status)
+    Lead.objects.create(
+        first_name="Jean",
+        last_name="Doe",
+        phone="+331",
+        email="jean@example.com",
+        status=lead_status,
+    )
+    Lead.objects.create(
+        first_name="Marie",
+        last_name="Curie",
+        phone="+332",
+        email="marie@example.com",
+        status=lead_status,
+    )
 
     client = client_for(admin_user)
     url = reverse("lead-list") + "?search=jean"
     response = client.get(url)
     assert response.status_code == 200
-    emails = [item["email"].lower() for item in response.data.get("results", response.data)]
+    emails = [
+        item["email"].lower() for item in response.data.get("results", response.data)
+    ]
     assert any("jean" in email for email in emails)
 
 
 def test_filter_leads_by_date(client_for, admin_user, lead_status):
-    lead = Lead.objects.create(first_name="Alice", last_name="X", phone="+33", status=lead_status)
+    lead = Lead.objects.create(
+        first_name="Alice", last_name="X", phone="+33", status=lead_status
+    )
     date_str = lead.created_at.strftime("%Y-%m-%d")
 
     client = client_for(admin_user)
@@ -115,7 +164,13 @@ def test_filter_leads_by_date(client_for, admin_user, lead_status):
 
 
 def test_patch_lead_phone(client_for, admin_user, lead_status):
-    lead = Lead.objects.create(first_name="Jean", last_name="Doe", phone="+33611112222", status=lead_status, appointment_date="2025-09-01T10:00:00Z")
+    lead = Lead.objects.create(
+        first_name="Jean",
+        last_name="Doe",
+        phone="+33611112222",
+        status=lead_status,
+        appointment_date="2025-09-01T10:00:00Z",
+    )
     client = client_for(admin_user)
     url = reverse("lead-detail", kwargs={"pk": lead.pk})
     response = client.patch(url, data={"phone": "+33777777777"}, format="json")
@@ -125,7 +180,9 @@ def test_patch_lead_phone(client_for, admin_user, lead_status):
 
 
 def test_admin_can_delete_lead(client_for, admin_user, lead_status):
-    lead = Lead.objects.create(first_name="Delete", last_name="Me", phone="+336", status=lead_status)
+    lead = Lead.objects.create(
+        first_name="Delete", last_name="Me", phone="+336", status=lead_status
+    )
     client = client_for(admin_user)
     url = reverse("lead-detail", kwargs={"pk": lead.pk})
     response = client.delete(url)
@@ -134,7 +191,9 @@ def test_admin_can_delete_lead(client_for, admin_user, lead_status):
 
 
 def test_count_by_status(client_for, admin_user, lead_status):
-    Lead.objects.create(first_name="Count", last_name="Me", phone="+336", status=lead_status)
+    Lead.objects.create(
+        first_name="Count", last_name="Me", phone="+336", status=lead_status
+    )
     client = client_for(admin_user)
     url = reverse("lead-count-by-status")
     response = client.get(url)
@@ -143,7 +202,9 @@ def test_count_by_status(client_for, admin_user, lead_status):
 
 
 def test_assignment_admin(client_for, admin_user, conseiller_user, lead_status):
-    lead = Lead.objects.create(first_name="Assign", last_name="Me", phone="+336", status=lead_status)
+    lead = Lead.objects.create(
+        first_name="Assign", last_name="Me", phone="+336", status=lead_status
+    )
     client = client_for(admin_user)
     url = reverse("lead-assignment", kwargs={"pk": lead.pk})
     response = client.patch(url, {"assign": [conseiller_user.id]}, format="json")
@@ -153,13 +214,16 @@ def test_assignment_admin(client_for, admin_user, conseiller_user, lead_status):
 
 
 def test_assign_juriste_admin(client_for, admin_user, juriste_user, lead_status):
-    lead = Lead.objects.create(first_name="J", last_name="R", phone="+336", status=lead_status)
+    lead = Lead.objects.create(
+        first_name="J", last_name="R", phone="+336", status=lead_status
+    )
     client = client_for(admin_user)
     url = reverse("lead-assign-juristes", kwargs={"pk": lead.pk})
     response = client.patch(url, {"assign": [juriste_user.id]}, format="json")
     assert response.status_code == 200
     lead.refresh_from_db()
     assert juriste_user in lead.jurist_assigned.all()
+
 
 @patch("api.utils.email.leads.tasks.send_formulaire_task.delay")
 def test_send_formulaire_email(mock_task, client_for, admin_user, lead_status):

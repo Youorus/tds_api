@@ -1,9 +1,12 @@
-from datetime import datetime, time, timedelta, date as date_cls
-from django.utils import timezone
+from datetime import date as date_cls
+from datetime import datetime, time, timedelta
+
 from django.db import transaction
 from django.db.models import F
-from api.opening_hours.models import OpeningHours
+from django.utils import timezone
+
 from api.booking.models import SlotQuota
+from api.opening_hours.models import OpeningHours
 
 
 def get_rules_for_date(d: date_cls):
@@ -53,14 +56,16 @@ def list_slots_with_quota(d: date_cls):
             SlotQuota.objects.filter(pk=quota.pk).update(capacity=capacity)
             quota.capacity = capacity
 
-        out.append({
-            "start_at": start_at,
-            "time": start_at.strftime("%H:%M"),
-            "capacity": quota.capacity,
-            "booked": quota.booked,
-            "remaining": quota.remaining,
-            "is_full": quota.booked >= quota.capacity,
-        })
+        out.append(
+            {
+                "start_at": start_at,
+                "time": start_at.strftime("%H:%M"),
+                "capacity": quota.capacity,
+                "booked": quota.booked,
+                "remaining": quota.remaining,
+                "is_full": quota.booked >= quota.capacity,
+            }
+        )
     return out
 
 

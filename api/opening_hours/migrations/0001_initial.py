@@ -7,22 +7,55 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='OpeningHours',
+            name="OpeningHours",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('day_of_week', models.IntegerField(choices=[(0, 'Lundi'), (1, 'Mardi'), (2, 'Mercredi'), (3, 'Jeudi'), (4, 'Vendredi')], unique=True)),
-                ('open_time', models.TimeField(blank=True, help_text="Heure d'ouverture (laisser vide = fermé)", null=True)),
-                ('close_time', models.TimeField(blank=True, help_text='Heure de fermeture (laisser vide = fermé)', null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "day_of_week",
+                    models.IntegerField(
+                        choices=[
+                            (0, "Lundi"),
+                            (1, "Mardi"),
+                            (2, "Mercredi"),
+                            (3, "Jeudi"),
+                            (4, "Vendredi"),
+                        ],
+                        unique=True,
+                    ),
+                ),
+                (
+                    "open_time",
+                    models.TimeField(
+                        blank=True,
+                        help_text="Heure d'ouverture (laisser vide = fermé)",
+                        null=True,
+                    ),
+                ),
+                (
+                    "close_time",
+                    models.TimeField(
+                        blank=True,
+                        help_text="Heure de fermeture (laisser vide = fermé)",
+                        null=True,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': "Horaire d'ouverture",
-                'verbose_name_plural': "Horaires d'ouverture",
-                'ordering': ['day_of_week'],
+                "verbose_name": "Horaire d'ouverture",
+                "verbose_name_plural": "Horaires d'ouverture",
+                "ordering": ["day_of_week"],
             },
         ),
     ]

@@ -3,37 +3,38 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from api.payments.enums import PaymentMode
-from api.utils.pdf.receipt_generator import generate_receipt_pdf
 from api.utils.cloud.storage import store_receipt_pdf
+from api.utils.pdf.receipt_generator import generate_receipt_pdf
 
 
 class PaymentReceipt(models.Model):
     """
     Modèle de reçu de paiement lié à un client et éventuellement un contrat.
     """
-    client = models.ForeignKey("clients.Client", on_delete=models.CASCADE, related_name="receipts")
-    contract = models.ForeignKey("contracts.Contract", on_delete=models.CASCADE, related_name="receipts", null=True)
-    amount = models.DecimalField(
-        max_digits=10,
-        decimal_places=2
+
+    client = models.ForeignKey(
+        "clients.Client", on_delete=models.CASCADE, related_name="receipts"
     )
-    mode = models.CharField(
-        max_length=20,
-        choices=PaymentMode.choices
+    contract = models.ForeignKey(
+        "contracts.Contract",
+        on_delete=models.CASCADE,
+        related_name="receipts",
+        null=True,
     )
-    payment_date = models.DateTimeField(
-        default=timezone.now
-    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    mode = models.CharField(max_length=20, choices=PaymentMode.choices)
+    payment_date = models.DateTimeField(default=timezone.now)
     next_due_date = models.DateField(
         null=True,
         blank=True,
-        help_text=_("Date de la prochaine échéance prévue si le contrat n'est pas encore soldé.")
+        help_text=_(
+            "Date de la prochaine échéance prévue si le contrat n'est pas encore soldé."
+        ),
     )
-    receipt_url = models.URLField(
-        blank=True,
-        null=True
+    receipt_url = models.URLField(blank=True, null=True)
+    created_by = models.ForeignKey(
+        "users.User", on_delete=models.SET_NULL, null=True, blank=True
     )
-    created_by = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         ordering = ["-payment_date"]

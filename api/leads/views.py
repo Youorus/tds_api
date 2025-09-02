@@ -1,9 +1,10 @@
 # api/leads/views.py
 
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import F, Q
 from django.utils.dateparse import parse_date
-from rest_framework import status as drf_status, viewsets
+from rest_framework import status as drf_status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -11,10 +12,10 @@ from rest_framework.response import Response
 
 from api.booking.models import SlotQuota
 from api.lead_status.models import LeadStatus
+from api.leads.constants import ABSENT, PRESENT, RDV_CONFIRME, RDV_PLANIFIE
 from api.leads.models import Lead
+from api.leads.permissions import IsConseillerOrAdmin, IsLeadCreator
 from api.leads.serializers import LeadSerializer
-from api.leads.constants import RDV_CONFIRME, RDV_PLANIFIE, ABSENT, PRESENT
-from api.leads.permissions import IsLeadCreator, IsConseillerOrAdmin
 from api.users.models import User
 from api.users.roles import UserRoles
 from api.utils.email.leads.tasks import (
@@ -23,7 +24,6 @@ from api.utils.email.leads.tasks import (
     send_dossier_status_notification_task,
     send_formulaire_task,
 )
-
 
 """
 Vues pour la gestion des Leads via API REST.
@@ -54,6 +54,7 @@ class LeadViewSet(viewsets.ModelViewSet):
     - Admin ou Conseiller requis pour l’assignation
 
     """
+
     serializer_class = LeadSerializer
     permission_classes = [IsLeadCreator]
 
@@ -76,8 +77,8 @@ class LeadViewSet(viewsets.ModelViewSet):
             try:
                 status_present = LeadStatus.objects.get(code=PRESENT)
                 return queryset.filter(
-                    Q(assigned_to=user) |
-                    Q(assigned_to__isnull=True, status=status_present)
+                    Q(assigned_to=user)
+                    | Q(assigned_to__isnull=True, status=status_present)
                 )
             except LeadStatus.DoesNotExist:
                 return queryset.filter(assigned_to=user)
@@ -88,10 +89,10 @@ class LeadViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get("search")
         if search:
             return queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(phone__icontains=search) |
-                Q(email__icontains=search)
+                Q(first_name__icontains=search)
+                | Q(last_name__icontains=search)
+                | Q(phone__icontains=search)
+                | Q(email__icontains=search)
             )
         return queryset
 
@@ -151,9 +152,13 @@ class LeadViewSet(viewsets.ModelViewSet):
         if not after.email:
             return
 
-        status_changed = getattr(before.status, "code", None) != getattr(after.status, "code", None)
+        status_changed = getattr(before.status, "code", None) != getattr(
+            after.status, "code", None
+        )
         appointment_changed = before.appointment_date != after.appointment_date
-        statut_dossier_changed = getattr(before.statut_dossier, "id", None) != getattr(after.statut_dossier, "id", None)
+        statut_dossier_changed = getattr(before.statut_dossier, "id", None) != getattr(
+            after.statut_dossier, "id", None
+        )
 
         if appointment_changed:
             self._send_notifications(after)
@@ -165,7 +170,12 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     # ====== ROUTES PERSONNALISÉES ======
 
-    @action(detail=False, methods=["post"], url_path="public-create", permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="public-create",
+        permission_classes=[AllowAny],
+    )
     def public_create(self, request):
         """
         Crée un lead via un formulaire public (sans authentification).
@@ -197,11 +207,15 @@ class LeadViewSet(viewsets.ModelViewSet):
                     status=drf_status.HTTP_409_CONFLICT,
                 )
 
-            lead_status = serializer.validated_data.get("status") or self._get_default_status()
+            lead_status = (
+                serializer.validated_data.get("status") or self._get_default_status()
+            )
             lead = serializer.save(status=lead_status)
 
         self._send_notifications(lead)
-        return Response(self.get_serializer(lead).data, status=drf_status.HTTP_201_CREATED)
+        return Response(
+            self.get_serializer(lead).data, status=drf_status.HTTP_201_CREATED
+        )
 
     @action(detail=False, methods=["get"], url_path="count-by-status")
     def count_by_status(self, request):
@@ -213,11 +227,15 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         Utilisé pour le dashboard de statistiques.
         """
-        statuses = LeadStatus.objects.filter(code__in=[RDV_CONFIRME, RDV_PLANIFIE, ABSENT])
+        statuses = LeadStatus.objects.filter(
+            code__in=[RDV_CONFIRME, RDV_PLANIFIE, ABSENT]
+        )
         counts = {
-            code: Lead.objects.filter(status=status).count()
-            if (status := statuses.filter(code=code).first())
-            else 0
+            code: (
+                Lead.objects.filter(status=status).count()
+                if (status := statuses.filter(code=code).first())
+                else 0
+            )
             for code in [RDV_CONFIRME, RDV_PLANIFIE, ABSENT]
         }
         return Response(counts)
@@ -240,26 +258,34 @@ class LeadViewSet(viewsets.ModelViewSet):
             unassign_ids = request.data.get("unassign", [])
 
             if assign_ids:
-                valid_users = User.objects.filter(id__in=assign_ids, role=UserRoles.CONSEILLER, is_active=True)
+                valid_users = User.objects.filter(
+                    id__in=assign_ids, role=UserRoles.CONSEILLER, is_active=True
+                )
                 if valid_users.count() != len(assign_ids):
                     raise NotFound("Un ou plusieurs conseillers sont introuvables.")
                 lead.assigned_to.add(*valid_users)
 
             if unassign_ids:
-                users_to_unassign = User.objects.filter(id__in=unassign_ids, role=UserRoles.CONSEILLER)
+                users_to_unassign = User.objects.filter(
+                    id__in=unassign_ids, role=UserRoles.CONSEILLER
+                )
                 lead.assigned_to.remove(*users_to_unassign)
 
         elif user.role == UserRoles.CONSEILLER:
             action = request.data.get("action")
             if action not in ["assign", "unassign"]:
-                return Response({"detail": "Action attendue : 'assign' ou 'unassign'."}, status=400)
+                return Response(
+                    {"detail": "Action attendue : 'assign' ou 'unassign'."}, status=400
+                )
 
             if action == "assign" and not lead.assigned_to.filter(id=user.id).exists():
                 lead.assigned_to.add(user)
             elif action == "unassign" and lead.assigned_to.filter(id=user.id).exists():
                 lead.assigned_to.remove(user)
         else:
-            raise PermissionDenied("Seuls les admins ou conseillers peuvent gérer les assignations.")
+            raise PermissionDenied(
+                "Seuls les admins ou conseillers peuvent gérer les assignations."
+            )
 
         lead.save()
         return Response(self.get_serializer(lead).data)
@@ -280,7 +306,9 @@ class LeadViewSet(viewsets.ModelViewSet):
         unassign_ids = request.data.get("unassign", [])
 
         if assign_ids:
-            juristes = User.objects.filter(id__in=assign_ids, role=UserRoles.JURISTE, is_active=True)
+            juristes = User.objects.filter(
+                id__in=assign_ids, role=UserRoles.JURISTE, is_active=True
+            )
             if juristes.count() != len(assign_ids):
                 raise NotFound("Un ou plusieurs juristes à assigner sont introuvables.")
             lead.jurist_assigned.add(*juristes)

@@ -1,12 +1,16 @@
-from datetime import timedelta
-from django.utils import timezone
-from celery import shared_task
-from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
-from api.leads.constants import RDV_CONFIRME, ABSENT
 import logging
+from datetime import timedelta
 
-from api.utils.email import send_appointment_reminder_email, send_missed_appointment_email
+from celery import shared_task
+from django.utils import timezone
+
+from api.lead_status.models import LeadStatus
+from api.leads.constants import ABSENT, RDV_CONFIRME
+from api.leads.models import Lead
+from api.utils.email import (
+    send_appointment_reminder_email,
+    send_missed_appointment_email,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +20,8 @@ Tâche périodique pour envoyer des e-mails de rappel aux leads avec un rendez-v
 - Un rappel est envoyé 1 jour avant le rendez-vous.
 - Un autre rappel est envoyé 2 heures avant le rendez-vous.
 """
+
+
 @shared_task
 def send_reminder_emails():
     now = timezone.now()
@@ -23,8 +29,7 @@ def send_reminder_emails():
     # Rappel 1 jour avant
     one_day_later = now + timedelta(days=1)
     leads_1d = Lead.objects.filter(
-        status__code=RDV_CONFIRME,
-        appointment_date__date=one_day_later.date()
+        status__code=RDV_CONFIRME, appointment_date__date=one_day_later.date()
     )
 
     for lead in leads_1d:
@@ -36,7 +41,8 @@ def send_reminder_emails():
     leads_2h = Lead.objects.filter(
         status__code=RDV_CONFIRME,
         appointment_date__hour=two_hours_later.hour,
-        appointment_date__date=two_hours_later.date()
+        appointment_date__date=two_hours_later.date(),
+        minute__minute=two_hours_later.minute,
     )
 
     for lead in leads_2h:
@@ -48,6 +54,8 @@ def send_reminder_emails():
 Tâche périodique pour marquer comme absents les leads dont le rendez-vous confirmé est déjà passé.
 Et envoyer un e-mail d'absence à chaque lead concerné.
 """
+
+
 @shared_task
 def mark_absent_leads():
     now = timezone.now()
@@ -60,8 +68,7 @@ def mark_absent_leads():
         return
 
     leads_to_mark = Lead.objects.filter(
-        status=confirmed_status,
-        appointment_date__lt=now
+        status=confirmed_status, appointment_date__lt=now
     )
 
     for lead in leads_to_mark:
@@ -73,4 +80,6 @@ def mark_absent_leads():
             send_missed_appointment_email(lead)
             logger.info(f"📧 Mail d'absence envoyé à {lead.email} (lead #{lead.id})")
         else:
-            logger.warning(f"⚠️ Impossible d'envoyer le mail d'absence (email manquant) pour lead #{lead.id}")
+            logger.warning(
+                f"⚠️ Impossible d'envoyer le mail d'absence (email manquant) pour lead #{lead.id}"
+            )

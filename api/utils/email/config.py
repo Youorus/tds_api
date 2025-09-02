@@ -1,21 +1,16 @@
-from django.conf import settings
-from django.utils import timezone
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
 import logging
 
-from api.utils.email.utils import get_french_datetime_strings, _get_with_info
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils import timezone
+
+from api.utils.email.utils import _get_with_info, get_french_datetime_strings
 
 logger = logging.getLogger(__name__)
 
 
-def send_html_email(
-    to_email,
-    subject,
-    template_name,
-    context,
-    attachments=None
-):
+def send_html_email(to_email, subject, template_name, context, attachments=None):
     """
     Envoie un email HTML à l'adresse fournie.
     - to_email: email du destinataire
@@ -51,7 +46,9 @@ def send_html_email(
     msg.send()
 
 
-TDS_FRANCE_ADDRESS = "11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, dans la galerie)"
+TDS_FRANCE_ADDRESS = (
+    "11 rue de l'Arrivée, 75015 Paris (En face du magasin C&A, dans la galerie)"
+)
 TDS_FRANCE_PHONE = "06 95 59 70 43"
 TDS_FRANCE_CONTACT_EMAIL = "contact@tds-france.fr"
 TDS_FRANCE_TEAM_NAME = "TDS France"
@@ -69,6 +66,8 @@ Ce contexte inclut :
 :param lead: Objet représentant le lead (doit avoir first_name, last_name, etc.)
 :return: Dictionnaire de contexte pour le template HTML
 """
+
+
 def _base_context(lead: object) -> dict:
     year = timezone.now().year
     return {
@@ -92,7 +91,9 @@ def _build_context(
     # Si date de rendez-vous présente
     if dt:
         date_str, time_str = get_french_datetime_strings(dt)
-        with_label, with_name = _get_with_info(appointment) if appointment else (None, None)
+        with_label, with_name = (
+            _get_with_info(appointment) if appointment else (None, None)
+        )
 
         context["appointment"] = {
             "date": date_str,

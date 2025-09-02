@@ -1,48 +1,47 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 
+from api.utils.cloud.scw.utils import download_file_from_s3, extract_s3_key_from_url
 from api.utils.email import send_html_email
 from api.utils.email.config import _build_context
-from api.utils.utils import download_file
 
 logger = logging.getLogger(__name__)
+
 
 def send_receipts_email_to_lead(lead, receipts):
     """
     Envoie un ou plusieurs reçus PDF par mail au lead associé à un client.
 
-    - Utilise le template `email/receipts_send.html`
-    - Ajoute l’année et les reçus dans le contexte
-    - Chaque reçu PDF est téléchargé depuis son URL
+    - Utilise le template `email/recus/receipts_send.html`
+    - Télécharge chaque reçu depuis Scaleway S3 via boto3
     """
     if not lead or not lead.email:
-        logger.warning(f"Aucun email trouvé pour le lead.")
+        logger.warning("Aucun email trouvé pour le lead.")
         return
 
     attachments = []
     for receipt in receipts:
         logger.info(f"Téléchargement du reçu : {receipt.receipt_url}")
-        pdf_content, pdf_filename = download_file(receipt.receipt_url)
-        if not pdf_content or not pdf_filename:
-            logger.error(f"Échec du téléchargement du reçu {receipt.id}")
+        try:
+            key = extract_s3_key_from_url(receipt.receipt_url)
+            pdf_content, pdf_filename = download_file_from_s3("receipts", key)
+        except Exception as e:
+            logger.error(f"Échec du téléchargement du reçu {receipt.id} : {e}")
             continue
 
-        attachments.append({
-            "filename": pdf_filename,
-            "content": pdf_content,
-            "mimetype": "application/pdf",
-        })
+        attachments.append(
+            {
+                "filename": pdf_filename,
+                "content": pdf_content,
+                "mimetype": "application/pdf",
+            }
+        )
 
     if not attachments:
-        logger.warning(f"Aucune pièce jointe valide pour {lead}.")
+        logger.warning(f"Aucune pièce jointe valide pour le lead {lead}.")
         return
 
-    context = _build_context(
-        lead=lead,
-        extra={
-            "receipts": receipts,
-        }
-    )
+    context = _build_context(lead=lead, extra={"receipts": receipts})
 
     send_html_email(
         to_email=lead.email,
@@ -52,20 +51,26 @@ def send_receipts_email_to_lead(lead, receipts):
         attachments=attachments,
     )
 
-def send_payment_due_email(client, receipt, due_date, amount):
+    logger.info(f"📩 Reçus envoyés à {lead.email}")
+
+
+def send_payment_due_email(client, receipt, due_date: datetime, amount: float):
     """
     Envoie un rappel par email concernant un paiement à venir.
 
-    - Utilise le template HTML : `email/payment_due.html`
+    - Utilise le template `email/recus/payment_reminder.html`
     - Ajoute dans le contexte : client, reçu, date d’échéance, montant
-    - Envoie à client.email ou lead.email
+    - Envoie à client.lead.email
     """
-    recipient = client.lead.email
+    lead = getattr(client, "lead", None)
+    recipient = getattr(lead, "email", None)
+
     if not recipient:
+        logger.warning(f"Aucun email trouvé pour le client {client}")
         return
 
     context = _build_context(
-        lead=client.lead,
+        lead=lead,
         extra={
             "client": client,
             "receipt": receipt,
@@ -81,3 +86,5 @@ def send_payment_due_email(client, receipt, due_date, amount):
         template_name="email/recus/payment_reminder.html",
         context=context,
     )
+
+    logger.info(f"📩 Rappel de paiement envoyé à {recipient}")

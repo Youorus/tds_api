@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -8,6 +9,7 @@ class OpeningHours(models.Model):
     Horaires hebdomadaires récurrents (source de vérité).
     Ex : Lundi 09:00-18:00, créneaux 30min, capacité 2 rdv/slot.
     """
+
     DAY_CHOICES = [
         (0, _("Lundi")),
         (1, _("Mardi")),
@@ -21,28 +23,23 @@ class OpeningHours(models.Model):
     day_of_week = models.IntegerField(
         choices=DAY_CHOICES,
         unique=True,
-        help_text=_("Jour de la semaine (0 = Lundi, 6 = Dimanche).")
+        help_text=_("Jour de la semaine (0 = Lundi, 6 = Dimanche)."),
     )
     open_time = models.TimeField(
-        null=True, blank=True,
-        help_text=_("Heure d'ouverture (HH:MM).")
+        null=True, blank=True, help_text=_("Heure d'ouverture (HH:MM).")
     )
     close_time = models.TimeField(
-        null=True, blank=True,
-        help_text=_("Heure de fermeture (HH:MM).")
+        null=True, blank=True, help_text=_("Heure de fermeture (HH:MM).")
     )
 
     slot_duration_minutes = models.PositiveIntegerField(
-        default=30,
-        help_text=_("Durée d'un créneau en minutes (15, 20, 30…).")
+        default=30, help_text=_("Durée d'un créneau en minutes (15, 20, 30…).")
     )
     capacity_per_slot = models.PositiveIntegerField(
-        default=1,
-        help_text=_("Nombre maximum de rendez-vous par créneau.")
+        default=1, help_text=_("Nombre maximum de rendez-vous par créneau.")
     )
     is_active = models.BooleanField(
-        default=True,
-        help_text=_("Si désactivé, ce jour est considéré comme fermé.")
+        default=True, help_text=_("Si désactivé, ce jour est considéré comme fermé.")
     )
 
     class Meta:

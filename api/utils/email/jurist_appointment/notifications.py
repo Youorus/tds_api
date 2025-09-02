@@ -1,7 +1,8 @@
 # api/utils/email/notifications.py
 from api.utils.email import send_html_email
 from api.utils.email.config import TDS_FRANCE_ADDRESS, _base_context, _build_context
-from api.utils.email.utils import get_french_datetime_strings, _name_from_user
+from api.utils.email.utils import _name_from_user, get_french_datetime_strings
+
 
 def send_jurist_appointment_email(jurist_appointment):
     lead = jurist_appointment.lead
@@ -22,6 +23,7 @@ def send_jurist_appointment_email(jurist_appointment):
         template_name="email/jurist_appointment/jurist_appointment_planned.html",
         context=context,
     )
+
 
 def send_jurist_appointment_deleted_email(lead, jurist, appointment_date):
     date_str, time_str = get_french_datetime_strings(appointment_date)

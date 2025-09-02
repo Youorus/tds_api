@@ -7,6 +7,7 @@ class SlotQuota(models.Model):
     - capacity vient des règles OpeningHours au moment du get_or_create
     - booked s'incrémente/décrémente transactionnellement
     """
+
     start_at = models.DateTimeField(unique=True, db_index=True)
     capacity = models.PositiveIntegerField()
     booked = models.PositiveIntegerField(default=0)

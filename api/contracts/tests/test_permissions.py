@@ -1,7 +1,7 @@
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from rest_framework.permissions import SAFE_METHODS
 from rest_framework.test import APIRequestFactory
-from django.contrib.auth.models import AnonymousUser
 
 from api.contracts.permissions import IsContractEditor
 from api.users.models import User
@@ -13,6 +13,7 @@ def user_factory():
     """
     Fabrique un utilisateur avec tous les champs requis.
     """
+
     def create_user(role):
         return User.objects.create_user(
             email=f"{role.lower()}@tds.fr",
@@ -21,15 +22,19 @@ def user_factory():
             last_name="Test",
             role=role,
         )
+
     return create_user
 
 
-@pytest.mark.parametrize("role", [
-    UserRoles.ADMIN,
-    UserRoles.CONSEILLER,
-    UserRoles.JURISTE,
-    UserRoles.ACCUEIL,
-])
+@pytest.mark.parametrize(
+    "role",
+    [
+        UserRoles.ADMIN,
+        UserRoles.CONSEILLER,
+        UserRoles.JURISTE,
+        UserRoles.ACCUEIL,
+    ],
+)
 @pytest.mark.parametrize("method", SAFE_METHODS)
 @pytest.mark.django_db
 def test_contract_permission_safe_methods_all_roles(role, method, user_factory):
@@ -45,12 +50,15 @@ def test_contract_permission_safe_methods_all_roles(role, method, user_factory):
     assert permission.has_permission(request, view=None) is True
 
 
-@pytest.mark.parametrize("role, expected", [
-    (UserRoles.ADMIN, True),
-    (UserRoles.CONSEILLER, True),
-    (UserRoles.JURISTE, True),
-    (UserRoles.ACCUEIL, False),
-])
+@pytest.mark.parametrize(
+    "role, expected",
+    [
+        (UserRoles.ADMIN, True),
+        (UserRoles.CONSEILLER, True),
+        (UserRoles.JURISTE, True),
+        (UserRoles.ACCUEIL, False),
+    ],
+)
 @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
 @pytest.mark.django_db
 def test_contract_permission_write_methods(role, expected, method, user_factory):

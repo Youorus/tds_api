@@ -4,7 +4,9 @@ import pdfkit
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils import timezone
+
 from api.contracts.models import Contract
+
 
 def generate_contract_pdf(contract: Contract) -> bytes:
     """
@@ -34,6 +36,6 @@ def generate_contract_pdf(contract: Contract) -> bytes:
     }
 
     html_string = render_to_string("contrats/contract_template.html", context)
-    config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_PATH) # ⬅️ Adapte selon ton serveur
+    config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_PATH)
     pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
     return pdf_bytes

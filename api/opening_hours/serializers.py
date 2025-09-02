@@ -1,6 +1,8 @@
 # api/opening_hours/test_serializers.py
 from rest_framework import serializers
+
 from api.opening_hours.models import OpeningHours
+
 
 class OpeningHoursSerializer(serializers.ModelSerializer):
     # Accepte "09:00" ou "09:00:00"
@@ -55,12 +57,16 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
         if is_active:
             if open_time is None or close_time is None:
                 raise serializers.ValidationError(
-                    {"open_time": "Requis si le jour est actif.",
-                     "close_time": "Requis si le jour est actif."}
+                    {
+                        "open_time": "Requis si le jour est actif.",
+                        "close_time": "Requis si le jour est actif.",
+                    }
                 )
             if open_time >= close_time:
                 raise serializers.ValidationError(
-                    {"close_time": "La fermeture doit être strictement après l’ouverture."}
+                    {
+                        "close_time": "La fermeture doit être strictement après l’ouverture."
+                    }
                 )
         else:
             # Jour fermé : on autorise heures nulles ou renseignées (elles seront ignorées côté planning)
@@ -74,7 +80,9 @@ class OpeningHoursSerializer(serializers.ModelSerializer):
             # si actif, on a déjà levé au-dessus; si inactif on tolère
             if is_active:
                 raise serializers.ValidationError(
-                    {"non_field_errors": "Si le jour est actif, ouverture et fermeture sont toutes deux requises."}
+                    {
+                        "non_field_errors": "Si le jour est actif, ouverture et fermeture sont toutes deux requises."
+                    }
                 )
 
         return attrs

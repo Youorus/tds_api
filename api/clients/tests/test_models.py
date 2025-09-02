@@ -1,27 +1,38 @@
-import pytest
 from datetime import date
+
+import pytest
+
 from api.clients.models import Client
+from api.lead_status.models import LeadStatus
 from api.leads.models import Lead
 from api.services.models import Service
-from api.lead_status.models import LeadStatus
 
 pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def default_status():
     return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#0000FF")
 
+
 def test_client_minimal_creation(default_status):
-    lead = Lead.objects.create(first_name="John", last_name="Doe", status=default_status)
+    lead = Lead.objects.create(
+        first_name="John", last_name="Doe", status=default_status
+    )
     client = Client.objects.create(lead=lead)
 
     assert client.pk is not None
     assert client.lead.first_name == "John"
     assert client.lead.last_name == "Doe"
 
+
 def test_client_complet_creation(default_status):
-    lead = Lead.objects.create(first_name="Alice", last_name="Martin", status=default_status)
-    service = Service.objects.create(code="TITRE_SEJOUR", label="Titre de séjour", price=120)
+    lead = Lead.objects.create(
+        first_name="Alice", last_name="Martin", status=default_status
+    )
+    service = Service.objects.create(
+        code="TITRE_SEJOUR", label="Titre de séjour", price=120
+    )
 
     client = Client.objects.create(
         lead=lead,
@@ -67,7 +78,10 @@ def test_client_complet_creation(default_status):
     assert client.type_demande == service
     assert isinstance(client.source, list)
 
+
 def test_client_str(default_status):
-    lead = Lead.objects.create(first_name="Fatou", last_name="Ndoye", status=default_status)
+    lead = Lead.objects.create(
+        first_name="Fatou", last_name="Ndoye", status=default_status
+    )
     client = Client.objects.create(lead=lead)
     assert str(client) == "Données de Fatou Ndoye"

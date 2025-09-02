@@ -1,14 +1,15 @@
-import pytest
-from django.urls import reverse
-from rest_framework.test import APIClient
-from rest_framework import status
-from django.utils import timezone
 from datetime import timedelta
 
-from api.lead_status.models import LeadStatus
-from api.users.models import User
-from api.leads.models import Lead
+import pytest
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.jurist_appointment.models import JuristAppointment
+from api.lead_status.models import LeadStatus
+from api.leads.models import Lead
+from api.users.models import User
 
 pytestmark = pytest.mark.django_db
 
@@ -25,10 +26,11 @@ def jurist():
     )
 
 
-
 @pytest.fixture
 def lead_status():
-    return LeadStatus.objects.create(code="INCOMPLET", label="Incomplet", color="#999999")
+    return LeadStatus.objects.create(
+        code="INCOMPLET", label="Incomplet", color="#999999"
+    )
 
 
 @pytest.fixture
@@ -54,7 +56,7 @@ def test_create_jurist_appointment(auth_client, jurist, lead):
     data = {
         "jurist": jurist.id,
         "lead": lead.id,
-        "date": (timezone.now() + timedelta(days=1)).isoformat()
+        "date": (timezone.now() + timedelta(days=1)).isoformat(),
     }
     response = auth_client.post(url, data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
@@ -65,7 +67,11 @@ def test_available_jurists_endpoint(auth_client, lead):
     url = reverse("jurist-appointments-available-jurists")
     date = (timezone.now() + timedelta(days=2)).date().isoformat()
     response = auth_client.get(url, {"lead_id": lead.id, "date": date})
-    assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]
+    assert response.status_code in [
+        status.HTTP_200_OK,
+        status.HTTP_404_NOT_FOUND,
+        status.HTTP_400_BAD_REQUEST,
+    ]
 
 
 def test_jurist_slots_endpoint(auth_client, jurist):
@@ -80,7 +86,7 @@ def test_upcoming_for_lead(auth_client, jurist, lead):
         jurist=jurist,
         lead=lead,
         date=timezone.now() + timedelta(days=2),
-        created_by=jurist
+        created_by=jurist,
     )
     url = reverse("jurist-appointments-upcoming-for-lead")
     response = auth_client.get(url, {"lead_id": lead.id})

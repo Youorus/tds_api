@@ -1,14 +1,15 @@
 from datetime import datetime
+
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
 
 from api.booking.services import list_slots_with_quota, try_book_slot
-from api.leads.models import LeadStatus
 from api.leads.constants import RDV_PLANIFIE
+from api.leads.models import LeadStatus
 from api.leads.serializers import LeadSerializer
 
 
@@ -22,7 +23,9 @@ def slots_for_date(request):
     ds = request.query_params.get("date")
     d = parse_date(ds) if ds else None
     if not d:
-        return Response({"detail": "Paramètre 'date' requis au format YYYY-MM-DD."}, status=400)
+        return Response(
+            {"detail": "Paramètre 'date' requis au format YYYY-MM-DD."}, status=400
+        )
 
     data = list_slots_with_quota(d)
     return Response(data)
@@ -57,14 +60,16 @@ def public_book(request):
 
     # 2) création du lead (tu peux réutiliser ta route public-create si tu y injectes try_book_slot)
     status_pk = LeadStatus.objects.get(code=RDV_PLANIFIE).pk
-    ser = LeadSerializer(data={
-        "first_name": payload.get("first_name"),
-        "last_name": payload.get("last_name"),
-        "email": payload.get("email"),
-        "phone": payload.get("phone"),
-        "appointment_date": start_at,
-        "status": status_pk,
-    })
+    ser = LeadSerializer(
+        data={
+            "first_name": payload.get("first_name"),
+            "last_name": payload.get("last_name"),
+            "email": payload.get("email"),
+            "phone": payload.get("phone"),
+            "appointment_date": start_at,
+            "status": status_pk,
+        }
+    )
     ser.is_valid(raise_exception=True)
     lead = ser.save()
 

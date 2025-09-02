@@ -1,6 +1,8 @@
 # api/websocket/consumers/notif.py
 import json
+
 from channels.generic.websocket import AsyncWebsocketConsumer
+
 
 class LeadConsumer(AsyncWebsocketConsumer):
     async def connect(self):

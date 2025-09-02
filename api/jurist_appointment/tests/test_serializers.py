@@ -1,16 +1,17 @@
-import pytest
 from datetime import timedelta
+
+import pytest
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from api.jurist_appointment.models import JuristAppointment
 from api.jurist_appointment.serializers import (
+    JuristAppointmentCreateSerializer,
     JuristAppointmentSerializer,
-    JuristAppointmentCreateSerializer
 )
+from api.leads.models import Lead
 from api.users.models import User
 from api.users.roles import UserRoles
-from api.leads.models import Lead
 
 pytestmark = pytest.mark.django_db
 
@@ -27,12 +28,15 @@ def create_jurist():
 
 def create_lead():
     from api.lead_status.models import LeadStatus
-    status = LeadStatus.objects.first() or LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#000000")
+
+    status = LeadStatus.objects.first() or LeadStatus.objects.create(
+        code="NOUVEAU", label="Nouveau", color="#000000"
+    )
     return Lead.objects.create(
         first_name="Jean",
         last_name="Dupont",
         email="jean.dupont@example.com",
-        status=status
+        status=status,
     )
 
 
@@ -41,11 +45,9 @@ def test_valid_jurist_appointment_create_serializer():
     lead = create_lead()
     date = timezone.now() + timedelta(days=1)
 
-    serializer = JuristAppointmentCreateSerializer(data={
-        "lead": lead.id,
-        "jurist": jurist.id,
-        "date": date.isoformat()
-    })
+    serializer = JuristAppointmentCreateSerializer(
+        data={"lead": lead.id, "jurist": jurist.id, "date": date.isoformat()}
+    )
 
     assert serializer.is_valid(), serializer.errors
     instance = serializer.save()
@@ -58,26 +60,30 @@ def test_invalid_duplicate_slot_for_jurist():
     jurist = create_jurist()
     lead1 = create_lead()
     from api.lead_status.models import LeadStatus
-    status = LeadStatus.objects.first() or LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#000000")
+
+    status = LeadStatus.objects.first() or LeadStatus.objects.create(
+        code="NOUVEAU", label="Nouveau", color="#000000"
+    )
     lead2 = Lead.objects.create(
         first_name="Lucie",
         last_name="Martin",
         email="lucie.martin@example.com",
-        status=status
+        status=status,
     )
     date = timezone.now() + timedelta(days=1)
 
     JuristAppointment.objects.create(jurist=jurist, lead=lead1, date=date)
 
-    serializer = JuristAppointmentCreateSerializer(data={
-        "lead": lead2.id,
-        "jurist": jurist.id,
-        "date": date.isoformat()
-    })
+    serializer = JuristAppointmentCreateSerializer(
+        data={"lead": lead2.id, "jurist": jurist.id, "date": date.isoformat()}
+    )
 
     assert not serializer.is_valid()
     assert "non_field_errors" in serializer.errors
-    assert "doivent former un ensemble unique" in serializer.errors["non_field_errors"][0].lower()
+    assert (
+        "doivent former un ensemble unique"
+        in serializer.errors["non_field_errors"][0].lower()
+    )
 
 
 def test_invalid_lead_has_already_appointment_that_day():
@@ -94,11 +100,13 @@ def test_invalid_lead_has_already_appointment_that_day():
 
     JuristAppointment.objects.create(jurist=jurist1, lead=lead, date=date)
 
-    serializer = JuristAppointmentCreateSerializer(data={
-        "lead": lead.id,
-        "jurist": jurist2.id,
-        "date": date.replace(hour=16).isoformat()
-    })
+    serializer = JuristAppointmentCreateSerializer(
+        data={
+            "lead": lead.id,
+            "jurist": jurist2.id,
+            "date": date.replace(hour=16).isoformat(),
+        }
+    )
 
     assert not serializer.is_valid()
     assert "non_field_errors" in serializer.errors
@@ -110,11 +118,7 @@ def test_jurist_appointment_serializer_output():
     lead = create_lead()
     date = timezone.now() + timedelta(days=1)
 
-    appointment = JuristAppointment.objects.create(
-        lead=lead,
-        jurist=jurist,
-        date=date
-    )
+    appointment = JuristAppointment.objects.create(lead=lead, jurist=jurist, date=date)
 
     serializer = JuristAppointmentSerializer(instance=appointment)
     data = serializer.data

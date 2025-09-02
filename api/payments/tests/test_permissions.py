@@ -3,7 +3,9 @@ from rest_framework.test import APIRequestFactory
 
 from api.payments.permissions import IsPaymentEditor
 from api.users.models import User, UserRoles
+
 pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def factory():
@@ -25,12 +27,15 @@ def test_safe_methods_allowed_for_authenticated_users(factory, method, role):
 
 
 @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
-@pytest.mark.parametrize("role, expected", [
-    (UserRoles.ADMIN, True),
-    (UserRoles.JURISTE, True),
-    (UserRoles.CONSEILLER, True),
-    (UserRoles.ACCUEIL, False),
-])
+@pytest.mark.parametrize(
+    "role, expected",
+    [
+        (UserRoles.ADMIN, True),
+        (UserRoles.JURISTE, True),
+        (UserRoles.CONSEILLER, True),
+        (UserRoles.ACCUEIL, False),
+    ],
+)
 def test_write_methods_restricted_to_specific_roles(factory, method, role, expected):
     user = User(role=role)
     user.set_password("dummy")  # just to simulate auth user creation

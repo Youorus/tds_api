@@ -2,47 +2,57 @@ import os
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 import django
+
 django.setup()
 
 import random
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from datetime import timedelta, datetime, date, time
-from faker import Faker
-from django.utils import timezone
-from django.db import transaction
+
 import phonenumbers
+from django.db import transaction
+from django.utils import timezone
+from faker import Faker
 from phonenumbers import PhoneNumberFormat
 
-from api.opening_hours.models import OpeningHours
-from api.jurist_availability_date.models import JuristGlobalAvailability
-from api.special_closing_period.models import SpecialClosingPeriod
+from api.appointment.models import Appointment
+from api.booking.models import SlotQuota
+from api.clients.enums import (
+    Civilite,
+    SituationFamiliale,
+    SituationProfessionnelle,
+    SourceInformation,
+    VisaType,
+)
+from api.clients.models import Client
 from api.comments.models import Comment
 from api.contracts.models import Contract
-from api.clients.models import Client
-from api.leads.models import Lead
-from api.users.models import User
-from api.lead_status.models import LeadStatus
-from api.statut_dossier.models import StatutDossier
-from api.clients.enums import SourceInformation, Civilite, VisaType, SituationFamiliale, SituationProfessionnelle
-from api.services.models import Service
 from api.documents.models import Document
+from api.jurist_appointment.models import JuristAppointment
+from api.jurist_availability_date.models import JuristGlobalAvailability
+from api.lead_status.models import LeadStatus
+from api.leads.models import Lead
+from api.opening_hours.models import OpeningHours
 from api.payments.enums import PaymentMode
 from api.payments.models import PaymentReceipt
-from api.appointment.models import Appointment
-from api.jurist_appointment.models import JuristAppointment
+from api.services.models import Service
+from api.special_closing_period.models import SpecialClosingPeriod
+from api.statut_dossier.models import StatutDossier
+from api.user_unavailability.models import UserUnavailability
+from api.users.models import User
 from api.users.roles import UserRoles
 from api.utils.jurist_slots import get_slots_for_day
-from api.user_unavailability.models import UserUnavailability
-from api.booking.models import SlotQuota
 
 fake = Faker("fr_FR")
 
+
 def generate_french_phone_number():
     prefix = random.choice(["06", "07"])
-    suffix = ''.join(str(random.randint(0, 9)) for _ in range(8))
+    suffix = "".join(str(random.randint(0, 9)) for _ in range(8))
     number = prefix + suffix
     phone_obj = phonenumbers.parse(number, "FR")
     return phonenumbers.format_number(phone_obj, PhoneNumberFormat.E164)
+
 
 # --- Nettoyage complet ---
 print("🧹 Suppression des données...")
@@ -84,13 +94,13 @@ print("✅ Créneaux globaux juriste créés")
 print("🕰️ Création des horaires d'ouverture (lundi à dimanche)...")
 # day_of_week, open_time, close_time, slot_minutes, capacity, is_active
 opening_hours_defaults = [
-    (0, time(9, 0), time(18, 0), 30, 2, True),   # Lundi
-    (1, time(9, 0), time(18, 0), 30, 2, True),   # Mardi
-    (2, time(9, 0), time(18, 0), 30, 2, True),   # Mercredi
-    (3, time(9, 0), time(18, 0), 30, 2, True),   # Jeudi
-    (4, time(9, 0), time(18, 0), 30, 2, True),   # Vendredi
-    (5, None,       None,        30, 1, False),  # Samedi (fermé par défaut)
-    (6, None,       None,        30, 1, False),  # Dimanche (fermé par défaut)
+    (0, time(9, 0), time(18, 0), 30, 2, True),  # Lundi
+    (1, time(9, 0), time(18, 0), 30, 2, True),  # Mardi
+    (2, time(9, 0), time(18, 0), 30, 2, True),  # Mercredi
+    (3, time(9, 0), time(18, 0), 30, 2, True),  # Jeudi
+    (4, time(9, 0), time(18, 0), 30, 2, True),  # Vendredi
+    (5, None, None, 30, 1, False),  # Samedi (fermé par défaut)
+    (6, None, None, 30, 1, False),  # Dimanche (fermé par défaut)
 ]
 for day, open_t, close_t, slot_min, capacity, active in opening_hours_defaults:
     obj, created = OpeningHours.objects.update_or_create(
@@ -109,26 +119,22 @@ print("✅ Horaires créés/mis à jour (lundi-dimanche)")
 # --- FERMETURES EXCEPTIONNELLES ---
 print("🚫 Ajout de fermetures exceptionnelles...")
 closing_periods = [
-    {
-        "label": "Noël",
-        "start_date": date(2025, 12, 25),
-        "end_date": date(2025, 12, 25)
-    },
+    {"label": "Noël", "start_date": date(2025, 12, 25), "end_date": date(2025, 12, 25)},
     {
         "label": "15 août",
         "start_date": date(2025, 8, 15),
-        "end_date": date(2025, 8, 15)
+        "end_date": date(2025, 8, 15),
     },
     {
         "label": "Vacances d'été",
         "start_date": date(2025, 8, 5),
-        "end_date": date(2025, 8, 23)
+        "end_date": date(2025, 8, 23),
     },
     {
         "label": "Travaux exceptionnels",
         "start_date": date(2025, 10, 3),
-        "end_date": date(2025, 10, 7)
-    }
+        "end_date": date(2025, 10, 7),
+    },
 ]
 for period in closing_periods:
     obj, created = SpecialClosingPeriod.objects.get_or_create(
@@ -142,10 +148,18 @@ print("✅ Fermetures exceptionnelles créées")
 # --- SERVICES ---
 SERVICES_SEED = [
     {"code": "TITRE_SEJOUR", "label": "Titre de séjour", "price": Decimal("1590.00")},
-    {"code": "REGROUPEMENT_FAMILIAL", "label": "Regroupement familial", "price": Decimal("1590.00")},
+    {
+        "code": "REGROUPEMENT_FAMILIAL",
+        "label": "Regroupement familial",
+        "price": Decimal("1590.00"),
+    },
     {"code": "NATURALISATION", "label": "Naturalisation", "price": Decimal("1290.00")},
     {"code": "RENOUVELLEMENT", "label": "Renouvellement", "price": Decimal("990.00")},
-    {"code": "SUIVI_NATURALISATION", "label": "Suivi naturalisation", "price": Decimal("990.00")},
+    {
+        "code": "SUIVI_NATURALISATION",
+        "label": "Suivi naturalisation",
+        "price": Decimal("990.00"),
+    },
     {"code": "DEMANDE_VISA", "label": "Demande de visa", "price": Decimal("990.00")},
     {"code": "DUPLICATA", "label": "Duplicata", "price": Decimal("990.00")},
     {"code": "SUIVI_DOSSIER", "label": "Suivi de dossier", "price": Decimal("690.00")},
@@ -199,7 +213,12 @@ user_map = {}
 for email, first, last, role in users_info:
     user, _ = User.objects.update_or_create(
         email=email,
-        defaults={"first_name": first, "last_name": last, "role": role, "is_active": True}
+        defaults={
+            "first_name": first,
+            "last_name": last,
+            "role": role,
+            "is_active": True,
+        },
     )
     user.set_password("Password@1")
     user.save()
@@ -222,15 +241,17 @@ for user in user_map.values():
             end = start
         else:
             end = start + timedelta(days=random.randint(1, 4))
-        label = random.choice([
-            "Vacances",
-            "Congé maladie",
-            "Absence personnelle",
-            "Formation",
-            "Raison inconnue",
-            "",
-            "",
-        ])
+        label = random.choice(
+            [
+                "Vacances",
+                "Congé maladie",
+                "Absence personnelle",
+                "Formation",
+                "Raison inconnue",
+                "",
+                "",
+            ]
+        )
         UserUnavailability.objects.create(
             user=user,
             start_date=start,
@@ -252,7 +273,11 @@ for i in range(100):
         last_name=fake.last_name(),
         email=fake.email(),
         phone=generate_french_phone_number(),
-        appointment_date=now + timedelta(days=random.randint(0, 15)) if "RDV" in status.code else None,
+        appointment_date=(
+            now + timedelta(days=random.randint(0, 15))
+            if "RDV" in status.code
+            else None
+        ),
         status=status,
         statut_dossier=dossier_status,
     )
@@ -276,7 +301,9 @@ all_slots = []
 today = timezone.now().date()
 for i in range(60):
     d = today + timedelta(days=i)
-    all_slots.extend(get_slots_for_day(d))  # get_slots_for_day DOIT utiliser les créneaux globaux ici
+    all_slots.extend(
+        get_slots_for_day(d)
+    )  # get_slots_for_day DOIT utiliser les créneaux globaux ici
 jurist_appointments = []
 used_slots = set()
 random.shuffle(all_slots)
@@ -289,12 +316,14 @@ for lead in leads:
             key = (juriste.id, slot)
             if key in used_slots:
                 continue
-            jurist_appointments.append(JuristAppointment(
-                lead=lead,
-                jurist=juriste,
-                date=slot,
-                created_by=random.choice(conseillers),
-            ))
+            jurist_appointments.append(
+                JuristAppointment(
+                    lead=lead,
+                    jurist=juriste,
+                    date=slot,
+                    created_by=random.choice(conseillers),
+                )
+            )
             used_slots.add(key)
             count += 1
             if count >= random.choice([0, 1, 2]):
@@ -310,23 +339,31 @@ for lead in leads:
     for i in range(nb_appointments):
         dt = timezone.make_aware(
             datetime(
-                year=(timezone.now().year if timezone.now().month < 11 else timezone.now().year + 1),
-                month=random.choice([timezone.now().month, (timezone.now() + timedelta(days=30)).month]),
+                year=(
+                    timezone.now().year
+                    if timezone.now().month < 11
+                    else timezone.now().year + 1
+                ),
+                month=random.choice(
+                    [timezone.now().month, (timezone.now() + timedelta(days=30)).month]
+                ),
                 day=random.randint(1, 28),
                 hour=random.randint(8, 18),
-                minute=random.choice([0, 30])
+                minute=random.choice([0, 30]),
             )
         )
         if Appointment.objects.filter(lead=lead, date=dt).exists():
             continue
         if JuristAppointment.objects.filter(lead=lead, date=dt).exists():
             continue
-        appointments.append(Appointment(
-            lead=lead,
-            date=dt,
-            note=fake.sentence() if random.random() < 0.7 else "",
-            created_by=random.choice(conseillers),
-        ))
+        appointments.append(
+            Appointment(
+                lead=lead,
+                date=dt,
+                note=fake.sentence() if random.random() < 0.7 else "",
+                created_by=random.choice(conseillers),
+            )
+        )
 Appointment.objects.bulk_create(appointments)
 print(f"✅ {len(appointments)} rendez-vous classiques créés")
 
@@ -341,8 +378,11 @@ for lead in leads:
     has_anef = random.choice([True, False])
     anef_email = fake.unique.email() if has_anef else ""
     anef_password = (
-        fake.password(length=14, special_chars=True, digits=True, upper_case=True, lower_case=True)
-        if has_anef else ""
+        fake.password(
+            length=14, special_chars=True, digits=True, upper_case=True, lower_case=True
+        )
+        if has_anef
+        else ""
     )
 
     client = Client.objects.create(
@@ -356,7 +396,8 @@ for lead in leads:
         adresse=fake.street_address(),
         code_postal=fake.postcode(),
         ville=fake.city(),
-        date_entree_france=timezone.now().date() - timedelta(days=random.randint(1000, 4000)),
+        date_entree_france=timezone.now().date()
+        - timedelta(days=random.randint(1000, 4000)),
         a_un_visa=random.choice([True, False]),
         type_visa=random.choice([v[0] for v in VisaType.choices]),
         statut_refugie_ou_protection=random.choice([True, False]),
@@ -396,7 +437,11 @@ for client in clients:
     try:
         with transaction.atomic():
             service = client.type_demande
-            base_price = service.price if isinstance(service.price, Decimal) else Decimal(str(service.price))
+            base_price = (
+                service.price
+                if isinstance(service.price, Decimal)
+                else Decimal(str(service.price))
+            )
             remise = random.choice([0, 10, 20])
             discount = Decimal(remise)
             ratio_discount = (Decimal("100") - discount) / Decimal("100")
@@ -413,17 +458,21 @@ for client in clients:
 
             # Générer des reçus de paiement
             total_receipts = random.choice([1, 2, 3])
-            receipt_amount = (real_amount_due / total_receipts).quantize(Decimal("0.01"))
+            receipt_amount = (real_amount_due / total_receipts).quantize(
+                Decimal("0.01")
+            )
             total_paid = Decimal("0.00")
             today = timezone.now().date()
 
             for i in range(total_receipts):
-                is_last = (i == total_receipts - 1)
+                is_last = i == total_receipts - 1
                 remaining = (real_amount_due - total_paid).quantize(Decimal("0.01"))
                 actual_amount = remaining if is_last else min(receipt_amount, remaining)
                 if actual_amount <= Decimal("0.00"):
                     break
-                next_due = (today + timedelta(days=30 * (i + 1))) if not is_last else None
+                next_due = (
+                    (today + timedelta(days=30 * (i + 1))) if not is_last else None
+                )
                 # Utilise contract_id pour éviter tout accès relationnel précoce
                 PaymentReceipt.objects.create(
                     client=client,
@@ -439,13 +488,17 @@ for client in clients:
             # Remboursement optionnel (cohérent avec le total payé)
             refund_amount = Decimal("0.00")
             if total_paid > Decimal("0.00") and random.random() < 0.35:
-                ratio_refund = Decimal(random.choice([10, 25, 50, 100])) / Decimal("100")
+                ratio_refund = Decimal(random.choice([10, 25, 50, 100])) / Decimal(
+                    "100"
+                )
                 refund_amount = (total_paid * ratio_refund).quantize(Decimal("0.01"))
                 if refund_amount > total_paid:
                     refund_amount = total_paid
                 contract.refund_amount = refund_amount
                 # Sauvegarde *après* la création des reçus
-                contract.save(update_fields=["refund_amount", "is_refunded"])  # is_refunded mis à jour dans save()
+                contract.save(
+                    update_fields=["refund_amount", "is_refunded"]
+                )  # is_refunded mis à jour dans save()
 
             msg = f"Contrat {contract.id} créé avec {total_receipts} reçu(s) pour client {client.id}"
             if refund_amount > Decimal("0.00"):
@@ -461,10 +514,12 @@ print("💬 Création de commentaires...")
 comments = []
 for lead in leads:
     for _ in range(random.randint(0, 2)):
-        comments.append(Comment(
-            lead=lead,
-            author=random.choice(conseillers),
-            content=fake.paragraph(),
-        ))
+        comments.append(
+            Comment(
+                lead=lead,
+                author=random.choice(conseillers),
+                content=fake.paragraph(),
+            )
+        )
 Comment.objects.bulk_create(comments)
 print("✅ Commentaires ajoutés")

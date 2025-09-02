@@ -1,10 +1,17 @@
 # api/contracts/serializer.py
 
+# api/contracts/serializer.py
+
+from decimal import ROUND_HALF_UP, Decimal
+from urllib.parse import unquote, urlparse
+
 from rest_framework import serializers
-from decimal import Decimal, ROUND_HALF_UP
-from api.contracts.models import Contract
+
 from api.clients.serializers import ClientSerializer
+from api.contracts.models import Contract
 from api.services.serializers import ServiceSerializer
+from api.utils.cloud.scw.bucket_utils import generate_presigned_url
+
 
 class ContractSerializer(serializers.ModelSerializer):
     amount_paid = serializers.SerializerMethodField()
@@ -16,6 +23,8 @@ class ContractSerializer(serializers.ModelSerializer):
 
     client_details = ClientSerializer(source="client", read_only=True)
     service_details = ServiceSerializer(source="service", read_only=True)
+
+    contract_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Contract
@@ -29,8 +38,8 @@ class ContractSerializer(serializers.ModelSerializer):
             "discount_percent",
             "real_amount_due",
             "amount_paid",
-            "net_paid",        # ⇦ nouveau
-            "balance_due",     # ⇦ nouveau
+            "net_paid",  # ⇦ nouveau
+            "balance_due",  # ⇦ nouveau
             "is_fully_paid",
             "is_refunded",
             "refund_amount",
@@ -59,8 +68,12 @@ class ContractSerializer(serializers.ModelSerializer):
         return float(obj.amount_paid)  # ou str si tu préfères
 
     def get_real_amount_due(self, obj):
-        ratio = Decimal("1.00") - (obj.discount_percent or Decimal("0.00")) / Decimal("100.00")
-        return float((obj.amount_due * ratio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        ratio = Decimal("1.00") - (obj.discount_percent or Decimal("0.00")) / Decimal(
+            "100.00"
+        )
+        return float(
+            (obj.amount_due * ratio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        )
 
     def get_is_fully_paid(self, obj):
         return obj.is_fully_paid
@@ -70,3 +83,15 @@ class ContractSerializer(serializers.ModelSerializer):
 
     def get_net_paid(self, obj):
         return float(obj.net_paid)
+
+    def get_contract_url(self, obj):
+        if obj.contract_url:
+            from urllib.parse import unquote, urlparse
+
+            parsed = urlparse(obj.contract_url)
+            path = unquote(parsed.path)
+            key = "/".join(
+                path.strip("/").split("/")[1:]
+            )  # Retire le préfixe "contracts/"
+            return generate_presigned_url("contracts", key)
+        return None

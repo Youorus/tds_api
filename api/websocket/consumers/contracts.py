@@ -1,6 +1,7 @@
 # api/websocket/consumers/contracts.py
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+
 class ContractConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add("contracts", self.channel_name)

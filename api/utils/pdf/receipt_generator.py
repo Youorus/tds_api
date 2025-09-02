@@ -14,6 +14,7 @@ def generate_receipt_pdf(receipt) -> bytes:
     """
 
     from api.payments.models import PaymentReceipt
+
     lead = receipt.client.lead
     contract = receipt.contract
 

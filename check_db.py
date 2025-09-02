@@ -1,9 +1,10 @@
 # check_db.py
 import os
+
 import django
 from django.db import connection
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tds.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings")
 django.setup()
 
 try:

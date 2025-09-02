@@ -1,31 +1,38 @@
-import pytest
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
 
-from api.payments.serializers import PaymentReceiptSerializer
+import pytest
+
 from api.clients.models import Client
 from api.contracts.models import Contract
+from api.lead_status.models import LeadStatus
+from api.leads.models import Lead
+from api.payments.enums import PaymentMode
+from api.payments.serializers import PaymentReceiptSerializer
 from api.services.models import Service
 from api.users.models import User, UserRoles
-from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
-from api.payments.enums import PaymentMode
 
 pytestmark = pytest.mark.django_db
 
 
 @pytest.fixture
 def sample_contract():
-    status, _ = LeadStatus.objects.get_or_create(code="NOUVEAU", defaults={"label": "Nouveau", "color": "#000000"})
-    lead = Lead.objects.create(first_name="Alice", last_name="Martin", phone="+33600000001", status=status)
+    status, _ = LeadStatus.objects.get_or_create(
+        code="NOUVEAU", defaults={"label": "Nouveau", "color": "#000000"}
+    )
+    lead = Lead.objects.create(
+        first_name="Alice", last_name="Martin", phone="+33600000001", status=status
+    )
     client = Client.objects.create(lead=lead)
-    service = Service.objects.create(code="VISA_LONG", label="Visa long séjour", price=Decimal("1200.00"))
+    service = Service.objects.create(
+        code="VISA_LONG", label="Visa long séjour", price=Decimal("1200.00")
+    )
     user = User.objects.create_user(
         email="admin@example.com",
         password="pass1234",
         role=UserRoles.ADMIN,
         first_name="Admin",
-        last_name="User"
+        last_name="User",
     )
 
     return Contract.objects.create(

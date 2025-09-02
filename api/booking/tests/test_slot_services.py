@@ -1,12 +1,13 @@
 # tests/test_slot_services.py
 
+from datetime import date, datetime, time, timedelta
+
 import pytest
-from datetime import datetime, time, timedelta, date
-from django.utils import timezone
 from django.db import IntegrityError
+from django.utils import timezone
 
 from api.booking.models import SlotQuota
-from api.booking.services import try_book_slot, cancel_booking, list_slots_with_quota
+from api.booking.services import cancel_booking, list_slots_with_quota, try_book_slot
 from api.opening_hours.models import OpeningHours
 
 pytestmark = pytest.mark.django_db

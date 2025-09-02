@@ -1,12 +1,13 @@
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from api.lead_status.models import LeadStatus
-from api.lead_status.serializer import LeadStatusSerializer
 from api.lead_status.permissions import IsAdminRole
+from api.lead_status.serializer import LeadStatusSerializer
 
 PROTECTED_CODES = {"ABSENT", "PRESENT", "RDV_CONFIRME", "RDV_PLANIFIE"}
+
 
 class LeadStatusViewSet(viewsets.ModelViewSet):
     queryset = LeadStatus.objects.all()

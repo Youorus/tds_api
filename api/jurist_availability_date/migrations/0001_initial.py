@@ -7,21 +7,41 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='JuristGlobalAvailability',
+            name="JuristGlobalAvailability",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('day_of_week', models.IntegerField(choices=[(0, 'Lundi'), (1, 'Mardi'), (2, 'Mercredi'), (3, 'Jeudi'), (4, 'Vendredi'), (5, 'Samedi'), (6, 'Dimanche')])),
-                ('start_time', models.TimeField()),
-                ('end_time', models.TimeField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "day_of_week",
+                    models.IntegerField(
+                        choices=[
+                            (0, "Lundi"),
+                            (1, "Mardi"),
+                            (2, "Mercredi"),
+                            (3, "Jeudi"),
+                            (4, "Vendredi"),
+                            (5, "Samedi"),
+                            (6, "Dimanche"),
+                        ]
+                    ),
+                ),
+                ("start_time", models.TimeField()),
+                ("end_time", models.TimeField()),
             ],
             options={
-                'ordering': ['day_of_week', 'start_time'],
-                'unique_together': {('day_of_week', 'start_time', 'end_time')},
+                "ordering": ["day_of_week", "start_time"],
+                "unique_together": {("day_of_week", "start_time", "end_time")},
             },
         ),
     ]

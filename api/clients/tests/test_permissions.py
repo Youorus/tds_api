@@ -1,6 +1,7 @@
 import pytest
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
+
 from api.clients.permissions import IsClientCreateOpen
 
 
@@ -16,26 +17,33 @@ def factory():
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("action,authenticated,expected", [
-    ("create", False, True),    # POST anonyme autorisé
-    ("create", True, True),     # POST authentifié autorisé
-    ("list", False, False),     # GET anonyme interdit
-    ("list", True, True),       # GET authentifié autorisé
-    ("update", False, False),   # PATCH anonyme interdit
-    ("update", True, True),     # PATCH authentifié autorisé
-])
-def test_is_client_create_open(action, authenticated, expected, factory, django_user_model):
+@pytest.mark.parametrize(
+    "action,authenticated,expected",
+    [
+        ("create", False, True),  # POST anonyme autorisé
+        ("create", True, True),  # POST authentifié autorisé
+        ("list", False, False),  # GET anonyme interdit
+        ("list", True, True),  # GET authentifié autorisé
+        ("update", False, False),  # PATCH anonyme interdit
+        ("update", True, True),  # PATCH authentifié autorisé
+    ],
+)
+def test_is_client_create_open(
+    action, authenticated, expected, factory, django_user_model
+):
     # Création d'un utilisateur uniquement si `authenticated` est True
     if authenticated:
         user = django_user_model.objects.create_user(
             email="user@example.com",
             first_name="Test",
             last_name="User",
-            password="supersecret"
+            password="supersecret",
         )
     else:
+
         class AnonymousUser:
             is_authenticated = False
+
         user = AnonymousUser()
 
     # Création de la requête

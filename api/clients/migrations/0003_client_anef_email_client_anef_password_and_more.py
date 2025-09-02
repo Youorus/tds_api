@@ -6,23 +6,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('clients', '0002_initial'),
+        ("clients", "0002_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='client',
-            name='anef_email',
-            field=models.CharField(blank=True, max_length=255, verbose_name='email du compte ANEF'),
+            model_name="client",
+            name="anef_email",
+            field=models.CharField(
+                blank=True, max_length=255, verbose_name="email du compte ANEF"
+            ),
         ),
         migrations.AddField(
-            model_name='client',
-            name='anef_password',
-            field=models.CharField(blank=True, max_length=255, verbose_name='mot de passe du compte ANEF'),
+            model_name="client",
+            name="anef_password",
+            field=models.CharField(
+                blank=True, max_length=255, verbose_name="mot de passe du compte ANEF"
+            ),
         ),
         migrations.AddField(
-            model_name='client',
-            name='has_anef_account',
-            field=models.BooleanField(blank=True, null=True, verbose_name='a un compte ANEF ?'),
+            model_name="client",
+            name="has_anef_account",
+            field=models.BooleanField(
+                blank=True, null=True, verbose_name="a un compte ANEF ?"
+            ),
         ),
     ]

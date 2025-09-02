@@ -75,7 +75,7 @@ def send_formulaire_email(lead):
         lead,
         extra={
             "formulaire_url": formulaire_url,
-        }
+        },
     )
 
     return send_html_email(
@@ -106,7 +106,7 @@ def send_dossier_status_email(lead):
         lead,
         extra={
             "statut_dossier": lead.statut_dossier,
-        }
+        },
     )
 
     return send_html_email(

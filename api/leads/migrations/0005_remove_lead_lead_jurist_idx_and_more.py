@@ -7,22 +7,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('leads', '0004_remove_lead_assigned_to_lead_assigned_to'),
+        ("leads", "0004_remove_lead_assigned_to_lead_assigned_to"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='lead',
-            name='lead_jurist_idx',
+            model_name="lead",
+            name="lead_jurist_idx",
         ),
         migrations.RemoveField(
-            model_name='lead',
-            name='jurist_assigned',
+            model_name="lead",
+            name="jurist_assigned",
         ),
         migrations.AddField(
-            model_name='lead',
-            name='jurist_assigned',
-            field=models.ManyToManyField(blank=True, help_text='Juristes responsables du lead (assignés par un administrateur)', related_name='leads_juriste', to=settings.AUTH_USER_MODEL, verbose_name='juristes assignés'),
+            model_name="lead",
+            name="jurist_assigned",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="Juristes responsables du lead (assignés par un administrateur)",
+                related_name="leads_juriste",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="juristes assignés",
+            ),
         ),
     ]

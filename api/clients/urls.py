@@ -10,6 +10,7 @@ Exemple d’URL générée :
 - GET /api/clients/{id}/ : détails d’un client
 - PUT/PATCH/DELETE /api/clients/{id}/ : modification ou suppression
 """
+
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 

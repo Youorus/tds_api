@@ -1,25 +1,28 @@
-import pytest
 from decimal import Decimal
+
+import pytest
 from django.core.exceptions import ValidationError
 
+from api.clients.models import Client
+from api.contracts.models import Contract
 from api.lead_status.models import LeadStatus
 from api.leads.constants import RDV_PLANIFIE
 from api.leads.models import Lead
-from api.clients.models import Client
-from api.users.models import User
 from api.services.models import Service
-from api.contracts.models import Contract
+from api.users.models import User
 
 
 @pytest.mark.django_db
 class TestContractModel:
     def create_contract(self) -> Contract:
-        lead_status = LeadStatus.objects.create(code=RDV_PLANIFIE, label="RDV planifié", color="gray")
+        lead_status = LeadStatus.objects.create(
+            code=RDV_PLANIFIE, label="RDV planifié", color="gray"
+        )
         lead = Lead.objects.create(
             first_name="John",
             last_name="Doe",
             phone="+33600000000",
-            status = lead_status,
+            status=lead_status,
         )
         client = Client.objects.create(lead=lead)
         user = User.objects.create(
@@ -27,12 +30,10 @@ class TestContractModel:
             first_name="Jean",
             last_name="Test",
             role="CONSEILLER",
-            is_active=True
+            is_active=True,
         )
         service = Service.objects.create(
-            code="TEST_SERVICE",
-            label="Service A",
-            price=Decimal("1000.00")
+            code="TEST_SERVICE", label="Service A", price=Decimal("1000.00")
         )
         return Contract.objects.create(
             client=client,
@@ -54,13 +55,14 @@ class TestContractModel:
 
     def test_net_paid_subtracts_refund(self):
         from api.payments.models import PaymentReceipt
+
         contract = self.create_contract()
         PaymentReceipt.objects.create(
             client=contract.client,
             contract=contract,
             amount=Decimal("100.00"),
             mode="ESPECES",
-            created_by=contract.created_by
+            created_by=contract.created_by,
         )
         contract.refund_amount = Decimal("100.00")
         contract.save()
@@ -87,13 +89,14 @@ class TestContractModel:
 
     def test_refund_cannot_exceed_amount_paid(self):
         from api.payments.models import PaymentReceipt
+
         contract = self.create_contract()
         PaymentReceipt.objects.create(
             client=contract.client,
             contract=contract,
             amount=Decimal("100.00"),
             mode="ESPECES",
-            created_by=contract.created_by
+            created_by=contract.created_by,
         )
         contract.refund_amount = Decimal("500.00")
         with pytest.raises(ValidationError):
@@ -101,13 +104,14 @@ class TestContractModel:
 
     def test_apply_valid_refund_updates_fields(self):
         from api.payments.models import PaymentReceipt
+
         contract = self.create_contract()
         PaymentReceipt.objects.create(
             client=contract.client,
             contract=contract,
             amount=Decimal("150.00"),
             mode="ESPECES",
-            created_by=contract.created_by
+            created_by=contract.created_by,
         )
         contract.apply_refund(Decimal("100.00"))
         contract.refresh_from_db()

@@ -1,17 +1,17 @@
-import pytest
 from decimal import Decimal
-from django.urls import reverse
-from rest_framework.test import APIClient
-from rest_framework import status
-from django.utils.timezone import now, timedelta
 
-from api.contracts.models import Contract
+import pytest
+from django.urls import reverse
+from django.utils.timezone import now, timedelta
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.clients.models import Client
+from api.contracts.models import Contract
 from api.leads.models import Lead, LeadStatus
+from api.payments.models import PaymentReceipt
 from api.services.models import Service
 from api.users.models import User
-from api.payments.models import PaymentReceipt
-
 
 pytestmark = pytest.mark.django_db
 
@@ -23,7 +23,7 @@ def user():
         password="admin123",
         role="ADMIN",
         first_name="Admin",
-        last_name="Test"
+        last_name="Test",
     )
 
 
@@ -45,7 +45,7 @@ def setup_contracts(user):
         last_name="Test",
         email="marc@test.fr",
         phone="0612345678",
-        status=status
+        status=status,
     )
 
     # Client lié à ce lead
@@ -69,7 +69,7 @@ def setup_contracts(user):
         amount=200,
         mode="ESPECES",
         payment_date=now().date(),
-        next_due_date=None
+        next_due_date=None,
     )
 
     # Contrat 2 : partiellement payé avec remise
@@ -80,7 +80,7 @@ def setup_contracts(user):
         amount_due=200,
         is_signed=False,
         is_refunded=False,
-        discount_percent=10
+        discount_percent=10,
     )
     PaymentReceipt.objects.create(
         contract=contract2,
@@ -88,7 +88,7 @@ def setup_contracts(user):
         amount=50,
         mode="VIREMENT",
         payment_date=now().date(),
-        next_due_date=now().date() + timedelta(days=30)
+        next_due_date=now().date() + timedelta(days=30),
     )
 
     # Contrat 3 : remboursé partiellement
@@ -99,7 +99,7 @@ def setup_contracts(user):
         amount_due=300,
         is_signed=True,
         is_refunded=True,
-        refund_amount=100
+        refund_amount=100,
     )
     PaymentReceipt.objects.create(
         contract=contract3,
@@ -107,7 +107,7 @@ def setup_contracts(user):
         amount=150,
         mode="CB",
         payment_date=now().date(),
-        next_due_date=None
+        next_due_date=None,
     )
 
     return [contract1, contract2, contract3]
@@ -160,7 +160,9 @@ def test_filter_fully_paid(auth_client, setup_contracts):
 
 def test_pagination_and_ordering(auth_client, setup_contracts):
     url = reverse("contract-search")
-    response = auth_client.get(url, {"page": 1, "page_size": 2, "ordering": "-created_at"})
+    response = auth_client.get(
+        url, {"page": 1, "page_size": 2, "ordering": "-created_at"}
+    )
 
     assert response.status_code == status.HTTP_200_OK
     data = response.json()

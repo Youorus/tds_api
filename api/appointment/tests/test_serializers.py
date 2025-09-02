@@ -1,7 +1,8 @@
 # api/appointment/test_serializers.py
 
-import pytest
 from datetime import timedelta
+
+import pytest
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -20,19 +21,22 @@ def user():
         password="testpassword",
         role="CONSEILLER",
         first_name="Jean",
-        last_name="Dupont"
+        last_name="Dupont",
     )
 
 
 @pytest.fixture
 def lead(user):
     from api.leads.models import LeadStatus
+
     lead = Lead.objects.create(
         first_name="Alice",
         last_name="Martin",
         email="alice@example.com",
         phone="+33600000000",
-        status=LeadStatus.objects.get_or_create(code="RDV_PLANIFIE", defaults={"label": "Planifié", "color": "#000000"})[0],
+        status=LeadStatus.objects.get_or_create(
+            code="RDV_PLANIFIE", defaults={"label": "Planifié", "color": "#000000"}
+        )[0],
     )
     lead.assigned_to.set([user])
     return lead
@@ -46,10 +50,12 @@ def test_valid_appointment_serializer(lead, user):
     data = {
         "lead_id": lead.id,
         "date": future_date.isoformat(),
-        "note": "Premier rendez-vous"
+        "note": "Premier rendez-vous",
     }
 
-    serializer = AppointmentSerializer(data=data, context={"request": type("Request", (), {"user": user})()})
+    serializer = AppointmentSerializer(
+        data=data, context={"request": type("Request", (), {"user": user})()}
+    )
     assert serializer.is_valid(), serializer.errors
     instance = serializer.save()
     assert instance.created_by == user
@@ -67,7 +73,9 @@ def test_invalid_past_date_is_rejected(lead, user):
         "date": past_date.isoformat(),
     }
 
-    serializer = AppointmentSerializer(data=data, context={"request": type("Request", (), {"user": user})()})
+    serializer = AppointmentSerializer(
+        data=data, context={"request": type("Request", (), {"user": user})()}
+    )
     with pytest.raises(ValidationError) as exc_info:
         serializer.is_valid(raise_exception=True)
 
@@ -81,10 +89,7 @@ def test_read_only_fields_are_present(lead, user):
     """
     future_date = timezone.now() + timedelta(days=2)
     appointment = Appointment.objects.create(
-        lead=lead,
-        date=future_date,
-        note="RDV test",
-        created_by=user
+        lead=lead, date=future_date, note="RDV test", created_by=user
     )
 
     serializer = AppointmentSerializer(instance=appointment)

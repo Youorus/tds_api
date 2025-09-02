@@ -3,16 +3,18 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from api.statut_dossier.models import StatutDossier
 from api.users.models import User
 from api.users.roles import UserRoles
-from api.statut_dossier.models import StatutDossier
 
 # --- FIXTURES ---
+
 
 @pytest.fixture
 def api_client():
     """APIClient DRF basique, non authentifié."""
     return APIClient()
+
 
 @pytest.fixture
 def admin_user(db):
@@ -23,8 +25,9 @@ def admin_user(db):
         email="admin@example.com",
         password="AdminPass123!",
         first_name="Admin",
-        last_name="User"
+        last_name="User",
     )
+
 
 @pytest.fixture
 def conseiller_user(db):
@@ -36,8 +39,9 @@ def conseiller_user(db):
         email="conseiller@example.com",
         password="Conseiller123!",
         first_name="Jean",
-        last_name="Dupont"
+        last_name="Dupont",
     )
+
 
 @pytest.fixture
 def auth_client(api_client, admin_user):
@@ -46,6 +50,7 @@ def auth_client(api_client, admin_user):
     """
     api_client.force_authenticate(user=admin_user)
     return api_client
+
 
 @pytest.fixture
 def conseiller_client(api_client, conseiller_user):
@@ -56,18 +61,19 @@ def conseiller_client(api_client, conseiller_user):
     api_client.force_authenticate(user=conseiller_user)
     return api_client
 
+
 @pytest.fixture
 def statut_dossier(db):
     """
     Crée un StatutDossier pour les tests.
     """
     return StatutDossier.objects.create(
-        code="A_TRAITER",
-        label="À traiter",
-        color="#f59e42"
+        code="A_TRAITER", label="À traiter", color="#f59e42"
     )
 
+
 # --- TESTS MODELE ---
+
 
 @pytest.mark.django_db
 class TestStatutDossierModel:
@@ -87,7 +93,9 @@ class TestStatutDossierModel:
         with pytest.raises(Exception):
             StatutDossier.objects.create(code="INCOMPLET", label="Autre", color="#aaa")
 
+
 # --- TESTS API & PERMISSIONS ---
+
 
 @pytest.mark.django_db
 class TestStatutDossierAPI:
@@ -100,10 +108,14 @@ class TestStatutDossierAPI:
         url = reverse("statut-dossiers-list")
         response = conseiller_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        results = response.data["results"] if "results" in response.data else response.data
+        results = (
+            response.data["results"] if "results" in response.data else response.data
+        )
         assert any(s["code"] == "A_TRAITER" for s in results)
 
-    def test_list_statuts_forbidden_for_unauthenticated(self, api_client, statut_dossier):
+    def test_list_statuts_forbidden_for_unauthenticated(
+        self, api_client, statut_dossier
+    ):
         """
         Lecture de la liste sans authentification.
         Doit retourner 401 UNAUTHORIZED.
@@ -122,7 +134,9 @@ class TestStatutDossierAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["label"] == "À traiter"
 
-    def test_retrieve_statut_forbidden_for_unauthenticated(self, api_client, statut_dossier):
+    def test_retrieve_statut_forbidden_for_unauthenticated(
+        self, api_client, statut_dossier
+    ):
         """
         Lecture d’un statut sans être connecté : doit retourner 401 UNAUTHORIZED.
         """
@@ -136,11 +150,7 @@ class TestStatutDossierAPI:
         Doit retourner 201 CREATED, l’objet doit exister en base.
         """
         url = reverse("statut-dossiers-list")
-        payload = {
-            "code": "COMPLET",
-            "label": "Complet",
-            "color": "#44ff44"
-        }
+        payload = {"code": "COMPLET", "label": "Complet", "color": "#44ff44"}
         response = auth_client.post(url, payload, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert StatutDossier.objects.filter(code="COMPLET").exists()
@@ -150,11 +160,7 @@ class TestStatutDossierAPI:
         Création d’un statut par un non-admin : doit être refusée (403).
         """
         url = reverse("statut-dossiers-list")
-        payload = {
-            "code": "NON_ADMIN",
-            "label": "Interdit",
-            "color": "#123"
-        }
+        payload = {"code": "NON_ADMIN", "label": "Interdit", "color": "#123"}
         response = conseiller_client.post(url, payload, format="json")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -169,7 +175,9 @@ class TestStatutDossierAPI:
         statut_dossier.refresh_from_db()
         assert statut_dossier.label == "À vérifier"
 
-    def test_update_statut_forbidden_for_non_admin(self, conseiller_client, statut_dossier):
+    def test_update_statut_forbidden_for_non_admin(
+        self, conseiller_client, statut_dossier
+    ):
         """
         Modification d’un statut par un non-admin : doit retourner 403 FORBIDDEN.
         """
@@ -187,7 +195,9 @@ class TestStatutDossierAPI:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not StatutDossier.objects.filter(id=statut_dossier.id).exists()
 
-    def test_delete_statut_forbidden_for_non_admin(self, conseiller_client, statut_dossier):
+    def test_delete_statut_forbidden_for_non_admin(
+        self, conseiller_client, statut_dossier
+    ):
         """
         Suppression par un non-admin : doit retourner 403 FORBIDDEN, rien supprimé.
         """
@@ -203,7 +213,7 @@ class TestStatutDossierAPI:
         payload = {
             "code": "A_TRAITER",  # code déjà pris
             "label": "Doublon",
-            "color": "#000"
+            "color": "#000",
         }
         response = auth_client.post(url, payload, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -219,7 +229,10 @@ class TestStatutDossierAPI:
         payload = {
             "code": "TEST_COLOR",
             "label": "Test Couleur",
-            "color": "not_a_color"
+            "color": "not_a_color",
         }
         response = auth_client.post(url, payload, format="json")
-        assert response.status_code in (status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code in (
+            status.HTTP_201_CREATED,
+            status.HTTP_400_BAD_REQUEST,
+        )

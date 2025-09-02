@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -17,7 +18,7 @@ def admin_user(db):
         first_name="Admin",
         last_name="User",
         role=UserRoles.ADMIN,
-        is_staff=True  # important pour IsAdminUser
+        is_staff=True,  # important pour IsAdminUser
     )
 
 
@@ -29,7 +30,7 @@ def conseiller_user(db):
         first_name="User",
         last_name="Conseiller",
         role=UserRoles.CONSEILLER,
-        is_staff=False
+        is_staff=False,
     )
 
 
@@ -41,9 +42,7 @@ def api_client():
 @pytest.fixture
 def closing_period_sample(db):
     return SpecialClosingPeriod.objects.create(
-        label="Noël",
-        start_date=date(2025, 12, 24),
-        end_date=date(2025, 12, 26)
+        label="Noël", start_date=date(2025, 12, 24), end_date=date(2025, 12, 26)
     )
 
 
@@ -59,14 +58,16 @@ class TestSpecialClosingPeriodViewSet:
     def test_create_as_admin(self, api_client, admin_user):
         api_client.force_authenticate(user=admin_user)
         url = reverse("special-closing-periods-list")
-        response = api_client.post(url, data={
-            "label": "Fête nationale",
-            "start_date": "2025-07-14",
-            "end_date": "2025-07-14"
-        })
+        response = api_client.post(
+            url,
+            data={
+                "label": "Fête nationale",
+                "start_date": "2025-07-14",
+                "end_date": "2025-07-14",
+            },
+        )
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["label"] == "Fête nationale"
-
 
     def test_update_as_admin(self, api_client, admin_user, closing_period_sample):
         api_client.force_authenticate(user=admin_user)
@@ -75,11 +76,11 @@ class TestSpecialClosingPeriodViewSet:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["label"] == "Noël modifié"
 
-
     def test_delete_as_admin(self, api_client, admin_user, closing_period_sample):
         api_client.force_authenticate(user=admin_user)
         url = reverse("special-closing-periods-detail", args=[closing_period_sample.id])
         response = api_client.delete(url)
         assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert not SpecialClosingPeriod.objects.filter(id=closing_period_sample.id).exists()
-
+        assert not SpecialClosingPeriod.objects.filter(
+            id=closing_period_sample.id
+        ).exists()

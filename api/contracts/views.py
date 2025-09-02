@@ -9,18 +9,18 @@ Cette vue inclut les fonctionnalités suivantes :
 - Recherche de reçus associés
 - Envoi du contrat au client par e-mail via une tâche asynchrone
 """
+
 from decimal import Decimal
 
 from django.utils.text import slugify
-from rest_framework import viewsets, permissions, status
-from rest_framework.response import Response
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
-from api.contracts.models import Contract
+from rest_framework.response import Response
 
+from api.contracts.models import Contract
 from api.contracts.permissions import IsContractEditor
 from api.contracts.serializer import ContractSerializer
 from api.payments.serializers import PaymentReceiptSerializer
-from api.storage_backends import MinioReceiptStorage, MinioContractStorage
 from api.utils.email.contracts.tasks import send_contract_email_task
 
 
@@ -40,13 +40,18 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         contract = self.get_object()
         raw_amount = request.data.get("refund_amount")
-        refund_note = request.data.get("refund_note")  # optionnel si tu as ce champ côté modèle/serializer
+        refund_note = request.data.get(
+            "refund_note"
+        )  # optionnel si tu as ce champ côté modèle/serializer
 
         from decimal import Decimal, InvalidOperation
+
         try:
             amount = Decimal(str(raw_amount))
         except (InvalidOperation, TypeError):
-            return Response({"detail": "Montant invalide."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Montant invalide."}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         valid, message = self._is_valid_refund_amount(contract, amount)
         if not valid:
@@ -54,11 +59,16 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         # Appliquer le remboursement (on cumule)
         already_refunded = contract.refund_amount or Decimal("0.00")
-        contract.refund_amount = (already_refunded + amount)
-        contract.is_refunded = bool(contract.refund_amount and contract.refund_amount > 0)
+        contract.refund_amount = already_refunded + amount
+        contract.is_refunded = bool(
+            contract.refund_amount and contract.refund_amount > 0
+        )
 
         # Si tu gères une note de remboursement côté modèle/serializer, on peut la patcher via serializer
-        partial_data = {"refund_amount": str(contract.refund_amount), "is_refunded": contract.is_refunded}
+        partial_data = {
+            "refund_amount": str(contract.refund_amount),
+            "is_refunded": contract.is_refunded,
+        }
         if refund_note is not None:
             partial_data["refund_note"] = refund_note
 
@@ -67,11 +77,14 @@ class ContractViewSet(viewsets.ModelViewSet):
         self.perform_update(serializer)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     """
     ViewSet principal pour la gestion CRUD des contrats,
     avec endpoints pour uploads PDF, receipts et filtrage par client.
     """
-    queryset = Contract.objects.select_related("client", "created_by").prefetch_related("receipts")
+    queryset = Contract.objects.select_related("client", "created_by").prefetch_related(
+        "receipts"
+    )
     serializer_class = ContractSerializer
     permission_classes = [IsContractEditor]
 
@@ -81,10 +94,20 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         Elle associe le créateur et génère automatiquement le PDF du contrat.
         """
-        # Affiche les données POST reçues pour debug
         print("POST data:", self.request.data)
         contract = serializer.save(created_by=self.request.user)
-        contract.generate_pdf()  # Génère le PDF APRÈS création
+
+        pdf_url = contract.generate_pdf()  # peut renvoyer None
+        if pdf_url:
+            # Synchronise le champ localement si tu en as besoin
+            contract.contract_url = pdf_url
+            contract.save(
+                update_fields=["contract_url"]
+            )  # <-- optionnel si déjà maj par update()
+
+        # Sinon, on log une erreur mais on ne bloque pas la création
+        else:
+            print("⚠️ PDF non généré, URL absente.")
 
     @action(detail=True, methods=["get"], url_path="receipts")
     def receipts(self, request, pk=None):
@@ -120,10 +143,12 @@ class ContractViewSet(viewsets.ModelViewSet):
         if signed_contract:
             # 1. Supprimer l'ancien PDF du storage
             if instance.contract_url:
-                self._delete_file_from_url(MinioContractStorage(), instance.contract_url)
+                self._delete_file_from_url("contracts", instance.contract_url)
 
             # 2. Sauvegarder le nouveau PDF signé
-            instance.contract_url = self._save_signed_contract_pdf(instance, signed_contract)
+            instance.contract_url = self._save_signed_contract_pdf(
+                instance, signed_contract
+            )
             updated_fields.append("contract_url")
 
         # 3. MAJ du champ signé
@@ -152,26 +177,35 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         # 1. Suppression des reçus liés (PDF storage + DB)
         from api.payments.models import PaymentReceipt  # Adapter si besoin
+
         receipts = instance.receipts.all()
         for receipt in receipts:
             if receipt.receipt_url:
                 try:
-                    storage = MinioReceiptStorage()
-                    bucket_name = storage.bucket_name
-                    path = receipt.receipt_url.split(f"/{bucket_name}/")[-1]
-                    storage.delete(path)
+                    from django.conf import settings
+
+                    from api.utils.cloud.scw.bucket_utils import delete_object
+
+                    bucket_name = settings.SCW_BUCKETS["receipts"]
+                    split_token = f"/{bucket_name}/"
+                    path = receipt.receipt_url.split(split_token, 1)[-1]
+                    delete_object("receipts", path)
                 except Exception as e:
-                    print(f"Erreur suppression du PDF reçu MinIO: {e}")
+                    print(f"Erreur suppression du PDF reçu S3: {e}")
 
         # 2. Suppression du PDF contrat
         if instance.contract_url:
             try:
-                storage = MinioContractStorage()
-                bucket_name = storage.bucket_name
-                path = instance.contract_url.split(f"/{bucket_name}/")[-1]
-                storage.delete(path)
+                from django.conf import settings
+
+                from api.utils.cloud.scw.bucket_utils import delete_object
+
+                bucket_name = settings.SCW_BUCKETS["contracts"]
+                split_token = f"/{bucket_name}/"
+                path = instance.contract_url.split(split_token, 1)[-1]
+                delete_object("contracts", path)
             except Exception as e:
-                print(f"Erreur suppression du PDF contrat MinIO: {e}")
+                print(f"Erreur suppression du PDF contrat S3: {e}")
 
         # 3. Supprime l’instance (et reçus via FK CASCADE)
         return super().destroy(request, *args, **kwargs)
@@ -185,37 +219,44 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         contract = self.get_object()
         send_contract_email_task.delay(contract.id)
-        return Response({"detail": "📨 L'e-mail de contrat va être envoyé dans quelques instants."}, status=status.HTTP_202_ACCEPTED)
+        return Response(
+            {"detail": "📨 L'e-mail de contrat va être envoyé dans quelques instants."},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
-    def _delete_file_from_url(self, storage, file_url: str):
+    def _delete_file_from_url(self, bucket_key: str, file_url: str):
         """
         Supprime un fichier du storage MinIO à partir de son URL.
 
-        - `storage` : instance de stockage MinIO
+        - `bucket_key` : clé du bucket dans settings.SCW_BUCKETS
         - `file_url` : URL complète du fichier à supprimer
         """
         try:
-            bucket = storage.bucket_name
-            path = file_url.split(f"/{bucket}/")[-1]
-            storage.delete(path)
+            from django.conf import settings
+
+            from api.utils.cloud.scw.bucket_utils import delete_object
+
+            bucket = settings.SCW_BUCKETS[bucket_key]
+            split_token = f"/{bucket}/"
+            path = file_url.split(split_token, 1)[-1]
+            delete_object(bucket_key, path)
         except Exception as e:
-            print(f"Erreur suppression fichier MinIO: {e}")
+            print(f"Erreur suppression fichier S3: {e}")
 
     def _save_signed_contract_pdf(self, instance, file):
-        """
-        Sauvegarde un fichier PDF signé dans MinIO et retourne son URL publique.
+        from django.conf import settings
 
-        Le chemin est construit dynamiquement à partir du nom du client et de la date.
-        """
+        from api.utils.cloud.scw.bucket_utils import put_object
+
         client = instance.client
         lead = client.lead
         client_slug = slugify(f"{lead.last_name}_{lead.first_name}_{client.id}")
         date_str = instance.created_at.strftime("%Y%m%d")
         filename = f"{client_slug}/contrat_{instance.id}_{date_str}.pdf"
-
-        storage = MinioContractStorage()
-        saved_path = storage.save(filename, file)
-        return storage.url(saved_path)
+        put_object(
+            "contracts", filename, content=file.read(), content_type=file.content_type
+        )
+        return f"{settings.AWS_S3_ENDPOINT_URL.rstrip('/')}/{settings.SCW_BUCKETS['contracts']}/{filename}"
 
     def _is_valid_refund_amount(self, contract, amount: Decimal) -> tuple[bool, str]:
         """
@@ -230,5 +271,8 @@ class ContractViewSet(viewsets.ModelViewSet):
         if amount <= 0:
             return False, "Le montant doit être supérieur à 0."
         if amount > max_refundable:
-            return False, f"Le montant dépasse le maximum remboursable ({max_refundable} €)."
+            return (
+                False,
+                f"Le montant dépasse le maximum remboursable ({max_refundable} €).",
+            )
         return True, ""

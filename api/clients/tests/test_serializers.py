@@ -1,9 +1,12 @@
-import pytest
 from datetime import date, timedelta
+
+import pytest
 from rest_framework.exceptions import ValidationError
+
 from api.clients.serializers import ClientSerializer
 from api.leads.models import Lead
 from api.services.models import Service
+
 
 @pytest.mark.django_db
 def test_valid_client_serializer():

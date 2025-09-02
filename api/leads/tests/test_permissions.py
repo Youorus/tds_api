@@ -7,9 +7,11 @@ Ce fichier vérifie le bon fonctionnement des permissions suivantes :
 
 Chaque test simule une requête via APIRequestFactory pour tester les méthodes has_permission.
 """
+
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
-from api.leads.permissions import IsLeadCreator, IsConseillerOrAdmin
+
+from api.leads.permissions import IsConseillerOrAdmin, IsLeadCreator
 from api.users.models import User
 from api.users.roles import UserRoles
 

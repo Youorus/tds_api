@@ -2,12 +2,12 @@
 from datetime import date, datetime, time
 from typing import Optional
 
-from django.db.models import Exists, OuterRef, F
-from django.utils.dateparse import parse_datetime, parse_date
-from django.utils.timezone import make_aware, is_naive, get_current_timezone
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.db.models import Exists, F, OuterRef
+from django.utils.dateparse import parse_date, parse_datetime
+from django.utils.timezone import get_current_timezone, is_naive, make_aware
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from api.leads.models import Lead
 
@@ -27,7 +27,9 @@ def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
     return parse_datetime(dt) or parse_date(dt)
 
 
-def _to_aware(dt_or_d: Optional[object], end_of_day: bool = False) -> Optional[datetime]:
+def _to_aware(
+    dt_or_d: Optional[object], end_of_day: bool = False
+) -> Optional[datetime]:
     """
     Convertit une date ou un datetime en datetime timezone-aware selon le fuseau horaire courant.
 
@@ -109,24 +111,29 @@ class LeadSearchView(APIView):
 
     La réponse contient le total des résultats, la page courante, la taille de page, le critère de tri et la liste des leads.
     """
+
     permission_classes = [IsAuthenticated]  # ajuste selon ton contexte
 
     def get(self, request):
         # --- Query params (bruts) ---
         raw_date_from = request.query_params.get("date_from")
-        raw_date_to   = request.query_params.get("date_to")
+        raw_date_to = request.query_params.get("date_to")
         raw_appt_from = request.query_params.get("appt_from")
-        raw_appt_to   = request.query_params.get("appt_to")
+        raw_appt_to = request.query_params.get("appt_to")
 
         # Filtres statut (code/ID)
-        status_code   = request.query_params.get("status_code")         # ex: "RDV_CONFIRME"
-        status_id     = _to_int_or_none(request.query_params.get("status_id"))
-        dossier_code  = request.query_params.get("dossier_code")        # ex: "A_TRAITER"
-        dossier_id    = _to_int_or_none(request.query_params.get("dossier_id"))
+        status_code = request.query_params.get("status_code")  # ex: "RDV_CONFIRME"
+        status_id = _to_int_or_none(request.query_params.get("status_id"))
+        dossier_code = request.query_params.get("dossier_code")  # ex: "A_TRAITER"
+        dossier_id = _to_int_or_none(request.query_params.get("dossier_id"))
 
         # Filtres binaires
-        has_jurist    = _normalize_avec_sans(request.query_params.get("has_jurist"))         # 'avec'|'sans'|None
-        has_conseille = _normalize_avec_sans(request.query_params.get("has_conseiller"))     # 'avec'|'sans'|None
+        has_jurist = _normalize_avec_sans(
+            request.query_params.get("has_jurist")
+        )  # 'avec'|'sans'|None
+        has_conseille = _normalize_avec_sans(
+            request.query_params.get("has_conseiller")
+        )  # 'avec'|'sans'|None
 
         # Pagination / tri
         try:
@@ -140,9 +147,12 @@ class LeadSearchView(APIView):
 
         # Whitelist d’ordering
         allowed_ordering = {
-            "created_at", "-created_at",
-            "appointment_date", "-appointment_date",
-            "id", "-id",
+            "created_at",
+            "-created_at",
+            "appointment_date",
+            "-appointment_date",
+            "id",
+            "-id",
         }
         ordering = request.query_params.get("ordering", "-created_at")
         if ordering not in allowed_ordering:
@@ -150,34 +160,32 @@ class LeadSearchView(APIView):
 
         # --- Parse & normalize dates (timezone-aware) ---
         date_from_any = _parse_iso_any(raw_date_from)  # date ou datetime
-        date_to_any   = _parse_iso_any(raw_date_to)
+        date_to_any = _parse_iso_any(raw_date_to)
         appt_from_any = _parse_iso_any(raw_appt_from)
-        appt_to_any   = _parse_iso_any(raw_appt_to)
+        appt_to_any = _parse_iso_any(raw_appt_to)
 
         date_from = _to_aware(date_from_any, end_of_day=False)
-        date_to   = _to_aware(date_to_any,   end_of_day=True)   # inclure toute la journée
+        date_to = _to_aware(date_to_any, end_of_day=True)  # inclure toute la journée
         appt_from = _to_aware(appt_from_any, end_of_day=False)
-        appt_to   = _to_aware(appt_to_any,   end_of_day=True)
+        appt_to = _to_aware(appt_to_any, end_of_day=True)
 
         # --- Base queryset + annotations utiles ---
         ThroughConseiller = Lead.assigned_to.through
-        ThroughJurist     = Lead.jurist_assigned.through
+        ThroughJurist = Lead.jurist_assigned.through
 
-        qs = (
-            Lead.objects
-            .select_related("status", "statut_dossier")
-            .annotate(
-                has_conseiller=Exists(ThroughConseiller.objects.filter(lead_id=OuterRef("pk"))),
-                has_jurist=Exists(ThroughJurist.objects.filter(lead_id=OuterRef("pk"))),
-                # Statut lead
-                lead_status_code=F("status__code"),
-                lead_status_label=F("status__label"),
-                lead_status_color=F("status__color"),
-                # Statut dossier
-                statut_dossier_code=F("statut_dossier__code"),
-                statut_dossier_label=F("statut_dossier__label"),
-                statut_dossier_color=F("statut_dossier__color"),
-            )
+        qs = Lead.objects.select_related("status", "statut_dossier").annotate(
+            has_conseiller=Exists(
+                ThroughConseiller.objects.filter(lead_id=OuterRef("pk"))
+            ),
+            has_jurist=Exists(ThroughJurist.objects.filter(lead_id=OuterRef("pk"))),
+            # Statut lead
+            lead_status_code=F("status__code"),
+            lead_status_label=F("status__label"),
+            lead_status_color=F("status__color"),
+            # Statut dossier
+            statut_dossier_code=F("statut_dossier__code"),
+            statut_dossier_label=F("statut_dossier__label"),
+            statut_dossier_color=F("statut_dossier__color"),
         )
 
         # --- Filtres de période (création) ---
@@ -188,9 +196,13 @@ class LeadSearchView(APIView):
 
         # --- Filtres de période (appointment) ---
         if appt_from:
-            qs = qs.filter(appointment_date__isnull=False, appointment_date__gte=appt_from)
+            qs = qs.filter(
+                appointment_date__isnull=False, appointment_date__gte=appt_from
+            )
         if appt_to:
-            qs = qs.filter(appointment_date__isnull=False, appointment_date__lte=appt_to)
+            qs = qs.filter(
+                appointment_date__isnull=False, appointment_date__lte=appt_to
+            )
 
         # --- Filtres métier ---
         # PRIORITÉ ID > code pour statuts
@@ -222,23 +234,38 @@ class LeadSearchView(APIView):
         start = (page - 1) * page_size
         end = start + page_size
 
-        rows = list(qs.values(
-            "id", "first_name", "last_name", "email", "phone",
-            "created_at", "appointment_date",
-            # IDs utiles pour tes sélecteurs
-            "status_id", "statut_dossier_id",
-            # Lead status
-            "lead_status_code", "lead_status_label", "lead_status_color",
-            # Dossier status
-            "statut_dossier_code", "statut_dossier_label", "statut_dossier_color",
-            # Flags
-            "has_conseiller", "has_jurist",
-        )[start:end])
+        rows = list(
+            qs.values(
+                "id",
+                "first_name",
+                "last_name",
+                "email",
+                "phone",
+                "created_at",
+                "appointment_date",
+                # IDs utiles pour tes sélecteurs
+                "status_id",
+                "statut_dossier_id",
+                # Lead status
+                "lead_status_code",
+                "lead_status_label",
+                "lead_status_color",
+                # Dossier status
+                "statut_dossier_code",
+                "statut_dossier_label",
+                "statut_dossier_color",
+                # Flags
+                "has_conseiller",
+                "has_jurist",
+            )[start:end]
+        )
 
-        return Response({
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-            "ordering": ordering,
-            "items": rows,
-        })
+        return Response(
+            {
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "ordering": ordering,
+                "items": rows,
+            }
+        )

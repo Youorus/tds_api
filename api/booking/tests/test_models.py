@@ -1,8 +1,10 @@
 # tests/test_models.py (ou api/booking/tests/test_models.py)
 
-import pytest
 from datetime import datetime, time, timedelta
+
+import pytest
 from django.utils import timezone
+
 from api.booking.models import SlotQuota
 
 pytestmark = pytest.mark.django_db

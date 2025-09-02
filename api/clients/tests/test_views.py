@@ -1,19 +1,21 @@
 import pytest
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APIClient
-from django.contrib.auth import get_user_model
 
 from api.clients.models import Client
-from api.leads.models import Lead
 from api.lead_status.models import LeadStatus  # ou StatutDossier si renommé
+from api.leads.models import Lead
 
 # Active la base de données pour tous les tests
 pytestmark = pytest.mark.django_db
+
 
 # 🔹 Client API pour les requêtes
 @pytest.fixture
 def api_client():
     return APIClient()
+
 
 # 🔹 Utilisateur authentifié (CustomUser sans username)
 @pytest.fixture
@@ -22,13 +24,15 @@ def user():
         email="test@example.com",
         first_name="Test",
         last_name="User",
-        password="testpass"
+        password="testpass",
     )
+
 
 # 🔹 Statut par défaut requis par le Lead
 @pytest.fixture
 def default_status():
     return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#0000FF")
+
 
 # 🔹 Lead valide avec statut obligatoire
 @pytest.fixture
@@ -41,6 +45,7 @@ def lead(default_status):
         status=default_status,
     )
 
+
 # 🔹 Données minimales valides pour créer un client
 @pytest.fixture
 def valid_client_data():
@@ -49,8 +54,9 @@ def valid_client_data():
         "date_naissance": "1990-01-01",
         "lieu_naissance": "Paris",
         "pays": "France",
-        "nationalite": "Française"
+        "nationalite": "Française",
     }
+
 
 # 🔸 Test POST anonyme autorisé
 def test_create_client_anonymous_allowed(api_client, lead, valid_client_data):
@@ -59,6 +65,7 @@ def test_create_client_anonymous_allowed(api_client, lead, valid_client_data):
     assert response.status_code == 201, response.data
     assert Client.objects.count() == 1
     assert Client.objects.first().lead == lead
+
 
 # 🔸 Test POST authentifié autorisé
 def test_create_client_authenticated_allowed(api_client, user, lead, valid_client_data):
@@ -69,11 +76,13 @@ def test_create_client_authenticated_allowed(api_client, user, lead, valid_clien
     assert Client.objects.count() == 1
     assert Client.objects.first().lead == lead
 
+
 # 🔸 Test GET anonyme refusé
 def test_list_clients_anonymous_forbidden(api_client):
     url = reverse("client-list")
     response = api_client.get(url)
     assert response.status_code in [401, 403]  # selon la config DRF
+
 
 # 🔸 Test GET authentifié autorisé
 def test_list_clients_authenticated_allowed(api_client, user):

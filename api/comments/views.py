@@ -1,16 +1,19 @@
-from rest_framework import viewsets, permissions, status
+from django.utils.translation import gettext as _
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from django.utils.translation import gettext as _
+
 from api.comments.models import Comment
-from api.comments.serializers import CommentSerializer
 from api.comments.permissions import IsCommentAuthorOrAdmin
+from api.comments.serializers import CommentSerializer
+
 
 class CommentViewSet(viewsets.ModelViewSet):
     """
     ViewSet principal pour la gestion des commentaires sur les leads.
     """
+
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -30,11 +33,15 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
-        if not IsCommentAuthorOrAdmin().has_object_permission(self.request, self, serializer.instance):
+        if not IsCommentAuthorOrAdmin().has_object_permission(
+            self.request, self, serializer.instance
+        ):
             raise PermissionDenied(_("Vous n'êtes pas l'auteur de ce commentaire."))
         serializer.save()
 
     def perform_destroy(self, instance):
-        if not IsCommentAuthorOrAdmin().has_object_permission(self.request, self, instance):
+        if not IsCommentAuthorOrAdmin().has_object_permission(
+            self.request, self, instance
+        ):
             raise PermissionDenied(_("Vous n'êtes pas l'auteur de ce commentaire."))
         instance.delete()

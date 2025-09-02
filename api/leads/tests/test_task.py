@@ -1,13 +1,14 @@
-import pytest
 from datetime import timedelta
+from unittest.mock import patch
+
+import pytest
 from django.utils import timezone
 from django.utils.timezone import make_aware
-from api.leads.tasks import send_reminder_emails, mark_absent_leads
-from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
-from api.leads.constants import RDV_CONFIRME, ABSENT
 
-from unittest.mock import patch
+from api.lead_status.models import LeadStatus
+from api.leads.constants import ABSENT, RDV_CONFIRME
+from api.leads.models import Lead
+from api.leads.tasks import mark_absent_leads, send_reminder_emails
 
 
 @pytest.mark.django_db
@@ -23,7 +24,7 @@ def test_send_reminder_emails_j1(mock_send_email):
         email="test@example.com",
         phone="+33612345678",
         status=status,
-        appointment_date=timezone.now() + timedelta(days=1)
+        appointment_date=timezone.now() + timedelta(days=1),
     )
 
     send_reminder_emails()
@@ -37,7 +38,9 @@ def test_mark_absent_leads(mock_send_email):
     """
     Teste la mise à jour en 'ABSENT' + l'envoi du mail si le RDV est passé.
     """
-    status_confirmed = LeadStatus.objects.create(code=RDV_CONFIRME, label="RDV confirmé")
+    status_confirmed = LeadStatus.objects.create(
+        code=RDV_CONFIRME, label="RDV confirmé"
+    )
     status_absent = LeadStatus.objects.create(code=ABSENT, label="Absent")
 
     lead = Lead.objects.create(
@@ -46,7 +49,7 @@ def test_mark_absent_leads(mock_send_email):
         email="test@example.com",
         phone="+33612345678",
         status=status_confirmed,
-        appointment_date=timezone.now() - timedelta(hours=3)
+        appointment_date=timezone.now() - timedelta(hours=3),
     )
 
     mark_absent_leads()

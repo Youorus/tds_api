@@ -7,7 +7,7 @@ from api.contracts.contract_search import ContractSearchView
 from api.contracts.views import ContractViewSet
 
 router = DefaultRouter()
-router.register(r'', ContractViewSet, basename='contract')
+router.register(r"", ContractViewSet, basename="contract")
 
 urlpatterns = [
     path("search/", ContractSearchView.as_view(), name="contract-search"),

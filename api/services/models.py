@@ -1,8 +1,10 @@
-import unicodedata
-from django.db import models
-from decimal import Decimal
-from django.utils.translation import gettext_lazy as _
 import re
+import unicodedata
+from decimal import Decimal
+
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
 
 class Service(models.Model):
     """
@@ -19,19 +21,21 @@ class Service(models.Model):
         max_length=50,
         unique=True,
         verbose_name=_("Code du service"),
-        help_text=_("Code interne unique du service (ex: NATURALISATION, TITRE_SEJOUR)")
+        help_text=_(
+            "Code interne unique du service (ex: NATURALISATION, TITRE_SEJOUR)"
+        ),
     )
     label = models.CharField(
         max_length=1000,
         verbose_name=_("Libellé"),
-        help_text=_("Nom lisible du service (ex: Titre de séjour)")
+        help_text=_("Nom lisible du service (ex: Titre de séjour)"),
     )
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         default=Decimal("0.00"),
         verbose_name=_("Prix (€)"),
-        help_text=_("Tarif affiché pour ce service")
+        help_text=_("Tarif affiché pour ce service"),
     )
 
     class Meta:
@@ -59,9 +63,10 @@ class Service(models.Model):
         """
         code = code.strip()
         # Supprime les accents
-        code = ''.join(
-            c for c in unicodedata.normalize('NFD', code)
-            if unicodedata.category(c) != 'Mn'
+        code = "".join(
+            c
+            for c in unicodedata.normalize("NFD", code)
+            if unicodedata.category(c) != "Mn"
         )
         code = code.replace(" ", "").replace("_", "").replace("-", "")
         code = code.upper()

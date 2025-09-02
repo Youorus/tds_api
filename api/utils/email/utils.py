@@ -17,7 +17,11 @@ def _name_from_user(user) -> str | None:
         return None
     first = (getattr(user, "first_name", "") or "").strip()
     last = (getattr(user, "last_name", "") or "").strip()
-    return f"{first} {last}".strip() or getattr(user, "username", None) or getattr(user, "email", None)
+    return (
+        f"{first} {last}".strip()
+        or getattr(user, "username", None)
+        or getattr(user, "email", None)
+    )
 
 
 def _get_with_info(appointment) -> tuple[str | None, str | None]:
@@ -32,5 +36,3 @@ def _get_with_info(appointment) -> tuple[str | None, str | None]:
         user, label = appointment.lead.assigned_to, "Conseiller"
 
     return label, _name_from_user(user)
-
-

@@ -1,13 +1,14 @@
 import pytest
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
 pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
 def user_active():
@@ -20,6 +21,7 @@ def user_active():
         is_active=True,
     )
 
+
 @pytest.fixture
 def user_inactive():
     return User.objects.create_user(
@@ -30,6 +32,7 @@ def user_inactive():
         is_active=False,
     )
 
+
 @pytest.fixture
 def api_client():
     return APIClient()
@@ -37,7 +40,9 @@ def api_client():
 
 def test_login_success(api_client, user_active):
     url = reverse("login")
-    response = api_client.post(url, {"email": user_active.email, "password": "securepass123"})
+    response = api_client.post(
+        url, {"email": user_active.email, "password": "securepass123"}
+    )
 
     assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.cookies
@@ -47,21 +52,27 @@ def test_login_success(api_client, user_active):
 
 def test_login_wrong_password(api_client, user_active):
     url = reverse("login")
-    response = api_client.post(url, {"email": user_active.email, "password": "wrongpass"})
+    response = api_client.post(
+        url, {"email": user_active.email, "password": "wrongpass"}
+    )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "password" in response.data
 
 
 def test_login_inactive_user(api_client, user_inactive):
     url = reverse("login")
-    response = api_client.post(url, {"email": user_inactive.email, "password": "securepass123"})
+    response = api_client.post(
+        url, {"email": user_inactive.email, "password": "securepass123"}
+    )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "non_field_errors" in response.data
 
 
 def test_login_nonexistent_user(api_client):
     url = reverse("login")
-    response = api_client.post(url, {"email": "nobody@example.com", "password": "anything"})
+    response = api_client.post(
+        url, {"email": "nobody@example.com", "password": "anything"}
+    )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert "email" in response.data
 
@@ -73,9 +84,9 @@ def test_logout_deletes_cookies(api_client, user_active):
     response = api_client.post(url)
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert response.cookies["access_token"].value == ''
-    assert response.cookies["refresh_token"].value == ''
-    assert response.cookies["user_role"].value == ''
+    assert response.cookies["access_token"].value == ""
+    assert response.cookies["refresh_token"].value == ""
+    assert response.cookies["user_role"].value == ""
 
 
 def test_token_refresh_success(api_client, user_active):
@@ -101,7 +112,9 @@ def test_cookie_jwt_authentication_success(user_active):
     from api.custom_auth.authentication import CookieJWTAuthentication
 
     token = RefreshToken.for_user(user_active).access_token
-    request = type("Request", (), {"COOKIES": {"access_token": str(token)}, "META": {}})()
+    request = type(
+        "Request", (), {"COOKIES": {"access_token": str(token)}, "META": {}}
+    )()
 
     auth = CookieJWTAuthentication()
     user, validated_token = auth.authenticate(request)

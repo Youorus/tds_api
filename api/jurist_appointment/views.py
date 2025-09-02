@@ -1,32 +1,35 @@
+from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework import viewsets, status, filters
+from django.utils.dateparse import parse_date
+from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils.dateparse import parse_date
 
-from .models import JuristAppointment
-from .serializers import (
-    JuristAppointmentSerializer,
-    JuristAppointmentCreateSerializer,
-    JuristSerializer
-)
 from api.leads.models import Lead
-from django.contrib.auth import get_user_model
 
 from ..leads.serializers import LeadSerializer
 from ..user_unavailability.models import UserUnavailability
 from ..users.roles import UserRoles
-from ..utils.email.jurist_appointment.tasks import send_jurist_appointment_created_task, \
-    send_jurist_appointment_deleted_task
-from ..utils.jurist_slots import is_valid_day, get_available_slots_for_jurist
+from ..utils.email.jurist_appointment.tasks import (
+    send_jurist_appointment_created_task,
+    send_jurist_appointment_deleted_task,
+)
+from ..utils.jurist_slots import get_available_slots_for_jurist, is_valid_day
+from .models import JuristAppointment
+from .serializers import (
+    JuristAppointmentCreateSerializer,
+    JuristAppointmentSerializer,
+    JuristSerializer,
+)
 
 User = get_user_model()
+
 
 class JuristAppointmentViewSet(viewsets.ModelViewSet):
     queryset = JuristAppointment.objects.all().select_related("jurist", "lead")
     serializer_class = JuristAppointmentSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ['lead__id', 'date']
+    search_fields = ["lead__id", "date"]
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -38,9 +41,7 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         appointment_date = instance.date
         instance.delete()
         send_jurist_appointment_deleted_task.delay(
-            lead.id,
-            jurist.id,
-            appointment_date.isoformat()
+            lead.id, jurist.id, appointment_date.isoformat()
         )
 
     def get_queryset(self):
@@ -83,17 +84,21 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
         day = parse_date(date_str)
         if not day or not is_valid_day(day):
-            return Response({"detail": "Date invalide (créneau global indisponible ce jour-là)."}, status=400)
+            return Response(
+                {"detail": "Date invalide (créneau global indisponible ce jour-là)."},
+                status=400,
+            )
 
         # Liste des IDs de juristes indisponibles ce jour-là
         unavailable_ids = set(
             UserUnavailability.objects.filter(
-                start_date__lte=day,
-                end_date__gte=day
+                start_date__lte=day, end_date__gte=day
             ).values_list("user_id", flat=True)
         )
 
-        jurist_assigned = getattr(lead, "jurist_assigned", None)  # Adapte le nom du champ
+        jurist_assigned = getattr(
+            lead, "jurist_assigned", None
+        )  # Adapte le nom du champ
 
         if jurist_assigned and jurist_assigned.exists():
             jurists = jurist_assigned.all().exclude(id__in=unavailable_ids)
@@ -101,7 +106,9 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
             serializer = JuristSerializer(available, many=True)
             return Response(serializer.data)
 
-        jurists = User.objects.filter(role="JURISTE", is_active=True).exclude(id__in=unavailable_ids)
+        jurists = User.objects.filter(role="JURISTE", is_active=True).exclude(
+            id__in=unavailable_ids
+        )
         available = [j for j in jurists if get_available_slots_for_jurist(j, day)]
         serializer = JuristSerializer(available, many=True)
         return Response(serializer.data)
@@ -117,13 +124,17 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         if not jurist_id or jurist_id in ("None", "") or not date_str:
             return Response({"detail": "jurist_id et date requis."}, status=400)
 
-        jurist = User.objects.filter(id=jurist_id, role="JURISTE", is_active=True).first()
+        jurist = User.objects.filter(
+            id=jurist_id, role="JURISTE", is_active=True
+        ).first()
         if not jurist:
             return Response({"detail": "Juriste introuvable."}, status=404)
 
         day = parse_date(date_str)
         if not day or not is_valid_day(day):
-            return Response({"detail": "Date invalide (mardi/jeudi uniquement)."}, status=400)
+            return Response(
+                {"detail": "Date invalide (mardi/jeudi uniquement)."}, status=400
+            )
 
         slots = get_available_slots_for_jurist(jurist, day)
         return Response(slots)
@@ -131,12 +142,8 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def upcoming_for_lead(self, request):
         lead_id = request.query_params.get("lead_id")
-        print(lead_id)
         if not lead_id:
             return Response({"detail": "lead_id requis."}, status=400)
-        appointments = self.get_queryset().filter(
-            lead_id=lead_id
-        ).order_by("date")
-        print(appointments)
+        appointments = self.get_queryset().filter(lead_id=lead_id).order_by("date")
         serializer = self.get_serializer(appointments, many=True)
         return Response(serializer.data)
