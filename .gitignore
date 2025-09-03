@@ -1,30 +1,42 @@
-# Environnement Python
+# ===============================
+# 🐍 Environnement Python
+# ===============================
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Secrets / confs locales
+# ===============================
+# 🔐 Secrets & configurations locales
+# ===============================
 .env
 .env.*
-*.key
 *.pem
+*.key
 
-# DB locale
+# ===============================
+# 🗃️ Base de données locale
+# ===============================
 *.sqlite3
 
-# Fichiers IDE
+# ===============================
+# 🧠 Fichiers d’IDE / éditeurs
+# ===============================
 .vscode/
 .idea/
 
-# Couverture de test
+# ===============================
+# ✅ Couverture de test & tests
+# ===============================
 .coverage
-htmlcov/
 .coverage.*
+htmlcov/
 
-# Fichiers temporaires
-celerybeat-schedule
+# ===============================
+# 🧹 Fichiers temporaires & runtime
+# ===============================
 *.log
 *.backup
-
-# Docker volumes
 *.pid
+celerybeat-schedule
