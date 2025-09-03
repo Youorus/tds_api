@@ -11,7 +11,7 @@ from api.leads.constants import ABSENT, PRESENT, RDV_CONFIRME, RDV_PLANIFIE
 
 # 1. Chargement des variables d’environnement
 load_dotenv()
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings.prod")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings.dev")
 django.setup()
 
 from django.conf import settings

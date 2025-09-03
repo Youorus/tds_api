@@ -1,0 +1,57 @@
+name: 🔁 CI Main – Test & Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test-and-build:
+    name: ✅ Run Tests + Build
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:6
+        ports:
+          - 6379:6379
+        options: --entrypoint redis-server
+
+    env:
+      DEBUG: False
+      SECRET_KEY: test-secret
+      ALLOWED_HOSTS: localhost
+      DATABASE_URL: sqlite:///./db.sqlite3
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - name: 🧪 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ⚙️ Run migrations
+        run: |
+          python manage.py makemigrations --check
+          python manage.py migrate
+
+      - name: ✅ Run tests
+        run: |
+          pytest
+
+      - name: 🧪 Lint (black, flake8)
+        run: |
+          black . --check
+          flake8 .
+
+      - name: 🛠️ Build check (collectstatic)
+        run: |
+          python manage.py collectstatic --noinput
