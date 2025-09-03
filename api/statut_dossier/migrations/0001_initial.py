@@ -7,22 +7,37 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='StatutDossier',
+            name="StatutDossier",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=50, unique=True, verbose_name='code')),
-                ('label', models.CharField(max_length=100, verbose_name='nom affiché')),
-                ('color', models.CharField(default='#4b5563', max_length=10, verbose_name='couleur (hexa)')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(max_length=50, unique=True, verbose_name="code"),
+                ),
+                ("label", models.CharField(max_length=100, verbose_name="nom affiché")),
+                (
+                    "color",
+                    models.CharField(
+                        default="#4b5563", max_length=10, verbose_name="couleur (hexa)"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'statut dossier',
-                'verbose_name_plural': 'statuts dossier',
-                'ordering': ['label'],
+                "verbose_name": "statut dossier",
+                "verbose_name_plural": "statuts dossier",
+                "ordering": ["label"],
             },
         ),
     ]

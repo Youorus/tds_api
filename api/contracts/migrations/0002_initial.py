@@ -10,20 +10,29 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('contracts', '0001_initial'),
-        ('services', '0001_initial'),
+        ("contracts", "0001_initial"),
+        ("services", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='contract',
-            name='created_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL),
+            model_name="contract",
+            name="created_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='contract',
-            name='service',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='contracts', to='services.service'),
+            model_name="contract",
+            name="service",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="contracts",
+                to="services.service",
+            ),
         ),
     ]

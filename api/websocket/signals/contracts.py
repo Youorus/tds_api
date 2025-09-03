@@ -1,17 +1,19 @@
 import json
 import logging
-from django.db import transaction
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-from django.core.serializers.json import DjangoJSONEncoder
-from django.utils import timezone
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.utils import timezone
 
 from api.contracts.models import Contract
 from api.contracts.serializer import ContractSerializer
 
 log = logging.getLogger(__name__)
+
 
 def _safe_ids(instance: Contract):
     client_id = getattr(instance, "client_id", None)
@@ -27,6 +29,7 @@ def _safe_ids(instance: Contract):
         lead_id = None
 
     return client_id, lead_id
+
 
 def _payload(event: str, instance: Contract) -> dict:
     try:
@@ -48,10 +51,11 @@ def _payload(event: str, instance: Contract) -> dict:
         }
 
     return {
-        "event": event,                        # "created" | "updated" | "deleted"
+        "event": event,  # "created" | "updated" | "deleted"
         "at": timezone.now().isoformat(),
         "data": data,
     }
+
 
 def _broadcast(groups: list[str], payload: dict):
     layer = get_channel_layer()
@@ -59,6 +63,7 @@ def _broadcast(groups: list[str], payload: dict):
     for g in groups:
         async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})
         log.info("📢 [WS] send %s -> %s", payload.get("event"), g)
+
 
 @receiver(post_save, sender=Contract)
 def on_contract_saved(sender, instance: Contract, created, **kwargs):
@@ -69,13 +74,18 @@ def on_contract_saved(sender, instance: Contract, created, **kwargs):
     groups = ["contracts"]
     if client_id is not None:
         groups.append(f"contracts-client-{client_id}")  # room par client
-        groups.append(f"client-{client_id}")            # réutilise le groupe déjà utilisé pour Client
+        groups.append(
+            f"client-{client_id}"
+        )  # réutilise le groupe déjà utilisé pour Client
         groups.append("clients")
     if lead_id is not None:
-        groups.append("leads")                          # si tes KPIs/listes leads reflètent contrat
-        groups.append(f"comments-lead-{lead_id}")       # (optionnel) si UI coms affiche montants
+        groups.append("leads")  # si tes KPIs/listes leads reflètent contrat
+        groups.append(
+            f"comments-lead-{lead_id}"
+        )  # (optionnel) si UI coms affiche montants
 
     transaction.on_commit(lambda: _broadcast(groups, payload))
+
 
 @receiver(post_delete, sender=Contract)
 def on_contract_deleted(sender, instance: Contract, **kwargs):

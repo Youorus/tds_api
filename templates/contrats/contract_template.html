@@ -10,22 +10,16 @@
       margin: 15mm 20mm;
       @bottom-right {
         content: "Page " counter(page) " / " counter(pages);
-        font-size: 11pt;
+        font-size: 10pt;
         color: #999;
       }
-    }
-    .parties {
-      background-color: #f8fafc;
-      border-left: 4px solid #3b82f6;
-      padding: 16px;
-      margin-bottom: 25px;
     }
 
     body {
       font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
       font-size: 13pt;
       color: #222;
-      line-height: 1.65;
+      line-height: 1.50;
       margin: 0;
       padding: 0;
       counter-reset: section-counter;
@@ -40,30 +34,31 @@
       padding: 40px 0;
     }
 
-.header {
-  border-bottom: 1px solid #e0e0e0;
-  margin-bottom: 30px;
-  padding-bottom: 10px;
-}
+    .header {
+      border-bottom: 1px solid #e0e0e0;
+      margin-bottom: 30px;
+      padding-bottom: 10px;
+    }
 
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-.header img {
-  height: 100px;
-  display: block;
-  margin: 0 auto;
-  flex-grow: 1;
-}
+    .header img {
+      height: 100px;
+      display: block;
+      margin: 0 auto;
+      flex-grow: 1;
+    }
 
-.header-title {
-  font-size: 12pt;
-  color: #444;
-  white-space: nowrap;
-}
+
+    .header-title {
+      font-size: 12pt;
+      color: #444;
+      white-space: nowrap;
+    }
 
     h1 {
       font-size: 22pt;
@@ -77,7 +72,7 @@
     h2 {
       counter-increment: section-counter;
       position: relative;
-      padding-left: 34px;
+      padding-left: 30px;
       font-size: 15pt;
       color: #222;
       margin-top: 30px;
@@ -102,7 +97,7 @@
     }
 
     ul {
-      padding-left: 24px;
+      padding-left: 20px;
       margin: 12px 0;
     }
 
@@ -115,12 +110,11 @@
       color: #000;
     }
 
-    .footer {
-      margin-top: 30px;
-      text-align: center;
-      font-size: 11pt;
-      color: #999;
-      position: relative;
+    .parties {
+      background-color: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 16px;
+      margin-bottom: 25px;
     }
 
     .service-item {
@@ -152,11 +146,26 @@
     }
 
     td {
-      font-size: 10.5pt;
+      font-size: 11pt;
       text-align: center;
       padding-top: 20px;
       border-top: 1px solid #ddd;
       width: 50%;
+    }
+
+
+    .signature-block {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  min-height: 180px; /* Ajuste selon le rendu réel */
+  margin-top: 40px;
+}
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 11pt;
+      color: #999;
     }
 
     @media print {
@@ -181,13 +190,13 @@
 <body>
   <div class="container">
     <div class="header">
-  <div class="header-content">
-    <img src="https://i.imgur.com/iSzPCvI.jpeg" alt="Logo TDS France" />
-    <div class="header-title">
-      Contrat signé le : <strong>{{ date }}</strong>
+      <div class="header-content">
+        <img src="https://i.imgur.com/iSzPCvI.jpeg" alt="Logo TDS France" />
+        <div class="header-title">
+          Contrat signé le : <strong>{{ date }}</strong>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
     <h1>Contrat de Prestation de Services</h1>
 
@@ -224,7 +233,7 @@
       </ul>
     </div>
 
-  <h2>Rémunération de la Société</h2>
+    <h2>Rémunération de la Société</h2>
     <p>Le Client s’engage à régler à la Société la somme totale de : <strong>{{ montant }} €</strong>.</p>
     <p>Il convient de préciser que le Client devra régler ses honoraires à l’avocat qui aura la charge de son dossier.</p>
     <p>Le montant dû à la Société pourra être réglé en 4 paiements maximum.</p>
@@ -275,7 +284,7 @@
     <h2>Conservation des documents et des données</h2>
     <p>Les documents sont conservés pendant :</p>
     <ul>
-      <li>5 ans pour les données de mission, selon l’article 5.1 RGPD ;</li>
+      <li>5 ans pour les données de mission (article 5.1 RGPD) ;</li>
       <li>5 ans pour les documents contractuels (article 2224 Code civil) ;</li>
       <li>10 ans pour les documents comptables (article L123-22 Code de commerce).</li>
     </ul>
@@ -291,21 +300,24 @@
 
     <p>En foi de quoi, les parties conviennent de la mise en vigueur du présent contrat à la date indiquée ci-dessus.</p>
 
+<div class="signature-block">
+  <table>
+    <tr>
+      <td>
+        La Société TDS FRANCE<br/>Signature<br/><br/>
+        <img src="https://i.imgur.com/Nii41Hr.png" alt="Signature Président" style="width:100px;display:block;margin:0 auto 8px auto;" />
+        J.K Président
+      </td>
+      <td>
+        Le Client<br/>Signature
+      </td>
+    </tr>
+  </table>
 
-    <table>
-      <tr>
-        <td>
-          La Société TDS FRANCE<br/>Signature<br/><br/>J.K Président
-        </td>
-        <td>
-          Le Client<br/>Signature
-        </td>
-      </tr>
-    </table>
-
-    <div class="footer">
-      Document généré électroniquement – TDS France
-    </div>
+  <div class="footer">
+    Document généré électroniquement – TDS France
+  </div>
+</div>
   </div>
 </body>
 </html>

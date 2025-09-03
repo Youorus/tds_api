@@ -8,25 +8,74 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Lead',
+            name="Lead",
             fields=[
-                ('id', models.AutoField(primary_key=True, serialize=False, verbose_name='ID')),
-                ('first_name', models.CharField(help_text='Prénom du prospect', max_length=150, verbose_name='prénom')),
-                ('last_name', models.CharField(help_text='Nom de famille du prospect', max_length=150, verbose_name='nom')),
-                ('email', models.EmailField(blank=True, help_text='Adresse email du prospect (optionnelle)', max_length=254, null=True, verbose_name='email')),
-                ('phone', models.CharField(help_text='Numéro de téléphone au format international (ex: +33612345678)', max_length=20, verbose_name='téléphone')),
-                ('appointment_date', models.DateTimeField(blank=True, help_text='Date et heure du rendez-vous (optionnel)', null=True, verbose_name='date de rendez-vous')),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now, help_text='Date et heure de création du lead', verbose_name='date de création')),
+                (
+                    "id",
+                    models.AutoField(
+                        primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "first_name",
+                    models.CharField(
+                        help_text="Prénom du prospect",
+                        max_length=150,
+                        verbose_name="prénom",
+                    ),
+                ),
+                (
+                    "last_name",
+                    models.CharField(
+                        help_text="Nom de famille du prospect",
+                        max_length=150,
+                        verbose_name="nom",
+                    ),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        blank=True,
+                        help_text="Adresse email du prospect (optionnelle)",
+                        max_length=254,
+                        null=True,
+                        verbose_name="email",
+                    ),
+                ),
+                (
+                    "phone",
+                    models.CharField(
+                        help_text="Numéro de téléphone au format international (ex: +33612345678)",
+                        max_length=20,
+                        verbose_name="téléphone",
+                    ),
+                ),
+                (
+                    "appointment_date",
+                    models.DateTimeField(
+                        blank=True,
+                        help_text="Date et heure du rendez-vous (optionnel)",
+                        null=True,
+                        verbose_name="date de rendez-vous",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now,
+                        help_text="Date et heure de création du lead",
+                        verbose_name="date de création",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'lead',
-                'verbose_name_plural': 'leads',
-                'ordering': ['-created_at'],
+                "verbose_name": "lead",
+                "verbose_name_plural": "leads",
+                "ordering": ["-created_at"],
             },
         ),
     ]

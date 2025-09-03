@@ -1,14 +1,15 @@
 # api/utils/cloud/storage.py
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.utils.text import slugify
-from tds import settings
 
 from api.storage_backends import (
-    MinioReceiptStorage,
     MinioContractStorage,
     MinioDocumentStorage,
+    MinioReceiptStorage,
 )
+
 
 def store_receipt_pdf(receipt, pdf_bytes: bytes) -> str:
     """
@@ -30,14 +31,8 @@ def store_receipt_pdf(receipt, pdf_bytes: bytes) -> str:
     storage = MinioReceiptStorage()
     saved_path = storage.save(filename, file_content)
 
-    if getattr(settings, "STORAGE_BACKEND", "") == "aws":
-        url = (
-            f"https://{storage.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/"
-            f"{storage.location}/{saved_path}"
-        )
-    else:
-        location = f"{storage.location}/" if storage.location else ""
-        url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{location}{saved_path}"
+    location = f"{storage.location}/" if storage.location else ""
+    url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{location}{saved_path}"
 
     return url
 
@@ -45,35 +40,20 @@ def store_receipt_pdf(receipt, pdf_bytes: bytes) -> str:
 def store_contract_pdf(contract, pdf_bytes: bytes) -> str:
     """
     Stocke le PDF d’un contrat dans MinIO/S3 et retourne l’URL publique.
-    :param contract: instance Contract
-    :param pdf_bytes: bytes du PDF
-    :return: URL publique du PDF du contrat
     """
-    # ⚠️ Import local pour éviter le circular import (inutile si pas de type checking)
-    # from api.contracts.models import Contract
-
     client = contract.client
     lead = client.lead
     client_id = client.id
     client_slug = slugify(f"{lead.last_name}_{lead.first_name}_{client_id}")
     date_str = contract.created_at.strftime("%Y%m%d")
-
     filename = f"{client_slug}/contrat_{contract.id}_{date_str}.pdf"
 
     file_content = ContentFile(pdf_bytes)
     storage = MinioContractStorage()
     saved_path = storage.save(filename, file_content)
 
-    if getattr(settings, "STORAGE_BACKEND", "") == "aws":
-        url = (
-            f"https://{storage.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/"
-            f"{storage.location}/{saved_path}"
-        )
-    else:
-        location = f"{storage.location}/" if storage.location else ""
-        url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{location}{saved_path}"
-
-    return url
+    # Corrigé : l'URL retournée est déjà complète et encodée (ne pas la re-préfixer)
+    return storage.url(saved_path)
 
 
 def store_client_document(client, file_content, original_filename) -> str:
@@ -84,9 +64,11 @@ def store_client_document(client, file_content, original_filename) -> str:
     :param original_filename: str, nom d'origine (ex: "CNI.pdf")
     :return: URL publique du document
     """
-    client_slug = slugify(f"{client.lead.last_name}_{client.lead.first_name}_{client.id}")
+    client_slug = slugify(
+        f"{client.lead.last_name}_{client.lead.first_name}_{client.id}"
+    )
     ext = original_filename.split(".")[-1] if "." in original_filename else "pdf"
-    safe_filename = slugify(original_filename.rsplit('.', 1)[0])
+    safe_filename = slugify(original_filename.rsplit(".", 1)[0])
     filename = f"{client_slug}/{safe_filename}.{ext}"
 
     storage = MinioDocumentStorage()
@@ -94,13 +76,7 @@ def store_client_document(client, file_content, original_filename) -> str:
         file_content = ContentFile(file_content, name=filename)
     saved_path = storage.save(filename, file_content)
 
-    if getattr(settings, "STORAGE_BACKEND", "") == "aws":
-        url = (
-            f"https://{storage.bucket_name}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/"
-            f"{storage.location}/{saved_path}"
-        )
-    else:
-        location = f"{storage.location}/" if storage.location else ""
-        url = f"{settings.AWS_S3_ENDPOINT_URL}/{storage.bucket_name}/{location}{saved_path}"
-
+    location = f"{storage.location}/" if storage.location else ""
+    endpoint = getattr(settings, "AWS_S3_ENDPOINT_URL", "")
+    url = f"{endpoint}/{storage.bucket_name}/{location}{saved_path}"
     return url

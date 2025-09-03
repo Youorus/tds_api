@@ -9,22 +9,43 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('clients', '0001_initial'),
+        ("clients", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Document',
+            name="Document",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('url', models.URLField(verbose_name='URL du document')),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True, verbose_name='Date d’envoi')),
-                ('client', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='documents', to='clients.client', verbose_name='Client associé')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("url", models.URLField(verbose_name="URL du document")),
+                (
+                    "uploaded_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="Date d’envoi"
+                    ),
+                ),
+                (
+                    "client",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="documents",
+                        to="clients.client",
+                        verbose_name="Client associé",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Document',
-                'verbose_name_plural': 'Documents',
-                'ordering': ['-uploaded_at'],
+                "verbose_name": "Document",
+                "verbose_name_plural": "Documents",
+                "ordering": ["-uploaded_at"],
             },
         ),
     ]

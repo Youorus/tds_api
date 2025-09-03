@@ -11,24 +11,56 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('leads', '0003_lead_juriste_assigned_at'),
+        ("leads", "0003_lead_juriste_assigned_at"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='JuristAppointment',
+            name="JuristAppointment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateTimeField()),
-                ('created_at', models.DateTimeField(default=django.utils.timezone.now)),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='jurist_appointments_created', to=settings.AUTH_USER_MODEL)),
-                ('jurist', models.ForeignKey(limit_choices_to={'role': 'JURISTE'}, on_delete=django.db.models.deletion.CASCADE, related_name='jurist_appointments', to=settings.AUTH_USER_MODEL)),
-                ('lead', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='jurist_appointments', to='leads.lead')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("date", models.DateTimeField()),
+                ("created_at", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="jurist_appointments_created",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "jurist",
+                    models.ForeignKey(
+                        limit_choices_to={"role": "JURISTE"},
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="jurist_appointments",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "lead",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="jurist_appointments",
+                        to="leads.lead",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-date'],
-                'unique_together': {('jurist', 'date')},
+                "ordering": ["-date"],
+                "unique_together": {("jurist", "date")},
             },
         ),
     ]

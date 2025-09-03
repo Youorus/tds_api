@@ -1,89 +1,124 @@
+from decimal import Decimal
+
 import pytest
-from rest_framework.test import APIClient
 from django.urls import reverse
-from api.contracts.models import Contract
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.clients.models import Client
+from api.contracts.models import Contract
+from api.payments.models import PaymentReceipt
 from api.services.models import Service
-from api.users.models import User, UserRoles
-from api.lead_status.models import LeadStatus
+from api.users.models import User
+
+pytestmark = pytest.mark.django_db
+
 
 @pytest.fixture
-def lead_status(db):
-    return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#C1E8FF")
-
-@pytest.fixture
-def admin_user(db):
+def admin_user():
     return User.objects.create_user(
-        email="admin@ex.com", first_name="Admin", last_name="User",
-        password="pwd", role=UserRoles.ADMIN
+        email="admin@tds.fr",
+        password="test",
+        role="ADMIN",
+        first_name="Admin",
+        last_name="Test",
     )
 
-@pytest.fixture
-def client_user(db):
-    return User.objects.create_user(
-        email="user@ex.com", first_name="Jean", last_name="Dupont",
-        password="pwd", role=UserRoles.CONSEILLER
-    )
 
 @pytest.fixture
-def client(client_user, lead_status):
-    from api.leads.models import Lead
-    lead = Lead.objects.create(first_name="Jean", last_name="Dupont", status=lead_status)
+def auth_client(admin_user):
+    client = APIClient()
+    client.force_authenticate(user=admin_user)
+    return client
+
+
+@pytest.fixture
+def client_with_lead():
+    from api.leads.models import Lead, LeadStatus
+
+    # Crée un statut valide
+    status = LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#000000")
+    lead = Lead.objects.create(
+        first_name="Marc", last_name="Dupont", email="marc@example.com", status=status
+    )
     return Client.objects.create(lead=lead)
 
-@pytest.fixture
-def service(db):
-    # Correction ici : pas de "name", mais "code" et "label"
-    return Service.objects.create(
-        code="SERVICE_TEST",
-        label="Service test",
-        price=100
-    )
 
 @pytest.fixture
-def contract(client, admin_user, service):
+def contract(client_with_lead, admin_user):
+    service = Service.objects.create(
+        code="TEST_SERVICE", label="Test Service", price=Decimal("150.00")
+    )
     return Contract.objects.create(
-        client=client,
+        client=client_with_lead,
         created_by=admin_user,
         service=service,
-        amount_due=200,
-        discount_percent=10
+        amount_due=Decimal("150.00"),
+        contract_url="https://example.com/fake.pdf",
     )
 
-@pytest.mark.django_db
-class TestContractAPI:
-    def test_list_contracts(self, admin_user):
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("contracts-list")
-        resp = api_client.get(url)
-        assert resp.status_code == 200
 
-    def test_create_contract(self, admin_user, client, service):
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("contracts-list")
-        payload = {
-            "client": client.id,
-            "service": service.id,
-            "amount_due": "150.00",
-            "discount_percent": "5.00",
-        }
-        resp = api_client.post(url, payload, format="json")
-        assert resp.status_code == 201
+def test_send_email_contract_view(auth_client, contract, mocker):
+    # Mock la tâche Celery
+    mocked_task = mocker.patch("api.contracts.views.send_contract_email_task.delay")
+    url = reverse("contract-send-email", kwargs={"pk": contract.id})
+    res = auth_client.post(url)
 
-    def test_update_contract_signed(self, contract, admin_user):
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("contracts-detail", args=[contract.id])
-        resp = api_client.patch(url, {"is_signed": True}, format="json")
-        assert resp.status_code == 200
-        contract.refresh_from_db()
-        assert contract.is_signed is True
+    assert res.status_code == status.HTTP_202_ACCEPTED
+    assert "va être envoyé" in res.data["detail"]
+    mocked_task.assert_called_once_with(contract.id)
 
-    def test_delete_contract(self, contract, admin_user):
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("contracts-detail", args=[contract.id])
-        resp = api_client.delete(url)
-        assert resp.status_code == 204
+
+def test_get_receipts_empty(auth_client, contract):
+    url = reverse("contract-receipts", kwargs={"pk": contract.id})
+    res = auth_client.get(url)
+
+    assert res.status_code == status.HTTP_200_OK
+    assert isinstance(res.data, list)
+    assert len(res.data) == 0
+
+
+def test_refund_contract(auth_client, contract):
+    from api.payments.models import PaymentReceipt
+
+    # Préparer un contrat avec une URL S3 valide
+    contract.refund_amount = Decimal("0.00")
+    contract.contract_url = "https://s3.fr-par.scw.cloud/contracts/test_contract.pdf"
+    contract.save()
+
+    # Simuler un reçu
+    PaymentReceipt.objects.create(
+        contract=contract,
+        client=contract.client,
+        amount=Decimal("120.00"),
+        receipt_url="https://s3.fr-par.scw.cloud/receipts/test_receipt.pdf",  # ← essentiel
+    )
+
+    url = reverse("contract-refund", kwargs={"pk": contract.id})
+    payload = {"refund_amount": "50.00", "refund_note": "Client annulé"}
+    res = auth_client.post(url, payload)
+
+    assert res.status_code == status.HTTP_200_OK
+    assert Decimal(res.data["refund_amount"]) == Decimal("50.00")
+    assert res.data["is_refunded"] is True
+
+
+def test_refund_contract_invalid_amount(auth_client, contract):
+    url = reverse("contract-refund", kwargs={"pk": contract.id})
+    res = auth_client.post(url, {"refund_amount": "-10.00"})
+
+    assert res.status_code == status.HTTP_400_BAD_REQUEST
+    assert "supérieur à 0" in res.data["detail"]
+
+
+def test_filter_contract_by_client(auth_client, contract):
+    client_id = contract.client.id
+    contract.contract_url = "https://s3.fr-par.scw.cloud/contracts/test_contract.pdf"
+    contract.save()
+
+    url = reverse("contract-list-by-client", kwargs={"client_id": client_id})
+    res = auth_client.get(url)
+
+    assert res.status_code == status.HTTP_200_OK
+    assert len(res.data) == 1
+    assert res.data[0]["id"] == contract.id

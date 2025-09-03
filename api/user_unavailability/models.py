@@ -1,13 +1,18 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
+
 
 class UserUnavailability(models.Model):
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="unavailabilities"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="unavailabilities",
     )
     start_date = models.DateField()
     end_date = models.DateField()
-    label = models.CharField(max_length=120, blank=True, help_text="Motif ou commentaire (optionnel)")
+    label = models.CharField(
+        max_length=120, blank=True, help_text="Motif ou commentaire (optionnel)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 

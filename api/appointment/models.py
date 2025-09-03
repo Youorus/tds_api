@@ -1,9 +1,10 @@
-# api/appointments/models.py
+# api/appointments/test_models.py
 
-from django.db import models
 from django.conf import settings
+from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+
 
 class Appointment(models.Model):
     """
@@ -11,22 +12,19 @@ class Appointment(models.Model):
     planifié par un utilisateur (conseiller, juriste, etc.).
     """
 
-    id = models.AutoField(
-        primary_key=True,
-        verbose_name=_("ID")
-    )
+    id = models.AutoField(primary_key=True, verbose_name=_("ID"))
 
     lead = models.ForeignKey(
         "leads.Lead",
         on_delete=models.CASCADE,
         related_name="appointments",
         verbose_name=_("lead"),
-        help_text=_("Lead concerné par ce rendez-vous")
+        help_text=_("Lead concerné par ce rendez-vous"),
     )
 
     date = models.DateTimeField(
         verbose_name=_("date et heure du rendez-vous"),
-        help_text=_("Date et heure du rendez-vous")
+        help_text=_("Date et heure du rendez-vous"),
     )
 
     note = models.CharField(
@@ -34,7 +32,7 @@ class Appointment(models.Model):
         blank=True,
         null=True,
         verbose_name=_("note"),
-        help_text=_("Note ou objet du rendez-vous (optionnel)")
+        help_text=_("Note ou objet du rendez-vous (optionnel)"),
     )
 
     created_by = models.ForeignKey(
@@ -44,13 +42,13 @@ class Appointment(models.Model):
         null=True,
         related_name="appointments_created",
         verbose_name=_("créé par"),
-        help_text=_("Utilisateur qui a planifié le rendez-vous")
+        help_text=_("Utilisateur qui a planifié le rendez-vous"),
     )
 
     created_at = models.DateTimeField(
         default=timezone.now,
         verbose_name=_("date de création"),
-        help_text=_("Date de création du rendez-vous")
+        help_text=_("Date de création du rendez-vous"),
     )
 
     class Meta:
@@ -60,7 +58,7 @@ class Appointment(models.Model):
         indexes = [
             models.Index(fields=["date"], name="appointment_date_idx"),
             models.Index(fields=["lead"], name="appointment_lead_idx"),
-            models.Index(fields=["created_by"], name="appointment_createdby_idx")
+            models.Index(fields=["created_by"], name="appointment_createdby_idx"),
         ]
 
     def __str__(self):

@@ -1,6 +1,8 @@
-from rest_framework import viewsets, permissions
+from rest_framework import permissions, viewsets
+
 from .models import SpecialClosingPeriod
 from .serializers import SpecialClosingPeriodSerializer
+
 
 class SpecialClosingPeriodViewSet(viewsets.ModelViewSet):
     queryset = SpecialClosingPeriod.objects.all()

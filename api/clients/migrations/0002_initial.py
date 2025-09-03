@@ -9,20 +9,30 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('clients', '0001_initial'),
-        ('leads', '0001_initial'),
-        ('services', '0001_initial'),
+        ("clients", "0001_initial"),
+        ("leads", "0001_initial"),
+        ("services", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='client',
-            name='lead',
-            field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='form_data', to='leads.lead', verbose_name='lead'),
+            model_name="client",
+            name="lead",
+            field=models.OneToOneField(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="form_data",
+                to="leads.lead",
+                verbose_name="lead",
+            ),
         ),
         migrations.AddField(
-            model_name='client',
-            name='type_demande',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to='services.service'),
+            model_name="client",
+            name="type_demande",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                to="services.service",
+            ),
         ),
     ]

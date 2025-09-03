@@ -1,18 +1,20 @@
 # api/websocket/signals/payments.py
 import json
 import logging
-from django.db import transaction
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-from django.core.serializers.json import DjangoJSONEncoder
-from django.utils import timezone
+
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.utils import timezone
 
 from api.payments.models import PaymentReceipt
 from api.payments.serializers import PaymentReceiptSerializer
 
 log = logging.getLogger(__name__)
+
 
 def _safe_ids(instance: PaymentReceipt):
     client_id = getattr(instance, "client_id", None)
@@ -31,6 +33,7 @@ def _safe_ids(instance: PaymentReceipt):
         lead_id = None
 
     return client_id, contract_id, lead_id
+
 
 def _payload(event: str, instance: PaymentReceipt) -> dict:
     try:
@@ -51,10 +54,11 @@ def _payload(event: str, instance: PaymentReceipt) -> dict:
             "created_by": getattr(getattr(instance, "created_by", None), "id", None),
         }
     return {
-        "event": event,                          # "created" | "updated" | "deleted"
+        "event": event,  # "created" | "updated" | "deleted"
         "at": timezone.now().isoformat(),
         "data": data,
     }
+
 
 def _broadcast(groups: list[str], payload: dict):
     layer = get_channel_layer()
@@ -62,6 +66,7 @@ def _broadcast(groups: list[str], payload: dict):
     for g in groups:
         async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})
         log.info("📢 [WS] send %s -> %s", payload.get("event"), g)
+
 
 @receiver(post_save, sender=PaymentReceipt)
 def on_payment_saved(sender, instance: PaymentReceipt, created, **kwargs):
@@ -81,6 +86,7 @@ def on_payment_saved(sender, instance: PaymentReceipt, created, **kwargs):
 
     transaction.on_commit(lambda: _broadcast(groups, payload))
 
+
 @receiver(post_delete, sender=PaymentReceipt)
 def on_payment_deleted(sender, instance: PaymentReceipt, **kwargs):
     payload = _payload("deleted", instance)
@@ -88,8 +94,13 @@ def on_payment_deleted(sender, instance: PaymentReceipt, **kwargs):
 
     groups = ["payments"]
     if client_id is not None:
-        groups += [f"payments-client-{client_id}", f"client-{client_id}", "clients",
-                   f"contracts-client-{client_id}", "contracts"]
+        groups += [
+            f"payments-client-{client_id}",
+            f"client-{client_id}",
+            "clients",
+            f"contracts-client-{client_id}",
+            "contracts",
+        ]
     if contract_id is not None:
         groups += [f"payments-contract-{contract_id}"]
     if lead_id is not None:

@@ -1,25 +1,26 @@
-# api/appointment/views.py
+# api/appointment/test_views.py
 
 from datetime import datetime
 
-from django.utils.dateparse import parse_date
-from rest_framework import viewsets, permissions, status
-from rest_framework.response import Response
-from rest_framework.decorators import action
-from django.db.models.functions import TruncDate
 from django.db.models import Count
+from django.db.models.functions import TruncDate
+from django.utils.dateparse import parse_date
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from api.appointment.models import Appointment
-from api.jurist_appointment.models import JuristAppointment
 from api.appointment.serializers import AppointmentSerializer
+from api.jurist_appointment.models import JuristAppointment
 from api.jurist_appointment.serializers import JuristAppointmentSerializer
 from api.leads.models import Lead
 from api.users.models import UserRoles  # <-- adapte si besoin
-
-from api.utils.email.appointments import (
-    send_appointment_created_or_updated_email,
-    send_appointment_deleted_email,
+from api.utils.email.appointment.tasks import (
+    send_appointment_created_task,
+    send_appointment_deleted_task,
+    send_appointment_updated_task,
 )
+
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     queryset = Appointment.objects.select_related("lead", "created_by")
@@ -36,26 +37,33 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         elif user.role == UserRoles.CONSEILLER:
             return qs.filter(lead__assigned_to=user)
         elif user.role == UserRoles.JURISTE:
-            lead_ids = JuristAppointment.objects.filter(jurist=user).values_list("lead_id", flat=True)
+            lead_ids = JuristAppointment.objects.filter(jurist=user).values_list(
+                "lead_id", flat=True
+            )
             return qs.filter(lead_id__in=lead_ids)
         else:
             return qs.none()
 
     def perform_create(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance, is_update=False)
+        send_appointment_created_task.delay(instance.id)
         return instance
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        send_appointment_created_or_updated_email(instance.lead, instance, is_update=True)
+        send_appointment_updated_task.delay(instance.id)
         return instance
 
     def perform_destroy(self, instance):
         lead = instance.lead
-        appointment_date = instance.date
+
+        # ⛔️ Ne pas envoyer un datetime.isoformat(), mais plutôt un dict sérialisé
+        appointment_data = {
+            "date": instance.date.isoformat(),
+        }
         instance.delete()
-        send_appointment_deleted_email(lead, appointment_date)
+
+        send_appointment_deleted_task.delay(lead.id, appointment_data)
 
     @action(detail=False, methods=["get"], url_path="all-by-date")
     def all_by_date(self, request):
@@ -66,16 +74,21 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         """
         user = request.user
         date_str = request.query_params.get("date")
-        lead_id = request.query_params.get("lead")  # <-- lead en paramètre optionnel
+        lead_id = request.query_params.get("lead")
 
         if not date_str:
-            return Response({"error": "Paramètre 'date' requis, format YYYY-MM-DD"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Paramètre 'date' requis, format YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             day = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            return Response({"error": "Format de date invalide, attendu YYYY-MM-DD"},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Format de date invalide, attendu YYYY-MM-DD"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # RDV classiques
         appointments_qs = self.get_queryset().filter(date__date=day)
@@ -91,12 +104,17 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             if lead_id:
                 jurist_qs = jurist_qs.filter(lead_id=lead_id)
 
-            jurist_appointments_data = JuristAppointmentSerializer(jurist_qs, many=True).data
+            jurist_appointments_data = JuristAppointmentSerializer(
+                jurist_qs, many=True
+            ).data
 
-        return Response({
-            "appointments": appointments_data,
-            "jurist_appointments": jurist_appointments_data,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "appointments": appointments_data,
+                "jurist_appointments": jurist_appointments_data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=False, methods=["get"], url_path="count-by-date")
     def count_by_date(self, request):
@@ -108,8 +126,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         user = request.user
         appointments_qs = self.get_queryset()
         counts_appointment = (
-            appointments_qs
-            .annotate(day=TruncDate("date"))
+            appointments_qs.annotate(day=TruncDate("date"))
             .values("day")
             .annotate(count=Count("id"))
         )
@@ -122,8 +139,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         if user.role == UserRoles.ADMIN:
             jurist_qs = JuristAppointment.objects.filter(date__isnull=False)
             counts_jurist = (
-                jurist_qs
-                .annotate(day=TruncDate("date"))
+                jurist_qs.annotate(day=TruncDate("date"))
                 .values("day")
                 .annotate(count=Count("id"))
             )

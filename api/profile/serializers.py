@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from api.users.models import User
+from api.utils.cloud.scw.bucket_utils import generate_presigned_url  # ou cloud.signing
 
 
 class UserAvatarSerializer(serializers.ModelSerializer):
@@ -9,18 +10,14 @@ class UserAvatarSerializer(serializers.ModelSerializer):
     Tous les champs sauf avatar sont read-only pour l’intégrité.
     """
 
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'avatar']
-        read_only_fields = ['id', 'email', 'first_name', 'last_name']
+        fields = ["id", "email", "first_name", "last_name", "avatar_url"]
+        read_only_fields = ["id", "email", "first_name", "last_name", "avatar_url"]
 
     def get_avatar_url(self, obj):
-        """
-        Retourne l’URL absolue de l’avatar si disponible.
-        """
         if obj.avatar:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.avatar)
-            return obj.avatar
+            return generate_presigned_url(bucket_key="avatars", key=obj.avatar)
         return None

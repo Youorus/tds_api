@@ -1,1 +1,30 @@
+# Environnement Python
 .venv/
+__pycache__/
+*.pyc
+
+# Secrets / confs locales
+.env
+.env.*
+*.key
+*.pem
+
+# DB locale
+*.sqlite3
+
+# Fichiers IDE
+.vscode/
+.idea/
+
+# Couverture de test
+.coverage
+htmlcov/
+.coverage.*
+
+# Fichiers temporaires
+celerybeat-schedule
+*.log
+*.backup
+
+# Docker volumes
+*.pid

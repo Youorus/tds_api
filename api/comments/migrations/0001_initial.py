@@ -7,22 +7,39 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Comment',
+            name="Comment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('content', models.TextField(verbose_name='Contenu')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='Date de création')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Date de modification')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("content", models.TextField(verbose_name="Contenu")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="Date de création"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(
+                        auto_now=True, verbose_name="Date de modification"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Commentaire',
-                'verbose_name_plural': 'Commentaires',
-                'ordering': ['-created_at'],
+                "verbose_name": "Commentaire",
+                "verbose_name_plural": "Commentaires",
+                "ordering": ["-created_at"],
             },
         ),
     ]

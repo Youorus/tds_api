@@ -1,20 +1,22 @@
-# models.py
+# test_models.py
 
 from django.db import models
+
 
 class JuristGlobalAvailability(models.Model):
     """
     Définit les créneaux globaux où il est possible de prendre RDV avec un juriste,
     indépendamment de la personne.
     """
+
     DAYS_OF_WEEK = [
-        (0, 'Lundi'),
-        (1, 'Mardi'),
-        (2, 'Mercredi'),
-        (3, 'Jeudi'),
-        (4, 'Vendredi'),
-        (5, 'Samedi'),
-        (6, 'Dimanche'),
+        (0, "Lundi"),
+        (1, "Mardi"),
+        (2, "Mercredi"),
+        (3, "Jeudi"),
+        (4, "Vendredi"),
+        (5, "Samedi"),
+        (6, "Dimanche"),
     ]
     day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
     start_time = models.TimeField()

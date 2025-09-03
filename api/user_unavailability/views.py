@@ -1,6 +1,8 @@
-from rest_framework import viewsets, permissions, filters
+from rest_framework import filters, permissions, viewsets
+
 from .models import UserUnavailability
 from .serializers import UserUnavailabilitySerializer
+
 
 class UserUnavailabilityViewSet(viewsets.ModelViewSet):
     queryset = UserUnavailability.objects.select_related("user").all()

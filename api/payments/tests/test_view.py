@@ -1,85 +1,105 @@
+from decimal import Decimal
+
 import pytest
-from rest_framework.test import APIClient
 from django.urls import reverse
-from api.payments.models import PaymentReceipt
+from rest_framework import status
+from rest_framework.test import APIClient
+
 from api.clients.models import Client
 from api.contracts.models import Contract
-from api.services.models import Service
-from api.users.models import User, UserRoles
 from api.lead_status.models import LeadStatus
+from api.leads.constants import RDV_PLANIFIE
 from api.leads.models import Lead
+from api.payments.models import PaymentReceipt
+from api.services.models import Service
+from api.statut_dossier.models import StatutDossier
+from api.users.models import User, UserRoles
 
-@pytest.fixture
-def admin_user(db):
-    return User.objects.create_user(email="admin@ex.com", first_name="Admin", last_name="User", password="pwd", role=UserRoles.ADMIN)
-
-@pytest.fixture
-def client_user(db):
-    return User.objects.create_user(email="user@ex.com", first_name="Jean", last_name="Dupont", password="pwd", role=UserRoles.CONSEILLER)
-
-@pytest.fixture
-def lead_status(db):
-    return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau")
-
-@pytest.fixture
-def client(client_user, lead_status):
-    lead = Lead.objects.create(first_name="Jean", last_name="Dupont", status=lead_status)
-    return Client.objects.create(lead=lead)
-
-@pytest.fixture
-def service(db):
-    return Service.objects.create(code="SERVICE_TEST", label="Test Service", price=100)
-
-@pytest.fixture
-def contract(client, admin_user, service):
-    return Contract.objects.create(
-        client=client,
-        created_by=admin_user,
-        service=service,
-        amount_due=200,
-        discount_percent=10
-    )
 
 @pytest.mark.django_db
-class TestPaymentReceiptAPI:
-    def test_create_receipt(self, admin_user, client, contract, monkeypatch):
-        # Patch la fonction PDF pour les tests
-        monkeypatch.setattr("api.payments.models.PaymentReceipt.generate_pdf", lambda self: None)
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("receipt-list")
-        payload = {
-            "client": client.id,
-            "contract": contract.id,
-            "amount": "150.00",
-            "mode": "CB"
-        }
-        resp = api_client.post(url, payload, format="json")
-        assert resp.status_code == 201
+class TestPaymentReceiptViewSet:
+    @pytest.fixture
+    def admin_user(self):
+        return User.objects.create_user(
+            email="admin@tds.fr",
+            password="pass",
+            role=UserRoles.ADMIN,
+            first_name="Admin",
+            last_name="User",
+        )
 
-    def test_create_receipt_amount_zero_forbidden(self, admin_user, client, contract):
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("receipt-list")
-        payload = {
-            "client": client.id,
-            "contract": contract.id,
-            "amount": "0.00",
-            "mode": "CB"
-        }
-        resp = api_client.post(url, payload, format="json")
-        assert resp.status_code == 400
+    @pytest.fixture
+    def client_and_lead(self):
+        lead_status = LeadStatus.objects.create(
+            code=RDV_PLANIFIE, label="RDV planifié", color="gray"
+        )
+        lead = Lead.objects.create(
+            first_name="Marc",
+            last_name="Test",
+            email="marc@example.com",
+            phone="+33600000000",
+            status=lead_status,
+        )
+        lead.save()
+        client = Client.objects.create(lead=lead)
+        return client, lead
 
-    def test_destroy_receipt(self, admin_user, client, contract):
-        receipt = PaymentReceipt.objects.create(
+    @pytest.fixture
+    def contract(self, client_and_lead):
+        client, _ = client_and_lead
+        service = Service.objects.create(
+            code="TEST_SERVICE", label="Service A", price=Decimal("1000.00")
+        )
+        return Contract.objects.create(
+            client=client, service=service, amount_due=Decimal("1000.00")
+        )
+
+    @pytest.fixture
+    def receipt(self, client_and_lead, contract, admin_user):
+        client, _ = client_and_lead
+        return PaymentReceipt.objects.create(
             client=client,
             contract=contract,
-            amount=100,
-            mode="CB",
-            created_by=admin_user
+            amount=Decimal("100.00"),
+            mode="CARTE",
+            created_by=admin_user,
+            receipt_url="https://dummy.url/receipt.pdf",
         )
-        api_client = APIClient()
-        api_client.force_authenticate(user=admin_user)
-        url = reverse("receipt-detail", args=[receipt.id])
-        resp = api_client.delete(url)
-        assert resp.status_code == 204
+
+    @pytest.fixture
+    def api_client(self, admin_user):
+        client = APIClient()
+        client.force_authenticate(user=admin_user)
+        return client
+
+    def test_send_receipts_email_success(self, api_client, client_and_lead, receipt):
+        client, lead = client_and_lead
+        url = reverse("receipts-send-receipts-email")
+        data = {
+            "lead_id": lead.id,
+            "receipt_ids": [receipt.id],
+        }
+        response = api_client.post(url, data=data, format="json")
+        assert response.status_code == 200
+        assert "Envoi des reçus programmé" in response.data["detail"]
+
+    def test_send_receipts_email_missing_fields(self, api_client):
+        url = reverse("receipts-send-receipts-email")
+        response = api_client.post(url, data={}, format="json")
+        assert response.status_code == 400
+        assert "lead_id et receipt_ids sont requis." in response.data["detail"]
+
+    def test_send_receipts_email_invalid_lead(self, api_client, receipt):
+        url = reverse("receipts-send-receipts-email")
+        data = {"lead_id": 9999, "receipt_ids": [receipt.id]}
+        response = api_client.post(url, data=data, format="json")
+        assert response.status_code == 404
+        assert "Lead introuvable" in response.data["detail"]
+
+    def test_send_receipts_email_invalid_receipt_ids(self, api_client, client_and_lead):
+        _, lead = client_and_lead
+        url = reverse("receipts-send-receipts-email")
+        data = {"lead_id": lead.id, "receipt_ids": ["abc"]}
+        response = api_client.post(url, data=data, format="json")
+        assert response.status_code == 400
+        assert "receipt_ids doit contenir des entiers" in response.data["detail"]

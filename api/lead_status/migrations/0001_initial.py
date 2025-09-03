@@ -7,22 +7,52 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='LeadStatus',
+            name="LeadStatus",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(help_text="Code unique du statut, utilisé pour l'intégration et la logique métier (ex: RDV_CONFIRME).", max_length=50, unique=True, verbose_name='code')),
-                ('label', models.CharField(help_text="Libellé affiché dans l'interface (ex: 'Rendez-vous confirmé').", max_length=100, verbose_name='libellé')),
-                ('color', models.CharField(default='#333333', help_text='Couleur associée au statut pour affichage (ex: #33C29C).', max_length=10, verbose_name='couleur')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        help_text="Code unique du statut, utilisé pour l'intégration et la logique métier (ex: RDV_CONFIRME).",
+                        max_length=50,
+                        unique=True,
+                        verbose_name="code",
+                    ),
+                ),
+                (
+                    "label",
+                    models.CharField(
+                        help_text="Libellé affiché dans l'interface (ex: 'Rendez-vous confirmé').",
+                        max_length=100,
+                        verbose_name="libellé",
+                    ),
+                ),
+                (
+                    "color",
+                    models.CharField(
+                        default="#333333",
+                        help_text="Couleur associée au statut pour affichage (ex: #33C29C).",
+                        max_length=10,
+                        verbose_name="couleur",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'statut de lead',
-                'verbose_name_plural': 'statuts de lead',
-                'ordering': ['label'],
+                "verbose_name": "statut de lead",
+                "verbose_name_plural": "statuts de lead",
+                "ordering": ["label"],
             },
         ),
     ]

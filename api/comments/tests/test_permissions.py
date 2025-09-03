@@ -1,13 +1,15 @@
 import pytest
-from rest_framework.test import APIRequestFactory
-from django.contrib.auth.models import AnonymousUser
-from api.comments.permissions import IsCommentAuthorOrAdmin
-from api.comments.models import Comment
-from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from rest_framework.test import APIRequestFactory
+
+from api.comments.models import Comment
+from api.comments.permissions import IsCommentAuthorOrAdmin
+from api.lead_status.models import LeadStatus
+from api.leads.models import Lead
 
 User = get_user_model()
+
 
 @pytest.fixture
 def user(db):
@@ -15,8 +17,9 @@ def user(db):
         email="test1@test.com",
         first_name="Jean",
         last_name="Dupont",
-        password="pass123"
+        password="pass123",
     )
+
 
 @pytest.fixture
 def admin_user(db):
@@ -24,8 +27,9 @@ def admin_user(db):
         email="admin@test.com",
         first_name="Admin",
         last_name="User",
-        password="adminpass"
+        password="adminpass",
     )
+
 
 @pytest.fixture
 def other_user(db):
@@ -33,20 +37,26 @@ def other_user(db):
         email="other@test.com",
         first_name="Paul",
         last_name="Martin",
-        password="pass456"
+        password="pass456",
     )
+
 
 @pytest.fixture
 def lead_status(db):
     return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau")
 
+
 @pytest.fixture
 def lead(db, lead_status):
-    return Lead.objects.create(first_name="Marc", last_name="Nkue", status=lead_status, phone="+33612345678")
+    return Lead.objects.create(
+        first_name="Marc", last_name="Nkue", status=lead_status, phone="+33612345678"
+    )
+
 
 @pytest.fixture
 def comment(db, lead, user):
     return Comment.objects.create(lead=lead, author=user, content="Test comment")
+
 
 @pytest.mark.django_db
 class TestIsCommentAuthorOrAdmin:

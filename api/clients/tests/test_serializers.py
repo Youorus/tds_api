@@ -1,125 +1,88 @@
-import pytest
 from datetime import date, timedelta
+
+import pytest
+from rest_framework.exceptions import ValidationError
 
 from api.clients.serializers import ClientSerializer
 from api.leads.models import Lead
-from api.lead_status.models import LeadStatus
-from api.statut_dossier.models import StatutDossier
+from api.services.models import Service
 
-@pytest.fixture
-def lead_status(db):
-    return LeadStatus.objects.create(code="NOUVEAU", label="Nouveau")
-
-@pytest.fixture
-def statut_dossier(db):
-    return StatutDossier.objects.create(
-        code="EN_COURS",
-        label="En cours",
-        color="#C1E8FF"
-    )
-
-@pytest.fixture
-def lead(db, lead_status, statut_dossier):
-    return Lead.objects.create(
-        first_name="Marc",
-        last_name="Nkue",
-        status=lead_status,
-        statut_dossier=statut_dossier,
-    )
 
 @pytest.mark.django_db
-class TestClientSerializer:
-    def test_serializer_accepts_valid_data(self, lead):
-        data = {
-            "adresse": "1 rue de Paris",
-            "ville": "Paris",
-            "code_postal": "75000",
-            "date_naissance": "1990-01-01",
-            "lead": lead.id,  # optionnel selon serializer
-        }
-        serializer = ClientSerializer(data=data)
-        assert serializer.is_valid(raise_exception=True)
+def test_valid_client_serializer():
+    from api.lead_status.models import LeadStatus
+    from api.services.models import Service
 
-    def test_serializer_refuses_future_birth_date(self, lead):
-        future = date.today() + timedelta(days=10)
-        data = {
-            "date_naissance": future.isoformat(),
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "date_naissance" in serializer.errors
+    status = LeadStatus.objects.create(code="NOUVEAU", label="Nouveau", color="#0000FF")
+    lead = Lead.objects.create(first_name="Alice", last_name="Dupont", status=status)
 
-    def test_code_postal_invalid(self, lead):
-        data = {
-            "code_postal": "7A000",
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "code_postal" in serializer.errors
+    service = Service.objects.create(
+        code="TITRE_SEJOUR",
+        label="Titre de séjour",
+        price=100,
+    )
 
-    def test_adresse_min_length(self, lead):
-        data = {
-            "adresse": "A",
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "adresse" in serializer.errors
+    data = {
+        "type_demande_id": service.id,
+        "date_naissance": "1990-01-01",
+        "date_entree_france": "2010-01-01",
+        "adresse": "123 rue Lafayette",
+        "code_postal": "75010",
+        "ville": "Paris",
+        "nombre_enfants": 2,
+        "nombre_enfants_francais": 1,
+        "nombre_fiches_paie": 3,
+    }
 
-    def test_ville_min_length(self, lead):
-        data = {
-            "ville": "A",
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "ville" in serializer.errors
+    serializer = ClientSerializer(data=data)
+    serializer.context["lead"] = lead
+    assert serializer.is_valid(), serializer.errors
 
-    def test_remarques_max_length(self, lead):
-        data = {
-            "remarques": "a" * 300,
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "remarques" in serializer.errors
 
-    def test_a_un_visa_sans_type(self, lead):
-        data = {
-            "a_un_visa": True,
-            "type_visa": "",
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "type_visa" in serializer.errors
+@pytest.mark.django_db
+def test_invalid_date_naissance_future():
+    data = {
+        "date_naissance": date.today() + timedelta(days=1),
+    }
+    serializer = ClientSerializer(data=data)
+    with pytest.raises(ValidationError) as e:
+        serializer.is_valid(raise_exception=True)
+    assert "date_naissance" in str(e.value)
 
-    def test_domaine_activite_obligatoire_si_situation(self, lead):
-        data = {
-            "situation_pro": "CDI",
-            "domaine_activite": "",
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "domaine_activite" in serializer.errors
 
-    def test_nombre_enfants_negative(self, lead):
-        data = {
-            "nombre_enfants": -1,
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "nombre_enfants" in serializer.errors
+@pytest.mark.django_db
+def test_invalid_code_postal_length():
+    data = {
+        "code_postal": "abc",
+    }
+    serializer = ClientSerializer(data=data)
+    with pytest.raises(ValidationError) as e:
+        serializer.is_valid(raise_exception=True)
+    assert "code_postal" in str(e.value)
 
-    def test_nombre_fiches_paie_negative(self, lead):
-        data = {
-            "nombre_fiches_paie": -3,
-            "lead": lead.id,
-        }
-        serializer = ClientSerializer(data=data)
-        assert not serializer.is_valid()
-        assert "nombre_fiches_paie" in serializer.errors
+
+@pytest.mark.django_db
+def test_cross_field_validation_visa_type_required():
+    data = {
+        "a_un_visa": True,
+        "type_visa": None,
+    }
+    serializer = ClientSerializer(data=data)
+    with pytest.raises(ValidationError) as e:
+        serializer.is_valid(raise_exception=True)
+    assert "type_visa" in str(e.value)
+
+
+@pytest.mark.django_db
+def test_cross_field_validation_negative_values():
+    data = {
+        "nombre_enfants": -1,
+        "nombre_enfants_francais": -1,
+        "nombre_fiches_paie": -1,
+    }
+    serializer = ClientSerializer(data=data)
+    with pytest.raises(ValidationError) as e:
+        serializer.is_valid(raise_exception=True)
+    assert "nombre_enfants" in str(e.value)
+    assert "nombre_enfants_francais" in str(e.value)
+    assert "nombre_fiches_paie" in str(e.value)

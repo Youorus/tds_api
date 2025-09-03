@@ -2,6 +2,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 GROUP = "comments"
 
+
 class CommentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add(GROUP, self.channel_name)

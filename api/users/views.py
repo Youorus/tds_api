@@ -1,7 +1,7 @@
-# users/views.py
+# users/test_views.py
 
 from django.contrib.auth.password_validation import validate_password
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -20,13 +20,14 @@ class UserViewSet(viewsets.ModelViewSet):
     - Activation/désactivation
     - Changement de mot de passe
     """
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = None  # À adapter si pagination requise
 
-    search_fields = ['email', 'first_name', 'last_name']
-    ordering_fields = ['date_joined', 'email']
+    search_fields = ["email", "first_name", "last_name"]
+    ordering_fields = ["date_joined", "email"]
 
     @action(detail=True, methods=["patch"], url_path="toggle-active")
     def toggle_active(self, request, pk=None):
@@ -36,14 +37,21 @@ class UserViewSet(viewsets.ModelViewSet):
         user = self.get_object()
         is_active = request.data.get("is_active")
         if is_active is None:
-            return Response({"is_active": "Ce champ est requis."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"is_active": "Ce champ est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         user.is_active = bool(is_active)
         user.save()
         return Response({"is_active": user.is_active}, status=status.HTTP_200_OK)
 
-
-    @action(detail=False, methods=["get"], url_path="juristes", permission_classes=[IsAuthenticated])
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="juristes",
+        permission_classes=[IsAuthenticated],
+    )
     def juristes(self, request):
         """
         Retourne la liste des juristes actifs (role=JURISTE, is_active=True).
@@ -53,7 +61,12 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(juristes, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=["get"], url_path="conseillers", permission_classes=[IsAuthenticated])
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="conseillers",
+        permission_classes=[IsAuthenticated],
+    )
     def conseillers(self, request):
         """
         Retourne la liste des conseillers actifs (role=CONSEILLER, is_active=True).
@@ -62,7 +75,6 @@ class UserViewSet(viewsets.ModelViewSet):
         conseillers = User.objects.filter(role=UserRoles.CONSEILLER, is_active=True)
         serializer = self.get_serializer(conseillers, many=True)
         return Response(serializer.data)
-
 
     @action(detail=True, methods=["patch"], url_path="change-password")
     def change_password(self, request, pk=None):
@@ -73,12 +85,15 @@ class UserViewSet(viewsets.ModelViewSet):
         new_password = request.data.get("new_password")
 
         if not new_password:
-            return Response({"new_password": "Le nouveau mot de passe est requis."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"new_password": "Le nouveau mot de passe est requis."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if user.check_password(new_password):
             return Response(
                 {"new_password": "Le mot de passe doit être différent de l’actuel."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:

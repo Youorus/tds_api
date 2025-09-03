@@ -15,19 +15,41 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='UserUnavailability',
+            name="UserUnavailability",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('start_date', models.DateField()),
-                ('end_date', models.DateField()),
-                ('label', models.CharField(blank=True, help_text='Motif ou commentaire (optionnel)', max_length=120)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='unavailabilities', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("start_date", models.DateField()),
+                ("end_date", models.DateField()),
+                (
+                    "label",
+                    models.CharField(
+                        blank=True,
+                        help_text="Motif ou commentaire (optionnel)",
+                        max_length=120,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="unavailabilities",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Indisponibilité utilisateur',
-                'verbose_name_plural': 'Indisponibilités utilisateurs',
-                'ordering': ['-start_date', '-end_date'],
+                "verbose_name": "Indisponibilité utilisateur",
+                "verbose_name_plural": "Indisponibilités utilisateurs",
+                "ordering": ["-start_date", "-end_date"],
             },
         ),
     ]

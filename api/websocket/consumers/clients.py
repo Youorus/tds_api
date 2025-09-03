@@ -1,6 +1,7 @@
 # api/websocket/consumers/client_room.py
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+
 class ClientRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         # /ws/client/<lead_id>/

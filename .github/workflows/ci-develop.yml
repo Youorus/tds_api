@@ -1,0 +1,35 @@
+name: 🧪 CI - Run Django tests with SQLite before merging into develop
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  test:
+    name: 🧪 Run Django tests (SQLite)
+    runs-on: ubuntu-latest
+
+    env:
+      DJANGO_SETTINGS_MODULE: tds.settings.dev
+      SECRET_KEY: test
+      DEBUG: 1
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: ⚙️ Run Django tests
+        run: |
+          python manage.py migrate
+          python manage.py test

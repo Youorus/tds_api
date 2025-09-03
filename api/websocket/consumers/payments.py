@@ -1,6 +1,7 @@
 # api/websocket/consumers/payments.py
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+
 class PaymentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add("payments", self.channel_name)

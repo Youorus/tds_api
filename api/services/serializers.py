@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from api.services.models import Service
+
 
 class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,10 +27,14 @@ class ServiceSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # Pour garantir même hors formulaire que le code est normalisé
-        validated_data["code"] = validated_data["code"].strip().upper().replace(" ", "_")
+        validated_data["code"] = (
+            validated_data["code"].strip().upper().replace(" ", "_")
+        )
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if "code" in validated_data:
-            validated_data["code"] = validated_data["code"].strip().upper().replace(" ", "_")
+            validated_data["code"] = (
+                validated_data["code"].strip().upper().replace(" ", "_")
+            )
         return super().update(instance, validated_data)

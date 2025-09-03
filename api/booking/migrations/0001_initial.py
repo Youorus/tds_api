@@ -7,21 +7,28 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='SlotQuota',
+            name="SlotQuota",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('start_at', models.DateTimeField(db_index=True, unique=True)),
-                ('capacity', models.PositiveIntegerField()),
-                ('booked', models.PositiveIntegerField(default=0)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("start_at", models.DateTimeField(db_index=True, unique=True)),
+                ("capacity", models.PositiveIntegerField()),
+                ("booked", models.PositiveIntegerField(default=0)),
             ],
             options={
-                'verbose_name': 'Quota de créneau',
-                'verbose_name_plural': 'Quotas de créneau',
+                "verbose_name": "Quota de créneau",
+                "verbose_name_plural": "Quotas de créneau",
             },
         ),
     ]

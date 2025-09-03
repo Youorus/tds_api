@@ -1,5 +1,7 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+
 from api.users.roles import UserRoles  # Utilisation de la source unique des rôles
+
 
 class IsContractEditor(BasePermission):
     """
@@ -7,6 +9,7 @@ class IsContractEditor(BasePermission):
     à créer/modifier/supprimer un contrat.
     Lecture seule pour les autres utilisateurs authentifiés.
     """
+
     ALLOWED_ROLES = (
         UserRoles.ADMIN,
         UserRoles.CONSEILLER,

@@ -1,19 +1,20 @@
 # api/websocket/signals/comments.py
-import logging
-from django.db import transaction
-from django.db.models.signals import post_save, post_delete
-from django.dispatch import receiver
-from django.core.serializers.json import DjangoJSONEncoder
-from django.utils import timezone
 import json
+import logging
 
-from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import transaction
+from django.db.models.signals import post_delete, post_save
+from django.dispatch import receiver
+from django.utils import timezone
 
 from api.comments.models import Comment
 from api.comments.serializers import CommentSerializer  # ton serializer DRF
 
 log = logging.getLogger(__name__)
+
 
 def _safe_ids(instance: Comment):
     """
@@ -36,6 +37,7 @@ def _safe_ids(instance: Comment):
 
     return lead_id, client_id
 
+
 def _payload(event: str, instance: Comment):
     """
     Construit un payload JSON-sérialisable. On passe par DRF serializer,
@@ -55,10 +57,11 @@ def _payload(event: str, instance: Comment):
         }
 
     return {
-        "event": event,                 # "created" | "updated" | "deleted"
+        "event": event,  # "created" | "updated" | "deleted"
         "at": timezone.now().isoformat(),
         "data": data,
     }
+
 
 def _broadcast(groups: list[str], payload: dict):
     """
@@ -68,11 +71,9 @@ def _broadcast(groups: list[str], payload: dict):
     channel_layer = get_channel_layer()
     text = json.dumps(payload, cls=DjangoJSONEncoder)
     for g in groups:
-        async_to_sync(channel_layer.group_send)(
-            g,
-            {"type": "send_event", "text": text}
-        )
+        async_to_sync(channel_layer.group_send)(g, {"type": "send_event", "text": text})
         log.info("📢 [WS] send %s -> %s", payload.get("event"), g)
+
 
 @receiver(post_save, sender=Comment)
 def on_comment_saved(sender, instance: Comment, created, **kwargs):
@@ -84,13 +85,14 @@ def on_comment_saved(sender, instance: Comment, created, **kwargs):
     groups = ["comments"]
     if lead_id is not None:
         groups.append(f"comments-lead-{lead_id}")
-        groups.append("leads")                 # si ta liste/KPIs leads reflètent le dernier com
+        groups.append("leads")  # si ta liste/KPIs leads reflètent le dernier com
     if client_id is not None:
-        groups.append(f"client-{client_id}")   # pour réveiller la fiche client liée
+        groups.append(f"client-{client_id}")  # pour réveiller la fiche client liée
         groups.append("clients")
 
     # Envoie APRES commit pour éviter les incohérences
     transaction.on_commit(lambda: _broadcast(groups, payload))
+
 
 @receiver(post_delete, sender=Comment)
 def on_comment_deleted(sender, instance: Comment, **kwargs):
