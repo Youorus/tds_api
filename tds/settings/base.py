@@ -1,21 +1,24 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+
 from redis import SSLConnection
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 from celery.schedules import crontab
 
+# ─── Chargement des variables d’environnement ───────────────
 load_dotenv()
 
-# ─── PATH ─────────────────────────────────────────────────────
+# ─── Paths ──────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# ─── CORE DJANGO ──────────────────────────────────────────────
+# ─── Django Core ────────────────────────────────────────────
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "changeme")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
+# ─── Applications installées ────────────────────────────────
 INSTALLED_APPS = [
     "corsheaders",
     "storages",
@@ -28,33 +31,34 @@ INSTALLED_APPS = [
     "django_extensions",
     "background_task",
 
-    # API
+    # API & Auth
     "rest_framework",
     "rest_framework_simplejwt",
 
-    # Modules métiers
-    "api.custom_auth",
-    "api.clients",
-    "api.comments",
-    "api.contracts",
-    "api.documents",
-    "api.lead_status",
-    "api.leads",
-    "api.payments",
-    "api.profile",
-    "api.services",
-    "api.statut_dossier",
-    "api.users",
-    "api.booking",
-    "api.appointment",
-    "api.jurist_appointment",
-    "api.websocket",
-    "api.special_closing_period",
-    "api.opening_hours",
-    "api.jurist_availability_date",
-    "api.user_unavailability",
+    # Modules métier
+    "api.custom_auth.apps.CustomAuthConfig",
+    "api.clients.apps.ClientsConfig",
+    "api.comments.apps.CommentsConfig",
+    "api.contracts.apps.ContractsConfig",
+    "api.documents.apps.DocumentsConfig",
+    "api.lead_status.apps.LeadStatusConfig",
+    "api.leads.apps.LeadsConfig",
+    "api.payments.apps.PaymentsConfig",
+    "api.profile.apps.ProfileConfig",
+    "api.services.apps.ServicesConfig",
+    "api.statut_dossier.apps.StatutDossierConfig",
+    "api.users.apps.UsersConfig",
+    "api.booking.apps.BookingConfig",
+    "api.appointment.apps.AppointmentConfig",
+    "api.jurist_appointment.apps.JuristAppointmentConfig",
+    "api.websocket.apps.WebsocketConfig",
+    "api.special_closing_period.apps.SpecialClosingPeriodConfig",
+    "api.opening_hours.apps.OpeningHoursConfig",
+    "api.jurist_availability_date.apps.JuristAvailabilityDateConfig",
+    "api.user_unavailability.apps.UserUnavailabilityConfig",
 ]
 
+# ─── Middleware ─────────────────────────────────────────────
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -68,11 +72,10 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "tds.urls"
 ASGI_APPLICATION = "tds.asgi.application"
-
 AUTH_USER_MODEL = "users.user"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# ─── TEMPLATES ────────────────────────────────────────────────
+# ─── Templates ──────────────────────────────────────────────
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -89,7 +92,7 @@ TEMPLATES = [
     },
 ]
 
-# ─── REST FRAMEWORK + JWT ─────────────────────────────────────
+# ─── REST Framework & JWT ───────────────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "api.custom_auth.authentication.CookieJWTAuthentication",
@@ -108,7 +111,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# ─── CELERY & REDIS / UPSTASH ─────────────────────────────────
+# ─── Redis / Channels / Celery ──────────────────────────────
 USE_UPSTASH = "upstash.io" in os.getenv("REDIS_URL", "")
 
 CHANNEL_LAYERS = {
@@ -123,10 +126,9 @@ CHANNEL_LAYERS = {
     },
 }
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": None}
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "")
 CELERY_BROKER_TRANSPORT_OPTIONS = (
-    CELERY_BROKER_USE_SSL if CELERY_BROKER_URL.startswith("rediss://") else {}
+    {"ssl_cert_reqs": None} if CELERY_BROKER_URL.startswith("rediss://") else {}
 )
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -146,7 +148,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# ─── CORS / CSRF ──────────────────────────────────────────────
+# ─── CORS / CSRF ─────────────────────────────────────────────
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")
@@ -154,14 +156,14 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").spl
 CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
 
-# ─── SÉCURITÉ ─────────────────────────────────────────────────
+# ─── Sécurité ────────────────────────────────────────────────
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in ("true", "1", "yes")
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# ─── EMAIL SMTP ───────────────────────────────────────────────
+# ─── Email SMTP ─────────────────────────────────────────────
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
@@ -172,16 +174,16 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
-# ─── LANGUE / TIMEZONE ───────────────────────────────────────
+# ─── Time & Langue ───────────────────────────────────────────
 LANGUAGE_CODE = "fr-fr"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
 
-# ─── PDF / CONTRATS ───────────────────────────────────────────
+# ─── Génération de PDF ──────────────────────────────────────
 WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
 
-# ─── STORAGE S3 (Scaleway ou MinIO) ───────────────────────────
+# ─── Stockage S3 (Scaleway / MinIO) ─────────────────────────
 STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "minio")
 AWS_S3_VERIFY = os.getenv("AWS_S3_VERIFY", "True").lower() in ("true", "1", "yes")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
@@ -192,6 +194,7 @@ AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "fr-par")
 AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "path")
 AWS_QUERYSTRING_AUTH = False
 
+# Buckets séparés
 BUCKET_USERS_AVATARS = os.getenv("BUCKET_USERS_AVATARS", "avatars-tds")
 BUCKET_CLIENT_DOCUMENTS = os.getenv("BUCKET_CLIENT_DOCUMENTS", "documents-clients")
 BUCKET_CONTRACTS = os.getenv("BUCKET_CONTRACTS", "contracts")
@@ -204,7 +207,7 @@ SCW_BUCKETS = {
     "receipts": BUCKET_RECEIPTS,
 }
 
-# ─── LOGGING ──────────────────────────────────────────────────
+# ─── Logging ─────────────────────────────────────────────────
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
