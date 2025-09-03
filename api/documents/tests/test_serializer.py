@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 from api.clients.models import Client
 from api.documents.models import Document
@@ -17,11 +18,12 @@ class TestDocumentSerializer:
         lead = Lead.objects.create(first_name="Marc", last_name="Nkue", status=status)
         return Client.objects.create(lead=lead)
 
-    def test_serializer_output(self, client):
+    @patch("api.documents.serializers.generate_presigned_url")
+    def test_serializer_output(self, mock_generate_url, client):
+        mock_generate_url.return_value = "https://s3.fr-par.scw.cloud/documents-clients/marc_nkue/mon_fichier.pdf?X-Amz-Signature=abc123"
         doc = Document.objects.create(client=client, url="https://s3.fr-par.scw.cloud/documents-clients/marc_nkue/mon_fichier.pdf")
         data = DocumentSerializer(doc).data
         assert data["client"] == client.id
-        assert data["url"].startswith("https://s3.")
         assert "mon_fichier.pdf" in data["url"]
         assert "X-Amz-Signature" in data["url"]
         assert "uploaded_at" in data

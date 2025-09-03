@@ -1,5 +1,6 @@
 from decimal import Decimal
 from urllib.parse import urlparse, unquote
+from unittest.mock import patch
 
 import pytest
 from django.utils import timezone
@@ -20,7 +21,8 @@ Vérifie que le serializer `ContractSerializer` retourne les valeurs calculées 
 
 
 @pytest.mark.django_db
-def test_contract_serializer_values():
+@patch("api.contracts.serializer.generate_presigned_url")
+def test_contract_serializer_values(mock_generate_url):
     """
     Vérifie que le serializer `ContractSerializer` retourne les bonnes valeurs :
     - Montant dû réel après remise
@@ -28,6 +30,9 @@ def test_contract_serializer_values():
     - Statut de paiement
     - URL contract brute si externe
     """
+    mock_generate_url.return_value = (
+        "https://s3.fr-par.scw.cloud/contracts/contrat-test.pdf?X-Amz-Signature=fake"
+    )
 
     from api.lead_status.models import LeadStatus
     from api.leads.models import Lead
@@ -63,7 +68,7 @@ def test_contract_serializer_values():
         amount_due=Decimal("1000.00"),
         discount_percent=Decimal("20.00"),
         refund_amount=Decimal("100.00"),
-        contract_url="https://s3.fr-par.scw.cloud/contracts/contrat-test.pdf",  # URL interne Scaleway ⇒ signée
+        contract_url="https://s3.fr-par.scw.cloud/contracts/contrat-test.pdf",
         is_signed=True,
         created_at=timezone.now(),
     )
@@ -73,20 +78,18 @@ def test_contract_serializer_values():
     serializer = ContractSerializer(contract)
     data = serializer.data
 
-    # ✅ Valeurs de référence
     real_amount_due = Decimal("800.00")           # 1000 * 0.80
     amount_paid = Decimal("500.00")               # reçu
     net_paid = Decimal("400.00")                  # 500 - 100
     balance_due = Decimal("400.00")               # 800 - 400
 
-    # ✅ Tests
     assert Decimal(data["amount_due"]) == Decimal("1000.00")
     assert Decimal(data["discount_percent"]) == Decimal("20.00")
     assert Decimal(data["real_amount_due"]) == real_amount_due
     assert Decimal(data["amount_paid"]) == amount_paid
     assert Decimal(data["net_paid"]) == net_paid
     assert Decimal(data["balance_due"]) == balance_due
-    assert data["is_fully_paid"] is False
+    assert data["is_fully_paid"] is False, f"Expected is_fully_paid to be False, but got {data['is_fully_paid']}"
     assert data["contract_url"].startswith("https://s3.fr-par.scw.cloud/contracts/")
     assert "contrat-test.pdf" in data["contract_url"]
     assert "X-Amz-Signature" in data["contract_url"]
