@@ -1,23 +1,21 @@
-# tds/settings/base.py
-
 import os
 from datetime import timedelta
 from pathlib import Path
 from redis import SSLConnection
-from celery.schedules import crontab
-from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
+from celery.schedules import crontab
 
 load_dotenv()
 
+# ─── PATH ─────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Core
+# ─── CORE DJANGO ──────────────────────────────────────────────
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "changeme")
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
-# Applications
 INSTALLED_APPS = [
     "corsheaders",
     "storages",
@@ -29,10 +27,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "background_task",
+
     # API
     "rest_framework",
     "rest_framework_simplejwt",
-    # Modules métier
+
+    # Modules métiers
     "api.custom_auth",
     "api.clients",
     "api.comments",
@@ -55,9 +55,6 @@ INSTALLED_APPS = [
     "api.user_unavailability",
 ]
 
-ASGI_APPLICATION = "tds.asgi.application"
-
-# Middleware
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -69,7 +66,13 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-# Templates
+ROOT_URLCONF = "tds.urls"
+ASGI_APPLICATION = "tds.asgi.application"
+
+AUTH_USER_MODEL = "users.user"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ─── TEMPLATES ────────────────────────────────────────────────
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -86,11 +89,7 @@ TEMPLATES = [
     },
 ]
 
-# Base User model
-AUTH_USER_MODEL = "users.user"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# JWT + Auth
+# ─── REST FRAMEWORK + JWT ─────────────────────────────────────
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "api.custom_auth.authentication.CookieJWTAuthentication",
@@ -109,7 +108,7 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# Celery
+# ─── CELERY & REDIS / UPSTASH ─────────────────────────────────
 USE_UPSTASH = "upstash.io" in os.getenv("REDIS_URL", "")
 
 CHANNEL_LAYERS = {
@@ -125,10 +124,7 @@ CHANNEL_LAYERS = {
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_BROKER_USE_SSL = {
-    "ssl_cert_reqs": None
-}
-
+CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": None}
 CELERY_BROKER_TRANSPORT_OPTIONS = (
     CELERY_BROKER_USE_SSL if CELERY_BROKER_URL.startswith("rediss://") else {}
 )
@@ -150,7 +146,7 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# CORS / CSRF
+# ─── CORS / CSRF ──────────────────────────────────────────────
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost").split(",")
@@ -158,45 +154,14 @@ CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost").spl
 CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
 CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
 
-# Sécurité
+# ─── SÉCURITÉ ─────────────────────────────────────────────────
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in (
-    "true",
-    "1",
-    "yes",
-)
+SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in ("true", "1", "yes")
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# PDF
-WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
-
-# Langue / fuseau
-LANGUAGE_CODE = "fr-fr"
-TIME_ZONE = "Europe/Paris"
-USE_I18N = True
-USE_TZ = True
-
-# Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-        },
-    },
-    "root": {
-        "handlers": ["console"],
-        "level": "INFO",
-    },
-}
-
-ROOT_URLCONF = "tds.urls"
-
-
-# Email
+# ─── EMAIL SMTP ───────────────────────────────────────────────
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
 EMAIL_HOST = os.getenv("EMAIL_HOST")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
@@ -207,19 +172,26 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
 
-# --- MinIO / Scaleway Object Storage (S3-Compatible) ---
+# ─── LANGUE / TIMEZONE ───────────────────────────────────────
+LANGUAGE_CODE = "fr-fr"
+TIME_ZONE = "Europe/Paris"
+USE_I18N = True
+USE_TZ = True
 
-STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "minio")  # minio ou aws
+# ─── PDF / CONTRATS ───────────────────────────────────────────
+WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
+
+# ─── STORAGE S3 (Scaleway ou MinIO) ───────────────────────────
+STORAGE_BACKEND = os.getenv("STORAGE_BACKEND", "minio")
 AWS_S3_VERIFY = os.getenv("AWS_S3_VERIFY", "True").lower() in ("true", "1", "yes")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
-AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "fr-par")  # Scaleway default
-AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", "http://localhost:9000")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "fr-par")
+AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "path")
 AWS_QUERYSTRING_AUTH = False
 
-# Buckets Scaleway S3
 BUCKET_USERS_AVATARS = os.getenv("BUCKET_USERS_AVATARS", "avatars-tds")
 BUCKET_CLIENT_DOCUMENTS = os.getenv("BUCKET_CLIENT_DOCUMENTS", "documents-clients")
 BUCKET_CONTRACTS = os.getenv("BUCKET_CONTRACTS", "contracts")
@@ -230,4 +202,17 @@ SCW_BUCKETS = {
     "documents": BUCKET_CLIENT_DOCUMENTS,
     "contracts": BUCKET_CONTRACTS,
     "receipts": BUCKET_RECEIPTS,
+}
+
+# ─── LOGGING ──────────────────────────────────────────────────
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
 }

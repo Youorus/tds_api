@@ -1,1 +1,9 @@
-.venv/
+# Fichiers temporaires / sensibles
+.env
+.env.*
+!.env.template
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+*.DS_Store
