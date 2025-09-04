@@ -19,17 +19,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Copier requirements et installer les dépendances Python
+# ✅ Étape de cache 1 : requirements.txt (rarement modifié)
 COPY requirements.txt .
+
+# ✅ Étape de cache 2 : installation pip
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copier le projet entier (y compris tools/wkhtmltopdf)
+# ⛔️ Étape sensible : copier le projet (change souvent → invalide le cache)
 COPY . .
 
-# Rendre le binaire wkhtmltopdf exécutable si nécessaire
+# wkhtmltopdf binaire interne
 RUN chmod +x tools/wkhtmltopdf
 
-# Ajouter wkhtmltopdf au PATH global
+# Mettre dans le PATH
 ENV PATH="/app/tools:$PATH"
 
 
@@ -41,15 +43,15 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Copier tout le dossier du builder
+# ✅ Copier /usr/local (pip install déjà fait)
 COPY --from=builder /usr/local /usr/local
+
+# ✅ Copier ton app et wkhtmltopdf
 COPY --from=builder /app /app
 
-# Rendre wkhtmltopdf utilisable dans l'image finale
+# wkhtmltopdf dans le PATH
 ENV PATH="/app/tools:$PATH"
 
-# Exposer le port (si tu utilises Gunicorn)
 EXPOSE 8000
 
-# Lancement avec Gunicorn + Uvicorn worker pour ASGI
 CMD ["gunicorn", "tds.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
