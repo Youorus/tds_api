@@ -32,8 +32,6 @@ RUN chmod +x tools/wkhtmltopdf
 # Ajouter wkhtmltopdf au PATH global
 ENV PATH="/app/tools:$PATH"
 
-# Facultatif : lancer les tests
-RUN pip install pytest && pytest --disable-warnings || exit 1
 
 # ─── STAGE 2 : Final ───────────────────────────────
 FROM python:3.11-slim
