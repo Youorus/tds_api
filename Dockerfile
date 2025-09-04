@@ -48,9 +48,6 @@ COPY --from=builder /app /app
 # Rendre wkhtmltopdf utilisable dans l'image finale
 ENV PATH="/app/tools:$PATH"
 
-# Collecte des fichiers statiques (si applicable)
-RUN python manage.py collectstatic --noinput
-
 # Exposer le port (si tu utilises Gunicorn)
 EXPOSE 8000
 
