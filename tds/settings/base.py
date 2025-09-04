@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "storages",
     "channels",
+    "django_celery_beat",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
