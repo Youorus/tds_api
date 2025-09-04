@@ -7,7 +7,7 @@ from django.core.asgi import get_asgi_application
 
 from api.websocket.rootings.urls import websocket_urlpatterns
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings.dev")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "tds.settings.prod")
 # uvicorn tds.asgi:application --host 127.0.0.1 --port 8000 --reload
 print("🚀 Chargement ASGI tds.asgi.application")  # <— DOIT s'afficher au boot
 
