@@ -55,6 +55,7 @@ class LoginView(APIView):
             httponly=True,
             secure=True,
             samesite="None",
+            domain=".tds-dossier.fr",
             path="/",
             max_age=60 * 60,  # 1 heure
         )
@@ -65,6 +66,7 @@ class LoginView(APIView):
             httponly=True,
             secure=True,
             samesite="None",
+            domain=".tds-dossier.fr",
             path="/",
             max_age=60 * 60 * 24 * 7,  # 7 jours
         )
@@ -76,6 +78,7 @@ class LoginView(APIView):
             httponly=False,
             secure=True,
             samesite="None",
+            domain=".tds-dossier.fr",
             path="/",
             max_age=60 * 60 * 24 * 7,
         )
@@ -137,6 +140,7 @@ class CustomTokenRefreshView(TokenRefreshView):
                 httponly=True,
                 secure=True,
                 samesite="None",
+                domain=".tds-dossier.fr",
                 path="/",
                 max_age=60 * 60,  # 1 heure
             )

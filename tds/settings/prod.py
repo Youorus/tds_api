@@ -63,6 +63,9 @@ CHANNEL_LAYERS = {
     },
 }
 
+SESSION_COOKIE_DOMAIN = ".tds-dossier.fr"
+CSRF_COOKIE_DOMAIN = ".tds-dossier.fr"
+
 SESSION_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SAMESITE = "None"
 
