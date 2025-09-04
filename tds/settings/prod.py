@@ -63,6 +63,9 @@ CHANNEL_LAYERS = {
     },
 }
 
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
+
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
 
 if CELERY_BROKER_URL.startswith("rediss://"):
