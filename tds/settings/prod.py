@@ -18,7 +18,7 @@ DATABASES = {
 
 # ─── Fichiers statiques (collectés dans /staticfiles) ───────────
 STATIC_URL = "/static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # ─── CORS / CSRF autorisés depuis domaines frontend ─────────────
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
