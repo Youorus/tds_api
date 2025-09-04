@@ -53,8 +53,8 @@ class LoginView(APIView):
             key="access_token",
             value=tokens["access"],
             httponly=True,
-            secure=IS_HTTPS,
-            samesite="Lax",
+            secure=True,
+            samesite="None",
             path="/",
             max_age=60 * 60,  # 1 heure
         )
@@ -63,6 +63,7 @@ class LoginView(APIView):
             key="refresh_token",
             value=tokens["refresh"],
             httponly=True,
+            secure=True,
             samesite="None",
             path="/",
             max_age=60 * 60 * 24 * 7,  # 7 jours
@@ -134,8 +135,8 @@ class CustomTokenRefreshView(TokenRefreshView):
                 key="access_token",
                 value=access_token,
                 httponly=True,
-                secure=IS_HTTPS,
-                samesite="Lax",
+                secure=True,
+                samesite="None",
                 path="/",
                 max_age=60 * 60,  # 1 heure
             )
