@@ -222,3 +222,6 @@ LOGGING = {
         "level": "INFO",
     },
 }
+
+# ─── Frontend URL ─────────────────────────────────────────────
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://www.tds-dossier.fr")
