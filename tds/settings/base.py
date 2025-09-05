@@ -181,7 +181,7 @@ TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
 
-APPEND_SLASH = False
+APPEND_SLASH = True
 
 # ─── Génération de PDF ──────────────────────────────────────
 WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
