@@ -51,7 +51,7 @@ class LoginView(APIView):
             update_last_login(User, user)
 
             # Redirection selon le rôle
-            redirect_url = {
+            relative_path = {
                 "ADMIN": "/dashboard/admin",
                 "ACCUEIL": "/dashboard/accueil",
                 "JURISTE": "/dashboard/juriste",
