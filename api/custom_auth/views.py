@@ -60,6 +60,7 @@ class LoginView(APIView):
                 "COMPTABILITE": "/dashboard/comptabilite",
             }.get(user.role, "/dashboard")
 
+            redirect_url = f"{settings.FRONTEND_URL}{relative_path}"
             response = redirect(redirect_url)
 
             # ✅ JWT tokens en HttpOnly
