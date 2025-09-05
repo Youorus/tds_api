@@ -3,15 +3,16 @@ from django.contrib.auth.models import update_last_login
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
-from api.custom_auth.serializers import LoginSerializer
 from django.conf import settings
 
+from api.custom_auth.serializers import LoginSerializer
+
 User = get_user_model()
-IS_HTTPS = not settings.DEBUG  # HTTPS en production
+IS_HTTPS = not settings.DEBUG
 
 # 🔐 Paramètres communs pour les cookies
 COMMON_COOKIE_PARAMS = dict(
@@ -25,8 +26,8 @@ COMMON_COOKIE_PARAMS = dict(
 class LoginView(APIView):
     """
     Vue API pour l’authentification d’un utilisateur.
-    Pose les cookies HttpOnly pour access et refresh tokens.
-    Ne pose **plus** de cookie pour le rôle.
+    Pose uniquement les cookies JWT (HttpOnly).
+    Ne retourne aucune information sur le rôle ou l'utilisateur.
     """
 
     permission_classes = [AllowAny]
@@ -45,29 +46,21 @@ class LoginView(APIView):
 
             update_last_login(User, user)
 
-            # ✅ Crée une instance de réponse ici
-            response = Response(
-                data={
-                    "role": user.role,
-                    "role_display": user.get_role_display(),
-                },
-                status=status.HTTP_200_OK,
-            )
+            response = Response(status=status.HTTP_204_NO_CONTENT)
 
-            # ✅ Pose les cookies HttpOnly
+            # ✅ Pose les cookies JWT HttpOnly
             response.set_cookie(
                 key="access_token",
                 value=tokens["access"],
                 httponly=True,
-                max_age=60 * 60,
+                max_age=60 * 60,  # 1h
                 **COMMON_COOKIE_PARAMS,
             )
-
             response.set_cookie(
                 key="refresh_token",
                 value=tokens["refresh"],
                 httponly=True,
-                max_age=60 * 60 * 24 * 7,
+                max_age=60 * 60 * 24 * 7,  # 7 jours
                 **COMMON_COOKIE_PARAMS,
             )
 
@@ -85,25 +78,23 @@ class LoginView(APIView):
 @method_decorator(csrf_exempt, name="dispatch")
 class LogoutView(APIView):
     """
-    Vue API pour la déconnexion de l'utilisateur.
-    Supprime les cookies JWT (access_token et refresh_token).
+    Vue API pour la déconnexion.
+    Supprime les cookies access_token et refresh_token.
     """
 
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
-
         response.delete_cookie("access_token", **COMMON_COOKIE_PARAMS)
         response.delete_cookie("refresh_token", **COMMON_COOKIE_PARAMS)
-
         return response
 
 
 class CustomTokenRefreshView(TokenRefreshView):
     """
-    Vue personnalisée qui lit le refresh_token depuis les cookies HttpOnly
-    et renvoie un nouveau access_token dans un cookie.
+    Rafraîchit le token d’accès en lisant le refresh_token depuis les cookies HttpOnly.
+    Renvoie un nouveau access_token uniquement dans le cookie (pas dans le body).
     """
 
     def post(self, request, *args, **kwargs):
@@ -129,7 +120,7 @@ class CustomTokenRefreshView(TokenRefreshView):
                 **COMMON_COOKIE_PARAMS,
             )
 
-            # Optionnel : tu peux masquer le token dans le body si nécessaire
-            # del response.data["access"]
+            # ✅ Supprime le token du body pour sécurité (optionnel mais recommandé)
+            del response.data["access"]
 
         return response
