@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
+from django.core import signing
 
 from api.custom_auth.serializers import LoginSerializer
 
@@ -22,12 +23,14 @@ COMMON_COOKIE_PARAMS = dict(
     path="/",
 )
 
+# 🔐 Salt spécifique pour la signature du rôle
+USER_ROLE_SALT = "user_role_cookie"
+
 
 class LoginView(APIView):
     """
     Vue API pour l’authentification d’un utilisateur.
-    Pose uniquement les cookies JWT (HttpOnly).
-    Ne retourne aucune information sur le rôle ou l'utilisateur.
+    Pose les cookies JWT (HttpOnly) + un cookie signé `user_role`.
     """
 
     permission_classes = [AllowAny]
@@ -48,7 +51,7 @@ class LoginView(APIView):
 
             response = Response(status=status.HTTP_204_NO_CONTENT)
 
-            # ✅ Pose les cookies JWT HttpOnly
+            # ✅ JWT tokens en HttpOnly
             response.set_cookie(
                 key="access_token",
                 value=tokens["access"],
@@ -61,6 +64,16 @@ class LoginView(APIView):
                 value=tokens["refresh"],
                 httponly=True,
                 max_age=60 * 60 * 24 * 7,  # 7 jours
+                **COMMON_COOKIE_PARAMS,
+            )
+
+            # ✅ Cookie user_role signé (non-HttpOnly mais sécurisé)
+            signed_role = signing.dumps(user.role, salt=USER_ROLE_SALT)
+            response.set_cookie(
+                key="user_role",
+                value=signed_role,
+                httponly=False,  # ❗accessible côté client et middleware
+                max_age=60 * 60,  # même durée que access_token
                 **COMMON_COOKIE_PARAMS,
             )
 
@@ -79,7 +92,7 @@ class LoginView(APIView):
 class LogoutView(APIView):
     """
     Vue API pour la déconnexion.
-    Supprime les cookies access_token et refresh_token.
+    Supprime les cookies access_token, refresh_token, user_role.
     """
 
     permission_classes = [AllowAny]
@@ -88,13 +101,14 @@ class LogoutView(APIView):
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie("access_token", **COMMON_COOKIE_PARAMS)
         response.delete_cookie("refresh_token", **COMMON_COOKIE_PARAMS)
+        response.delete_cookie("user_role", **COMMON_COOKIE_PARAMS)  # 🧹 important
         return response
 
 
 class CustomTokenRefreshView(TokenRefreshView):
     """
     Rafraîchit le token d’accès en lisant le refresh_token depuis les cookies HttpOnly.
-    Renvoie un nouveau access_token uniquement dans le cookie (pas dans le body).
+    Renvoie un nouveau access_token uniquement dans le cookie.
     """
 
     def post(self, request, *args, **kwargs):
@@ -120,7 +134,6 @@ class CustomTokenRefreshView(TokenRefreshView):
                 **COMMON_COOKIE_PARAMS,
             )
 
-            # ✅ Supprime le token du body pour sécurité (optionnel mais recommandé)
             del response.data["access"]
 
         return response
