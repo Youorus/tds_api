@@ -1,4 +1,4 @@
-from django.urls import include, path
+from django.urls import include, path, re_path
 from rest_framework.routers import DefaultRouter
 
 from .me_views import MeView
@@ -8,6 +8,6 @@ router = DefaultRouter()
 router.register(r"", UserViewSet, basename="users")
 
 urlpatterns = [
-    path("me/", MeView.as_view(), name="me"),
+    re_path(r"^me$", MeView.as_view(), name="me"),
     path("", include(router.urls)),
 ]
