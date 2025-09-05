@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
 from django.core import signing
+from django.shortcuts import redirect
 
 from api.custom_auth.serializers import LoginSerializer
 
@@ -30,7 +31,7 @@ USER_ROLE_SALT = "user_role_cookie"
 class LoginView(APIView):
     """
     Vue API pour l’authentification d’un utilisateur.
-    Pose les cookies JWT (HttpOnly) + un cookie signé `user_role`.
+    Pose les cookies JWT (HttpOnly) et redirige immédiatement selon le rôle.
     """
 
     permission_classes = [AllowAny]
@@ -49,7 +50,17 @@ class LoginView(APIView):
 
             update_last_login(User, user)
 
-            response = Response(status=status.HTTP_204_NO_CONTENT)
+            # Redirection selon le rôle
+            redirect_url = {
+                "ADMIN": "/dashboard/admin",
+                "ACCUEIL": "/dashboard/accueil",
+                "JURISTE": "/dashboard/juriste",
+                "CONSEILLER": "/dashboard/conseiller",
+                "COMMERCIAL": "/dashboard/commercial",
+                "COMPTABILITE": "/dashboard/comptabilite",
+            }.get(user.role, "/dashboard")
+
+            response = redirect(redirect_url)
 
             # ✅ JWT tokens en HttpOnly
             response.set_cookie(
@@ -64,16 +75,6 @@ class LoginView(APIView):
                 value=tokens["refresh"],
                 httponly=True,
                 max_age=60 * 60 * 24 * 7,  # 7 jours
-                **COMMON_COOKIE_PARAMS,
-            )
-
-            # ✅ Cookie user_role signé (non-HttpOnly mais sécurisé)
-            signed_role = signing.dumps(user.role, salt=USER_ROLE_SALT)
-            response.set_cookie(
-                key="user_role",
-                value=signed_role,
-                httponly=False,  # ❗accessible côté client et middleware
-                max_age=60 * 60,  # même durée que access_token
                 **COMMON_COOKIE_PARAMS,
             )
 
