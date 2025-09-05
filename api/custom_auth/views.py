@@ -42,14 +42,6 @@ class LoginView(APIView):
         # 🕐 Optionnel : mise à jour du last_login
         update_last_login(User, user)
 
-        # ✅ Le rôle est renvoyé dans le corps de la réponse uniquement
-        response = Response(
-            data={
-                "role": user.role,
-                "role_display": user.get_role_display(),
-            },
-            status=status.HTTP_200_OK,
-        )
 
         # 🔐 Cookies JWT HttpOnly
         response.set_cookie(
