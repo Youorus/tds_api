@@ -33,34 +33,53 @@ class LoginView(APIView):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer = self.serializer_class(
+                data=request.data,
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
 
-        user = serializer.validated_data["user"]
-        tokens = serializer.validated_data["tokens"]
+            user = serializer.validated_data["user"]
+            tokens = serializer.validated_data["tokens"]
 
-        # 🕐 Optionnel : mise à jour du last_login
-        update_last_login(User, user)
+            update_last_login(User, user)
 
+            # ✅ Crée une instance de réponse ici
+            response = Response(
+                data={
+                    "role": user.role,
+                    "role_display": user.get_role_display(),
+                },
+                status=status.HTTP_200_OK,
+            )
 
-        # 🔐 Cookies JWT HttpOnly
-        response.set_cookie(
-            key="access_token",
-            value=tokens["access"],
-            httponly=True,
-            max_age=60 * 60,
-            **COMMON_COOKIE_PARAMS,
-        )
+            # ✅ Pose les cookies HttpOnly
+            response.set_cookie(
+                key="access_token",
+                value=tokens["access"],
+                httponly=True,
+                max_age=60 * 60,
+                **COMMON_COOKIE_PARAMS,
+            )
 
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens["refresh"],
-            httponly=True,
-            max_age=60 * 60 * 24 * 7,
-            **COMMON_COOKIE_PARAMS,
-        )
+            response.set_cookie(
+                key="refresh_token",
+                value=tokens["refresh"],
+                httponly=True,
+                max_age=60 * 60 * 24 * 7,
+                **COMMON_COOKIE_PARAMS,
+            )
 
-        return response
+            return response
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 @method_decorator(csrf_exempt, name="dispatch")
