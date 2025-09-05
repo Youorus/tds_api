@@ -31,9 +31,8 @@ USER_ROLE_SALT = "user_role_cookie"
 class LoginView(APIView):
     """
     Vue API pour l’authentification d’un utilisateur.
-    Pose les cookies JWT (HttpOnly) et redirige immédiatement selon le rôle.
+    Pose les cookies JWT (HttpOnly) et renvoie un 200 avec le rôle dans le body.
     """
-
     permission_classes = [AllowAny]
     serializer_class = LoginSerializer
 
@@ -50,32 +49,27 @@ class LoginView(APIView):
 
             update_last_login(User, user)
 
-            # Redirection selon le rôle
-            relative_path = {
-                "ADMIN": "/dashboard/admin",
-                "ACCUEIL": "/dashboard/accueil",
-                "JURISTE": "/dashboard/juriste",
-                "CONSEILLER": "/dashboard/conseiller",
-                "COMMERCIAL": "/dashboard/commercial",
-                "COMPTABILITE": "/dashboard/comptabilite",
-            }.get(user.role, "/dashboard")
+            response = Response(
+                {
+                    "detail": "Login successful",
+                    "role": user.role,
+                    "role_display": user.get_role_display(),
+                },
+                status=status.HTTP_200_OK,
+            )
 
-            redirect_url = f"{settings.FRONTEND_URL}{relative_path}"
-            response = redirect(redirect_url)
-
-            # ✅ JWT tokens en HttpOnly
             response.set_cookie(
                 key="access_token",
                 value=tokens["access"],
                 httponly=True,
-                max_age=60 * 60,  # 1h
+                max_age=60 * 60,
                 **COMMON_COOKIE_PARAMS,
             )
             response.set_cookie(
                 key="refresh_token",
                 value=tokens["refresh"],
                 httponly=True,
-                max_age=60 * 60 * 24 * 7,  # 7 jours
+                max_age=60 * 60 * 24 * 7,
                 **COMMON_COOKIE_PARAMS,
             )
 
