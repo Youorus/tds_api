@@ -2,7 +2,7 @@
 
 from django.urls import include, path
 
-urlpatterns = [
+api_urlpatterns = [
     # Leads - gestion des leads (clients/prospects)
     path("leads/", include("api.leads.urls")),
     # Utilisateurs - gestion des comptes users (création, login, rôles)
@@ -12,9 +12,7 @@ urlpatterns = [
     # Contrats - gestion des contrats liés aux clients/services
     path("contracts/", include("api.contracts.urls")),
     # Paiements/Recus - gestion des reçus et paiements clients
-    path(
-        "receipts/", include("api.payments.urls")
-    ),  # adapte selon le nom de ton module
+    path("receipts/", include("api.payments.urls")),
     # Services - liste des services (ex: titre de séjour, naturalisation, etc)
     path("services/", include("api.services.urls")),
     path("opening-hours/", include("api.opening_hours.urls")),
@@ -38,4 +36,8 @@ urlpatterns = [
     # Authentification (login, refresh, register si besoin)
     path("auth/", include("api.custom_auth.urls")),
     # Ajoute d'autres modules ici au besoin
+]
+
+urlpatterns = [
+    path("", include(api_urlpatterns)),
 ]
