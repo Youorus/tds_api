@@ -48,39 +48,35 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
         )
 
-        # 🔐 Cookies HttpOnly
-        response.set_cookie(
-            key="access_token",
-            value=tokens["access"],
-            httponly=True,
+        COMMON_COOKIE_PARAMS = dict(
             secure=True,
             samesite="None",
             domain=".tds-dossier.fr",
             path="/",
-            max_age=60 * 60,  # 1 heure
+        )
+
+        response.set_cookie(
+            key="access_token",
+            value=tokens["access"],
+            httponly=True,
+            max_age=60 * 60,
+            **COMMON_COOKIE_PARAMS,
         )
 
         response.set_cookie(
             key="refresh_token",
             value=tokens["refresh"],
             httponly=True,
-            secure=True,
-            samesite="None",
-            domain=".tds-dossier.fr",
-            path="/",
-            max_age=60 * 60 * 24 * 7,  # 7 jours
+            max_age=60 * 60 * 24 * 7,
+            **COMMON_COOKIE_PARAMS,
         )
 
-        # ✅ Cookie non-HttpOnly pour usage frontend (redirection, affichage rapide, etc.)
         response.set_cookie(
             key="user_role",
             value=user.role,
             httponly=False,
-            secure=True,
-            samesite="None",
-            domain=".tds-dossier.fr",
-            path="/",
             max_age=60 * 60 * 24 * 7,
+            **COMMON_COOKIE_PARAMS,
         )
 
         return response
@@ -99,9 +95,9 @@ class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
 
-        response.delete_cookie("access_token", path="/")
-        response.delete_cookie("refresh_token", path="/")
-        response.delete_cookie("user_role", path="/")
+        response.delete_cookie("access_token", path="/", domain=".tds-dossier.fr")
+        response.delete_cookie("refresh_token", path="/", domain=".tds-dossier.fr")
+        response.delete_cookie("user_role", path="/", domain=".tds-dossier.fr")
 
         return response
 
@@ -138,11 +134,11 @@ class CustomTokenRefreshView(TokenRefreshView):
                 key="access_token",
                 value=access_token,
                 httponly=True,
+                max_age=60 * 60,
                 secure=True,
                 samesite="None",
                 domain=".tds-dossier.fr",
                 path="/",
-                max_age=60 * 60,  # 1 heure
             )
 
             # Optionnel : retire le token du body
