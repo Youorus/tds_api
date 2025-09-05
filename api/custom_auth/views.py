@@ -95,9 +95,16 @@ class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
 
-        response.delete_cookie("access_token", path="/", domain=".tds-dossier.fr")
-        response.delete_cookie("refresh_token", path="/", domain=".tds-dossier.fr")
-        response.delete_cookie("user_role", path="/", domain=".tds-dossier.fr")
+        COOKIE_PARAMS = dict(
+            path="/",
+            domain=".tds-dossier.fr",
+            samesite="None",
+            secure=True,
+        )
+
+        response.delete_cookie("access_token", **COOKIE_PARAMS)
+        response.delete_cookie("refresh_token", **COOKIE_PARAMS)
+        response.delete_cookie("user_role", **COOKIE_PARAMS)
 
         return response
 
