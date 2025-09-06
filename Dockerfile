@@ -4,12 +4,13 @@ FROM python:3.11-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Installer dépendances système
+# Installer dépendances système nécessaires à la compilation et à wkhtmltopdf
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
     git \
+    wkhtmltopdf \
     libxrender1 \
     libxext6 \
     libfontconfig1 \
@@ -19,20 +20,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# ✅ Étape de cache 1 : requirements.txt (rarement modifié)
+# ✅ Étape de cache 1 : requirements.txt
 COPY requirements.txt .
 
-# ✅ Étape de cache 2 : installation pip
+# ✅ Étape de cache 2 : installation des dépendances Python
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# ⛔️ Étape sensible : copier le projet (change souvent → invalide le cache)
+# ⛔️ Étape sensible : copier tout le code source
 COPY . .
 
-# wkhtmltopdf binaire interne
-RUN chmod +x tools/wkhtmltopdf
-
-# Mettre dans le PATH
-ENV PATH="/app/tools:$PATH"
 
 
 # ─── STAGE 2 : Final ───────────────────────────────
@@ -41,16 +37,23 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Installer uniquement les dépendances nécessaires à wkhtmltopdf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wkhtmltopdf \
+    libxrender1 \
+    libxext6 \
+    libfontconfig1 \
+    xfonts-75dpi \
+    xfonts-base \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# ✅ Copier /usr/local (pip install déjà fait)
+# ✅ Copier les packages Python installés depuis le builder
 COPY --from=builder /usr/local /usr/local
 
-# ✅ Copier ton app et wkhtmltopdf
+# ✅ Copier le projet (application Django)
 COPY --from=builder /app /app
-
-# wkhtmltopdf dans le PATH
-ENV PATH="/app/tools:$PATH"
 
 EXPOSE 8000
 
