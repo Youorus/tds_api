@@ -12,7 +12,6 @@ def generate_receipt_pdf(receipt) -> bytes:
     - receipt : instance PaymentReceipt
     - Retour : bytes PDF prêt à stocker.
     """
-
     from api.payments.models import PaymentReceipt
 
     lead = receipt.client.lead
@@ -40,6 +39,10 @@ def generate_receipt_pdf(receipt) -> bytes:
     }
 
     html_string = render_to_string("recu/receipt_template.html", context)
-    config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_PATH)
+
+    # ✅ Utilise wkhtmltopdf global si non précisé
+    wkhtmltopdf_path = getattr(settings, "WKHTMLTOPDF_PATH", None)
+    config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
+
     pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
     return pdf_bytes

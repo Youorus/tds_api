@@ -36,6 +36,12 @@ def generate_contract_pdf(contract: Contract) -> bytes:
     }
 
     html_string = render_to_string("contrats/contract_template.html", context)
-    config = pdfkit.configuration(wkhtmltopdf=settings.WKHTMLTOPDF_PATH)
+
+    # ✅ Récupère le chemin uniquement si défini (sinon utilise wkhtmltopdf global)
+    wkhtmltopdf_path = getattr(settings, "WKHTMLTOPDF_PATH", None)
+    config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
+
+    # ✅ Génère le PDF directement depuis la string HTML
     pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
+
     return pdf_bytes
