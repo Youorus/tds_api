@@ -1,11 +1,14 @@
 # ─── STAGE 1 : Builder ─────────────────────────────
-FROM python:3.11-slim AS builder
+FROM debian:bookworm AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Installer dépendances système nécessaires à la compilation et à wkhtmltopdf
+# Installer Python 3.11 et dépendances système
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3-pip \
     build-essential \
     libpq-dev \
     curl \
@@ -18,27 +21,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-base \
     && rm -rf /var/lib/apt/lists/*
 
+# Définir Python 3.11 comme python par défaut
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+
 WORKDIR /app
 
-# ✅ Étape de cache 1 : requirements.txt
+# Étape de cache : requirements.txt
 COPY requirements.txt .
-
-# ✅ Étape de cache 2 : installation des dépendances Python
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# ⛔️ Étape sensible : copier tout le code source
+# Copier le projet complet
 COPY . .
 
 
 
 # ─── STAGE 2 : Final ───────────────────────────────
-FROM python:3.11-slim
+FROM debian:bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Installer uniquement les dépendances nécessaires à wkhtmltopdf
+# Installer Python 3.11 + wkhtmltopdf + libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 \
+    python3.11-venv \
+    python3-pip \
     wkhtmltopdf \
     libxrender1 \
     libxext6 \
@@ -47,14 +54,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-base \
     && rm -rf /var/lib/apt/lists/*
 
+# Définir Python 3.11 comme python par défaut
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1
+
 WORKDIR /app
 
-# ✅ Copier les packages Python installés depuis le builder
+# Copier les dépendances Python déjà installées
 COPY --from=builder /usr/local /usr/local
 
-# ✅ Copier le projet (application Django)
+# Copier l'application
 COPY --from=builder /app /app
 
 EXPOSE 8000
 
+# Lancement ASGI via Gunicorn
 CMD ["gunicorn", "tds.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
