@@ -1,12 +1,14 @@
 # api/websocket/consumers/payments.py
 from channels.generic.websocket import AsyncWebsocketConsumer
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PaymentConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add("payments", self.channel_name)
         await self.accept()
-        print("✅ WS payments connecté")
+        logger.info("✅ WS payments connecté")
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard("payments", self.channel_name)
@@ -22,7 +24,7 @@ class PaymentByClientRoom(AsyncWebsocketConsumer):
         self.group = f"payments-client-{self.client_id}"
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
-        print(f"✅ WS payments room {self.group}")
+        logger.info(f"✅ WS payments room {self.group}")
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group, self.channel_name)
@@ -38,7 +40,7 @@ class PaymentByContractRoom(AsyncWebsocketConsumer):
         self.group = f"payments-contract-{self.contract_id}"
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
-        print(f"✅ WS payments room {self.group}")
+        logger.info(f"✅ WS payments room {self.group}")
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group, self.channel_name)

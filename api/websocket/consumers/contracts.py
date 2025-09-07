@@ -1,12 +1,14 @@
 # api/websocket/consumers/contracts.py
 from channels.generic.websocket import AsyncWebsocketConsumer
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ContractConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.channel_layer.group_add("contracts", self.channel_name)
         await self.accept()
-        print("✅ WS contracts connecté")
+        logger.info("✅ WS contracts connecté")
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard("contracts", self.channel_name)
@@ -22,7 +24,7 @@ class ContractByClientRoom(AsyncWebsocketConsumer):
         self.group = f"contracts-client-{self.client_id}"
         await self.channel_layer.group_add(self.group, self.channel_name)
         await self.accept()
-        print(f"✅ WS contracts room {self.group}")
+        logger.info(f"✅ WS contracts room {self.group}")
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(self.group, self.channel_name)

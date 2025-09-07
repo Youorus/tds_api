@@ -20,13 +20,9 @@ def _safe_ids(instance: Contract):
     if client_id is None and getattr(instance, "client", None):
         client_id = getattr(instance.client, "id", None)
 
-    # via Client → Lead (OneToOne)
     lead_id = None
-    try:
-        if getattr(instance, "client", None):
-            lead_id = getattr(instance.client, "lead_id", None)
-    except Exception:
-        lead_id = None
+    if getattr(instance, "client", None):
+        lead_id = getattr(instance.client, "lead_id", None)
 
     return client_id, lead_id
 
@@ -58,7 +54,12 @@ def _payload(event: str, instance: Contract) -> dict:
 
 
 def _broadcast(groups: list[str], payload: dict):
+    if not groups:
+        return
     layer = get_channel_layer()
+    if layer is None:
+        log.warning("⚠️ Aucun channel layer configuré pour WebSocket")
+        return
     text = json.dumps(payload, cls=DjangoJSONEncoder)  # UUID/datetime/Decimal safe
     for g in groups:
         async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})
@@ -72,19 +73,20 @@ def on_contract_saved(sender, instance: Contract, created, **kwargs):
     client_id, lead_id = _safe_ids(instance)
 
     groups = ["contracts"]
-    if client_id is not None:
+    if client_id:
         groups.append(f"contracts-client-{client_id}")  # room par client
         groups.append(
             f"client-{client_id}"
         )  # réutilise le groupe déjà utilisé pour Client
         groups.append("clients")
-    if lead_id is not None:
+    if lead_id:
         groups.append("leads")  # si tes KPIs/listes leads reflètent contrat
         groups.append(
             f"comments-lead-{lead_id}"
         )  # (optionnel) si UI coms affiche montants
 
-    transaction.on_commit(lambda: _broadcast(groups, payload))
+    if groups:
+        transaction.on_commit(lambda: _broadcast(groups, payload))
 
 
 @receiver(post_delete, sender=Contract)
@@ -93,11 +95,12 @@ def on_contract_deleted(sender, instance: Contract, **kwargs):
     client_id, lead_id = _safe_ids(instance)
 
     groups = ["contracts"]
-    if client_id is not None:
+    if client_id:
         groups.append(f"contracts-client-{client_id}")
         groups.append(f"client-{client_id}")
         groups.append("clients")
-    if lead_id is not None:
+    if lead_id:
         groups.append("leads")
 
-    transaction.on_commit(lambda: _broadcast(groups, payload))
+    if groups:
+        transaction.on_commit(lambda: _broadcast(groups, payload))

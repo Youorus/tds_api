@@ -38,8 +38,7 @@ def _safe_ids(instance: PaymentReceipt):
 def _payload(event: str, instance: PaymentReceipt) -> dict:
     try:
         data = PaymentReceiptSerializer(instance).data
-    except Exception as e:
-        log.exception("❌ PaymentReceiptSerializer a échoué : %s", e)
+    except Exception:
         client_id, contract_id, lead_id = _safe_ids(instance)
         data = {
             "id": getattr(instance, "id", None),
@@ -54,7 +53,7 @@ def _payload(event: str, instance: PaymentReceipt) -> dict:
             "created_by": getattr(getattr(instance, "created_by", None), "id", None),
         }
     return {
-        "event": event,  # "created" | "updated" | "deleted"
+        "event": event,
         "at": timezone.now().isoformat(),
         "data": data,
     }
@@ -62,6 +61,12 @@ def _payload(event: str, instance: PaymentReceipt) -> dict:
 
 def _broadcast(groups: list[str], payload: dict):
     layer = get_channel_layer()
+    if not layer:
+        log.warning("❌ Channel layer non disponible")
+        return
+    if not groups:
+        return
+
     text = json.dumps(payload, cls=DjangoJSONEncoder)  # gère UUID/Decimal/datetime
     for g in groups:
         async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})

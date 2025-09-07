@@ -16,7 +16,12 @@ log = logging.getLogger(__name__)
 
 
 def _broadcast(groups: list[str], payload: dict):
+    if not groups:
+        return
     layer = get_channel_layer()
+    if layer is None:
+        log.warning("⚠️ Aucun channel layer configuré pour WebSocket")
+        return
     text = json.dumps(payload)
     for g in groups:
         async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})
@@ -26,8 +31,7 @@ def _broadcast(groups: list[str], payload: dict):
 def _payload(event: str, instance: Client, changed: list[str] | None = None) -> dict:
     try:
         data = ClientSerializer(instance).data
-    except Exception as e:
-        log.exception("❌ ClientSerializer dans signal: %s", e)
+    except Exception:
         data = {"id": instance.id, "lead_id": instance.lead_id}
     return {
         "event": event,  # "created" | "updated" | "deleted"
@@ -40,6 +44,9 @@ def _payload(event: str, instance: Client, changed: list[str] | None = None) -> 
 @receiver(post_save, sender=Client)
 def on_client_saved(sender, instance: Client, created, **kwargs):
     changed = list(kwargs.get("update_fields") or [])
+    if not created and not changed:
+        return  # ✅ ne rien envoyer si aucune vraie modification
+
     event = "created" if created else "updated"
     payload = _payload(event, instance, changed)
 
@@ -57,6 +64,8 @@ def on_client_saved(sender, instance: Client, created, **kwargs):
 
 @receiver(post_delete, sender=Client)
 def on_client_deleted(sender, instance: Client, **kwargs):
+    if not instance.lead_id:
+        return
     payload = _payload("deleted", instance)
     groups = ["clients", f"client-{instance.lead_id}"]
     transaction.on_commit(lambda: _broadcast(groups, payload))

@@ -22,8 +22,7 @@ def _send(event: str, instance: Lead):
 
     try:
         data = LeadSerializer(instance).data
-    except Exception as e:
-        log.exception("❌ Serializer Lead a échoué : %s", e)
+    except Exception:
         data = {"id": instance.id}
 
     payload = {"event": event, "data": data}
