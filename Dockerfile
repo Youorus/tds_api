@@ -28,7 +28,8 @@ WORKDIR /app
 
 # Étape de cache : requirements.txt
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip --break-system-packages \
+    && pip install --break-system-packages -r requirements.txt
 
 # Copier le projet complet
 COPY . .
