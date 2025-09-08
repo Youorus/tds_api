@@ -117,13 +117,6 @@ SIMPLE_JWT = {
     # Cookies sécurisés
     "AUTH_COOKIE_SECURE": True,
     "AUTH_COOKIE_HTTP_ONLY": True,
-    "AUTH_COOKIE_PATH": "/",
-    "AUTH_COOKIE_SAMESITE": "Lax",
-
-    "REFRESH_COOKIE_SECURE": True,
-    "REFRESH_COOKIE_HTTP_ONLY": True,
-    "REFRESH_COOKIE_PATH": "/",
-    "REFRESH_COOKIE_SAMESITE": "Lax",
 }
 
 # ─── Redis / Channels / Celery ──────────────────────────────
