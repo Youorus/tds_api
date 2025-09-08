@@ -130,11 +130,6 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         - dans une semaine
         - dans le mois
         """
-        user = request.user
-
-        if user.role != User.UserRoles.CONSEILLER:
-            return Response({"detail": "Accès refusé."}, status=403)
-
         clients = Client.objects.filter(lead__assigned_to=user)
 
         today = date.today()
