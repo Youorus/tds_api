@@ -4,6 +4,7 @@ from decimal import Decimal
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from datetime import date, timedelta
 
 from api.leads.models import Lead
 from api.payments.models import PaymentReceipt
@@ -118,11 +119,12 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             {"detail": "Envoi des reçus programmé avec succès."}, status=200
         )
 
+    from datetime import date, timedelta
+
     @action(detail=False, methods=["get"], url_path="reminders")
     def payment_reminders(self, request):
         """
-        Retourne la liste des clients du conseiller connecté
-        avec leurs paiements à venir :
+        Retourne la liste des clients du conseiller connecté avec leurs paiements à venir :
         - aujourd'hui
         - demain
         - dans une semaine
@@ -130,33 +132,28 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         """
         user = request.user
 
-        # Vérification que l'utilisateur est bien un conseiller
         if user.role != User.UserRoles.CONSEILLER:
-            return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"detail": "Accès refusé."}, status=403)
 
-        # Récupère les clients assignés au conseiller
         clients = Client.objects.filter(lead__assigned_to=user)
 
-        # Dates de comparaison
         today = date.today()
         tomorrow = today + timedelta(days=1)
         next_week = today + timedelta(days=7)
         next_month = today + timedelta(days=30)
 
-        # Filtre les paiements à venir pour ces clients
         receipts = (
             PaymentReceipt.objects
             .filter(
                 client__in=clients,
                 next_due_date__isnull=False,
-                next_due_date__gte=today,
-                next_due_date__lte=next_month
+                next_due_date__date__gte=today,
+                next_due_date__date__lte=next_month,
             )
             .select_related("client")
             .order_by("next_due_date")
         )
 
-        # Regroupe les paiements par période
         reminders = {
             "today": [],
             "tomorrow": [],
@@ -165,21 +162,22 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         }
 
         for receipt in receipts:
-            client = receipt.client
+            due_date = receipt.next_due_date.date()  # ← conversion explicite
+
             item = {
-                "client_name": str(client),
-                "client_phone": client.phone,
+                "client_name": str(receipt.client),
+                "client_phone": receipt.client.phone,
                 "next_due_date": receipt.next_due_date,
                 "amount_due": str(receipt.amount),
             }
 
-            if receipt.next_due_date == today:
+            if due_date == today:
                 reminders["today"].append(item)
-            elif receipt.next_due_date == tomorrow:
+            elif due_date == tomorrow:
                 reminders["tomorrow"].append(item)
-            elif today < receipt.next_due_date <= next_week:
+            elif today < due_date <= next_week:
                 reminders["next_week"].append(item)
-            elif next_week < receipt.next_due_date <= next_month:
+            elif next_week < due_date <= next_month:
                 reminders["this_month"].append(item)
 
         return Response(reminders, status=200)
