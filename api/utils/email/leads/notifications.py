@@ -1,8 +1,9 @@
 import os
 from datetime import datetime
 from urllib.parse import quote_plus
-
+from django.conf import settings
 from api.utils.email import send_html_email
+from slugify import slugify
 from api.utils.email.config import TDS_FRANCE_ADDRESS, _build_context
 
 
@@ -67,9 +68,8 @@ def send_formulaire_email(lead):
         print(f"[WARNING] Aucun email pour le lead {lead.id}")
         return
 
-    from slugify import slugify  # pip install python-slugify
     name_slug = slugify(f"{lead.first_name}-{lead.last_name}")
-    formulaire_url = f"{frontend_url}/formulaire?id={lead.id}&name={name_slug}"
+    formulaire_url = f"{settings.FRONTEND_URL}/formulaire?id={lead.id}&name={name_slug}"
 
     context = _build_context(
         lead,
