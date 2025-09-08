@@ -46,12 +46,14 @@
       align-items: center;
     }
 
-    .header img {
-      height: 100px;
-      display: block;
-      margin: 0 auto;
-      flex-grow: 1;
-    }
+.header img {
+  height: 60px; /* Taille réduite */
+  max-width: 160px; /* Limite la largeur si l'image est trop étirée */
+  display: block;
+  margin: 0 auto;
+  flex-grow: 1;
+  object-fit: contain;
+}
 
 
     .header-title {
