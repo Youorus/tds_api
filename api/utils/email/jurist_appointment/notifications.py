@@ -19,7 +19,7 @@ def send_jurist_appointment_email(jurist_appointment):
 
     send_html_email(
         to_email=lead.email,
-        subject="Votre rendez-vous de suivi de dossier – TDS France",
+        subject="Confirmation : rendez-vous juriste planifié – TDS France",
         template_name="email/jurist_appointment/jurist_appointment_planned.html",
         context=context,
     )
@@ -42,7 +42,7 @@ def send_jurist_appointment_deleted_email(lead, jurist, appointment_date):
 
     send_html_email(
         to_email=lead.email,
-        subject="Annulation de votre rendez-vous juriste – TDS France",
+        subject="Votre rendez-vous juriste a été annulé – TDS France",
         template_name="email/jurist_appointment/jurist_appointment_deleted.html",
         context=context,
     )

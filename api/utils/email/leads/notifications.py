@@ -14,7 +14,7 @@ def send_appointment_planned_email(lead):
     context = _build_context(lead, lead.appointment_date, TDS_FRANCE_ADDRESS)
     return send_html_email(
         to_email=lead.email,
-        subject="Votre rendez-vous a été planifié chez TDS France",
+        subject="Planification confirmée : votre rendez-vous avec TDS France",
         template_name="email/leads/appointment_planned.html",
         context=context,
     )
@@ -27,7 +27,7 @@ def send_appointment_confirmation_email(lead):
     context = _build_context(lead, lead.appointment_date, TDS_FRANCE_ADDRESS)
     return send_html_email(
         to_email=lead.email,
-        subject="Votre rendez-vous chez TDS France est confirmé",
+        subject="Confirmation officielle : rendez-vous validé avec TDS France",
         template_name="email/leads/appointment_confirmed.html",
         context=context,
     )
@@ -40,7 +40,7 @@ def send_appointment_reminder_email(lead):
     context = _build_context(lead, lead.appointment_date, TDS_FRANCE_ADDRESS)
     return send_html_email(
         to_email=lead.email,
-        subject="Rappel : votre rendez-vous avec TDS France",
+        subject="Rappel important : votre rendez-vous approche – TDS France",
         template_name="email/leads/appointment_reminder.html",
         context=context,
     )
@@ -53,7 +53,7 @@ def send_missed_appointment_email(lead):
     context = _build_context(lead, lead.appointment_date, TDS_FRANCE_ADDRESS)
     return send_html_email(
         to_email=lead.email,
-        subject="Vous avez manqué votre rendez-vous – TDS France",
+        subject="Absence constatée à votre rendez-vous – TDS France",
         template_name="email/leads/appointment_absent.html",
         context=context,
     )
@@ -80,7 +80,7 @@ def send_formulaire_email(lead):
 
     return send_html_email(
         to_email=lead.email,
-        subject="Merci de compléter votre formulaire – TDS France",
+        subject="Formulaire à compléter pour finaliser votre dossier – TDS France",
         template_name="email/leads/formulaire_link.html",
         context=context,
     )
@@ -111,7 +111,26 @@ def send_dossier_status_email(lead):
 
     return send_html_email(
         to_email=lead.email,
-        subject="Votre dossier évolue – TDS France",
+        subject="Mise à jour : évolution du statut de votre dossier – TDS France",
         template_name="email/leads/dossier_status_update.html",
+        context=context,
+    )
+
+
+def send_jurist_assigned_email(lead, jurist):
+    """
+    Envoie un e-mail au lead pour l’informer qu’un juriste lui a été assigné.
+    """
+    context = _build_context(
+        lead,
+        extra={
+            "jurist": jurist,
+        },
+    )
+
+    return send_html_email(
+        to_email=lead.email,
+        subject="Votre dossier est désormais suivi par un juriste dédié – TDS France",
+        template_name="email/leads/jurist_assigned.html",
         context=context,
     )

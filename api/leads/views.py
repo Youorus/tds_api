@@ -23,6 +23,7 @@ from api.utils.email.leads.tasks import (
     send_appointment_planned_task,
     send_dossier_status_notification_task,
     send_formulaire_task,
+    send_jurist_assigned_notification_task
 )
 
 """
@@ -312,6 +313,11 @@ class LeadViewSet(viewsets.ModelViewSet):
             if juristes.count() != len(assign_ids):
                 raise NotFound("Un ou plusieurs juristes à assigner sont introuvables.")
             lead.jurist_assigned.add(*juristes)
+
+            # Notifier le lead par email du juriste principal assigné (si lead.email existe)
+            if lead.email and juristes.exists():
+                main_jurist = juristes.first()
+                send_jurist_assigned_notification_task.delay(lead.id, main_jurist.id)
 
         if unassign_ids:
             juristes = User.objects.filter(id__in=unassign_ids, role=UserRoles.JURISTE)

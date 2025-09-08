@@ -8,6 +8,7 @@ from api.utils.email.leads.notifications import (
     send_appointment_planned_email,
     send_dossier_status_email,
     send_formulaire_email,
+    send_jurist_assigned_email
 )
 
 logger = logging.getLogger(__name__)
@@ -67,3 +68,20 @@ def send_formulaire_task(lead_id: int):
         logger.info(f"📤 Formulaire envoyé pour lead #{lead.id}")
     else:
         logger.warning(f"❌ Formulaire non envoyé (lead #{lead_id} introuvable)")
+
+
+
+@shared_task
+def send_jurist_assigned_notification_task(lead_id: int, jurist_id: int):
+    from api.leads.models import Lead
+    from api.users.models import User
+    from api.utils.email.leads.notifications import send_jurist_assigned_email
+
+    lead = Lead.objects.filter(id=lead_id).first()
+    jurist = User.objects.filter(id=jurist_id).first()
+
+    if lead and jurist and lead.email:
+        send_jurist_assigned_email(lead, jurist)
+        logger.info(f"📩 Juriste assigné notifié pour lead #{lead.id} ({lead.email})")
+    else:
+        logger.warning(f"❌ Notification juriste non envoyée (lead #{lead_id}, juriste #{jurist_id})")

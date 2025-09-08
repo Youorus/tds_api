@@ -14,7 +14,7 @@ def send_appointment_created_email(lead, appointment):
     )
     return send_html_email(
         to_email=lead.email,
-        subject="Votre rendez-vous a été planifié chez TDS France",
+        subject="Nouveau rendez-vous planifié – TDS France",
         template_name="email/appointment/appointment_created.html",
         context=context,
     )
@@ -32,7 +32,7 @@ def send_appointment_updated_email(lead, appointment):
     )
     return send_html_email(
         to_email=lead.email,
-        subject="Modification de votre rendez-vous chez TDS France",
+        subject="Mise à jour de votre rendez-vous – TDS France",
         template_name="email/appointment/appointment_updated.html",
         context=context,
     )
@@ -50,7 +50,7 @@ def send_appointment_deleted_email(lead, appointment_date, appointment_data: dic
     )
     return send_html_email(
         to_email=lead.email,
-        subject="Annulation de votre rendez-vous – TDS France",
+        subject="Rendez-vous annulé – TDS France",
         template_name="email/appointment/appointment_deleted.html",
         context=context,
     )
