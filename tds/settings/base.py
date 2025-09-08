@@ -107,9 +107,23 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "AUTH_COOKIE": "access_token",
+    "REFRESH_COOKIE": "refresh_token",
+
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+
     "AUTH_HEADER_TYPES": ("Bearer",),
+
+    # Cookies sécurisés
+    "AUTH_COOKIE_SECURE": True,
+    "AUTH_COOKIE_HTTP_ONLY": True,
+    "AUTH_COOKIE_PATH": "/",
+    "AUTH_COOKIE_SAMESITE": "Lax",
+
+    "REFRESH_COOKIE_SECURE": True,
+    "REFRESH_COOKIE_HTTP_ONLY": True,
+    "REFRESH_COOKIE_PATH": "/",
+    "REFRESH_COOKIE_SAMESITE": "Lax",
 }
 
 # ─── Redis / Channels / Celery ──────────────────────────────

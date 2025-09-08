@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import update_last_login
 from django.utils.decorators import method_decorator
@@ -8,25 +9,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 from django.conf import settings
-from django.core import signing
-from django.shortcuts import redirect
 
 from api.custom_auth.serializers import LoginSerializer
 
 User = get_user_model()
 IS_HTTPS = not settings.DEBUG
 
-# 🔐 Paramètres communs pour les cookies
+# 🔐 Paramètres communs alignés avec SIMPLE_JWT
 COMMON_COOKIE_PARAMS = dict(
     secure=True,
-    samesite="None",
-    domain=".tds-dossier.fr",
+    httponly=True,
+    samesite="Lax",
     path="/",
 )
-
-# 🔐 Salt spécifique pour la signature du rôle
-USER_ROLE_SALT = "user_role_cookie"
-
 
 class LoginView(APIView):
     """
@@ -61,15 +56,13 @@ class LoginView(APIView):
             response.set_cookie(
                 key="access_token",
                 value=tokens["access"],
-                httponly=True,
-                max_age=60 * 60,
+                max_age=60 * 60,  # 1 heure
                 **COMMON_COOKIE_PARAMS,
             )
             response.set_cookie(
                 key="refresh_token",
                 value=tokens["refresh"],
-                httponly=True,
-                max_age=60 * 60 * 24 * 7,
+                max_age=60 * 60 * 24 * 7,  # 7 jours
                 **COMMON_COOKIE_PARAMS,
             )
 
@@ -88,16 +81,14 @@ class LoginView(APIView):
 class LogoutView(APIView):
     """
     Vue API pour la déconnexion.
-    Supprime les cookies access_token, refresh_token, user_role.
+    Supprime les cookies access_token et refresh_token.
     """
-
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
-        response.delete_cookie("access_token", **COMMON_COOKIE_PARAMS)
-        response.delete_cookie("refresh_token", **COMMON_COOKIE_PARAMS)
-        response.delete_cookie("user_role", **COMMON_COOKIE_PARAMS)  # 🧹 important
+        response.delete_cookie("access_token", path="/")
+        response.delete_cookie("refresh_token", path="/")
         return response
 
 
@@ -125,11 +116,9 @@ class CustomTokenRefreshView(TokenRefreshView):
             response.set_cookie(
                 key="access_token",
                 value=access_token,
-                httponly=True,
                 max_age=60 * 60,
                 **COMMON_COOKIE_PARAMS,
             )
-
             del response.data["access"]
 
         return response
