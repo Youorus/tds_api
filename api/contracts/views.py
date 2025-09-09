@@ -234,12 +234,6 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         contract = self.get_object()
 
-        if not request.user.is_superuser:
-            return Response(
-                {"detail": "Vous n'avez pas la permission d'annuler ce contrat."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         contract.is_cancelled = True
         contract.save(update_fields=["is_cancelled"])
 
