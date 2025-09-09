@@ -88,3 +88,28 @@ def send_payment_due_email(client, receipt, due_date: datetime, amount: float):
     )
 
     logger.info(f"📩 Rappel de paiement envoyé à {recipient}")
+
+def send_due_date_updated_email(receipt, new_due_date):
+    lead = getattr(receipt.client, "lead", None)
+    if not lead or not lead.email:
+        logger.warning("Aucun e-mail trouvé pour le client.")
+        return
+
+    context = _build_context(
+        lead=lead,
+        extra={
+            "receipt": receipt,
+            "new_due_date": new_due_date.strftime("%d/%m/%Y"),
+            "amount": f"{receipt.contract.balance_due:.2f}",
+            "phone": "01 84 80 62 00",  # ou settings.TDS_CONTACT_PHONE
+        },
+    )
+
+    send_html_email(
+        to_email=lead.email,
+        subject="Nouvelle date d’échéance enregistrée",
+        template_name="email/recus/payment_updated.html",
+        context=context,
+    )
+
+    logger.info(f"📩 Email de modification d’échéance envoyé à {lead.email}")

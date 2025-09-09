@@ -1,40 +1,19 @@
 # api/leads/signals.py
 
-import json
 import logging
-
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from api.leads.models import Lead
 from api.leads.serializers import LeadSerializer
+from api.websocket.signals.base import safe_payload, broadcast
 
 log = logging.getLogger(__name__)
 
 
 def _send(event: str, instance: Lead):
-    channel_layer = get_channel_layer()
-    if not channel_layer:
-        log.warning("❌ Channel layer non disponible")
-        return
-
-    try:
-        data = LeadSerializer(instance).data
-    except Exception:
-        data = {"id": instance.id}
-
-    payload = {"event": event, "data": data}
-    log.info("📢 [WS] Envoi event '%s' pour lead id=%s", event, instance.id)
-
-    async_to_sync(channel_layer.group_send)(
-        "leads",
-        {
-            "type": "send_event",
-            "text": json.dumps(payload),
-        }
-    )
+    payload = safe_payload(event, instance, serializer_class=LeadSerializer)
+    broadcast(["leads"], payload)
 
 
 @receiver(post_save, sender=Lead)

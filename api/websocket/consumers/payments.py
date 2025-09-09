@@ -1,49 +1,18 @@
-# api/websocket/consumers/payments.py
-from channels.generic.websocket import AsyncWebsocketConsumer
-import logging
-logger = logging.getLogger(__name__)
+from .base import BaseConsumer
 
+class PaymentConsumer(BaseConsumer):
+    group_prefix = "payments"
 
-class PaymentConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        await self.channel_layer.group_add("payments", self.channel_name)
-        await self.accept()
-        logger.info("✅ WS payments connecté")
+class PaymentByClientRoom(BaseConsumer):
+    group_prefix = "payments-client"
 
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard("payments", self.channel_name)
+    def get_group_name(self):
+        client_id = int(self.scope["url_route"]["kwargs"]["client_id"])
+        return f"{self.group_prefix}-{client_id}"
 
-    async def send_event(self, event):
-        await self.send(text_data=event["text"])
+class PaymentByContractRoom(BaseConsumer):
+    group_prefix = "payments-contract"
 
-
-class PaymentByClientRoom(AsyncWebsocketConsumer):
-    async def connect(self):
-        # /ws/payments/client/<client_id>/
-        self.client_id = self.scope["url_route"]["kwargs"]["client_id"]
-        self.group = f"payments-client-{self.client_id}"
-        await self.channel_layer.group_add(self.group, self.channel_name)
-        await self.accept()
-        logger.info(f"✅ WS payments room {self.group}")
-
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.group, self.channel_name)
-
-    async def send_event(self, event):
-        await self.send(text_data=event["text"])
-
-
-class PaymentByContractRoom(AsyncWebsocketConsumer):
-    async def connect(self):
-        # /ws/payments/contract/<contract_id>/
-        self.contract_id = self.scope["url_route"]["kwargs"]["contract_id"]
-        self.group = f"payments-contract-{self.contract_id}"
-        await self.channel_layer.group_add(self.group, self.channel_name)
-        await self.accept()
-        logger.info(f"✅ WS payments room {self.group}")
-
-    async def disconnect(self, code):
-        await self.channel_layer.group_discard(self.group, self.channel_name)
-
-    async def send_event(self, event):
-        await self.send(text_data=event["text"])
+    def get_group_name(self):
+        contract_id = int(self.scope["url_route"]["kwargs"]["contract_id"])
+        return f"{self.group_prefix}-{contract_id}"

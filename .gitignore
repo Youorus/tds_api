@@ -40,3 +40,5 @@ htmlcov/
 *.backup
 *.pid
 celerybeat-schedule
+
+seeds.py

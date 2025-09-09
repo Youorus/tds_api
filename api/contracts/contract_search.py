@@ -98,6 +98,7 @@ class ContractSearchView(APIView):
             request.query_params.get("has_balance")
         )
         with_discount = _normalize_avec_sans(request.query_params.get("with_discount"))
+        is_cancelled_param = _normalize_avec_sans(request.query_params.get("is_cancelled"))
 
         service_id = _to_int_or_str(request.query_params.get("service_id"))
         service_code = request.query_params.get("service_code")
@@ -171,28 +172,34 @@ class ContractSearchView(APIView):
         )
         today = timezone.localdate()
 
-        qs = (
-            Contract.objects.select_related("client", "service", "created_by")
-            .annotate(
-                real_amount_due=real_amount_due,
-                amount_paid=amount_paid,
-                net_paid=net_paid,
-                balance_due=balance_due,
-                # ⇩⇩⇩ ANNOTATION CLÉ pour les remises (évite toute comparaison d'expressions)
-                discount_abs=Coalesce(F("discount_percent"), Value(Decimal("0.00"))),
-            )
-            .annotate(
-                is_fully_paid=Case(
-                    When(balance_due=Decimal("0.00"), then=Value(True)),
-                    default=Value(False),
-                    output_field=BooleanField(),
-                ),
-                next_due_date=Min(
-                    "receipts__next_due_date",
-                    filter=Q(receipts__next_due_date__gte=today),
-                ),
-                last_payment_date=Max("receipts__payment_date"),
-            )
+        qs = Contract.objects.select_related("client", "service", "created_by")
+
+        # Par défaut, exclure les contrats annulés pour les statistiques
+        include_cancelled = is_cancelled_param == "avec"
+
+        if is_cancelled_param == "avec":
+            qs = qs.filter(is_cancelled=True)
+        elif is_cancelled_param == "sans" or is_cancelled_param is None:
+            qs = qs.filter(is_cancelled=False)
+
+        qs = qs.annotate(
+            real_amount_due=real_amount_due,
+            amount_paid=amount_paid,
+            net_paid=net_paid,
+            balance_due=balance_due,
+            # ⇩⇩⇩ ANNOTATION CLÉ pour les remises (évite toute comparaison d'expressions)
+            discount_abs=Coalesce(F("discount_percent"), Value(Decimal("0.00"))),
+        ).annotate(
+            is_fully_paid=Case(
+                When(balance_due=Decimal("0.00"), then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField(),
+            ),
+            next_due_date=Min(
+                "receipts__next_due_date",
+                filter=Q(receipts__next_due_date__gte=today),
+            ),
+            last_payment_date=Max("receipts__payment_date"),
         )
 
         if date_from:
@@ -248,8 +255,11 @@ class ContractSearchView(APIView):
         if max_balance_due is not None:
             qs = qs.filter(balance_due__lte=max_balance_due)
 
+        # ⚠️ Utiliser une version filtrée du queryset pour les agrégats afin d’exclure les contrats annulés
+        qs_agg = qs if include_cancelled else qs.filter(is_cancelled=False)
+
         # Agrégats (aucune comparaison Python entre expressions ici)
-        agg = qs.aggregate(
+        agg = qs_agg.aggregate(
             sum_amount_due=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
             sum_real_amount_due=Coalesce(
                 Sum("real_amount_due"), Value(Decimal("0.00"))
@@ -263,6 +273,7 @@ class ContractSearchView(APIView):
             count_with_balance=Count("id", filter=Q(balance_due__gt=Decimal("0.00"))),
             # ✅ utilisation de l’annotation discount_abs
             count_reduced=Count("id", filter=Q(discount_abs__gt=Decimal("0.00"))),
+            count_cancelled=Count("id", filter=Q(is_cancelled=True)),
         )
 
         total = qs.count()
@@ -300,6 +311,7 @@ class ContractSearchView(APIView):
                 "created_at",
                 "next_due_date",
                 "last_payment_date",
+                "is_cancelled",
             )[start:end]
         )
 
@@ -320,6 +332,7 @@ class ContractSearchView(APIView):
                     "count_fully_paid": int(agg["count_fully_paid"] or 0),
                     "count_with_balance": int(agg["count_with_balance"] or 0),
                     "count_reduced": int(agg["count_reduced"] or 0),
+                    "count_cancelled": int(agg["count_cancelled"] or 0),
                 },
                 "items": rows,
             }

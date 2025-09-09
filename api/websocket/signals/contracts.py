@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from api.contracts.models import Contract
 from api.contracts.serializer import ContractSerializer
+from api.websocket.signals.base import safe_payload, broadcast  # ajoute cet import
 
 log = logging.getLogger(__name__)
 
@@ -28,42 +29,7 @@ def _safe_ids(instance: Contract):
 
 
 def _payload(event: str, instance: Contract) -> dict:
-    try:
-        data = ContractSerializer(instance).data
-    except Exception as e:
-        log.exception("❌ ContractSerializer a échoué : %s", e)
-        client_id, lead_id = _safe_ids(instance)
-        data = {
-            "id": getattr(instance, "id", None),
-            "client_id": client_id,
-            "lead_id": lead_id,
-            "amount_due": str(getattr(instance, "amount_due", "")),
-            "discount_percent": str(getattr(instance, "discount_percent", "")),
-            "is_signed": getattr(instance, "is_signed", False),
-            "is_refunded": getattr(instance, "is_refunded", False),
-            "refund_amount": str(getattr(instance, "refund_amount", "0.00")),
-            "contract_url": getattr(instance, "contract_url", None),
-            "created_at": getattr(instance, "created_at", None),
-        }
-
-    return {
-        "event": event,  # "created" | "updated" | "deleted"
-        "at": timezone.now().isoformat(),
-        "data": data,
-    }
-
-
-def _broadcast(groups: list[str], payload: dict):
-    if not groups:
-        return
-    layer = get_channel_layer()
-    if layer is None:
-        log.warning("⚠️ Aucun channel layer configuré pour WebSocket")
-        return
-    text = json.dumps(payload, cls=DjangoJSONEncoder)  # UUID/datetime/Decimal safe
-    for g in groups:
-        async_to_sync(layer.group_send)(g, {"type": "send_event", "text": text})
-        log.info("📢 [WS] send %s -> %s", payload.get("event"), g)
+    return safe_payload(event, instance, serializer_class=ContractSerializer)
 
 
 @receiver(post_save, sender=Contract)
@@ -86,7 +52,7 @@ def on_contract_saved(sender, instance: Contract, created, **kwargs):
         )  # (optionnel) si UI coms affiche montants
 
     if groups:
-        transaction.on_commit(lambda: _broadcast(groups, payload))
+        transaction.on_commit(lambda: broadcast(groups, payload))
 
 
 @receiver(post_delete, sender=Contract)
@@ -103,4 +69,4 @@ def on_contract_deleted(sender, instance: Contract, **kwargs):
         groups.append("leads")
 
     if groups:
-        transaction.on_commit(lambda: _broadcast(groups, payload))
+        transaction.on_commit(lambda: broadcast(groups, payload))

@@ -5,6 +5,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from datetime import date, timedelta
+from datetime import datetime
 
 from api.leads.models import Lead
 from api.payments.models import PaymentReceipt
@@ -12,6 +13,8 @@ from api.payments.permissions import IsPaymentEditor
 from api.payments.serializers import PaymentReceiptSerializer
 from api.utils.cloud.scw.bucket_utils import delete_object
 from api.utils.email.recus.tasks import send_receipts_email_task
+from api.utils.email.recus.tasks import send_due_date_updated_email_task
+from api.contracts.models import Contract
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +88,6 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Sécurité : conversion explicite en entiers
         try:
             receipt_ids = [int(rid) for rid in receipt_ids]
         except (ValueError, TypeError):
@@ -119,60 +121,78 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             {"detail": "Envoi des reçus programmé avec succès."}, status=200
         )
 
-    from datetime import date, timedelta
-
-    @action(detail=False, methods=["get"], url_path="reminders")
-    def payment_reminders(self, request):
+    @action(detail=False, methods=["get"], url_path="upcoming")
+    def upcoming_payments(self, request):
         """
-        Retourne la liste des clients du conseiller connecté avec leurs paiements à venir :
-        - aujourd'hui
-        - demain
-        - dans une semaine
-        - dans le mois
+        Retourne la liste de tous les paiements à venir (next_due_date ≥ aujourd’hui),
+        triés par date croissante, pour les contrats avec un solde dû.
         """
-        clients = Client.objects.filter(lead__assigned_to=user)
-
         today = date.today()
-        tomorrow = today + timedelta(days=1)
-        next_week = today + timedelta(days=7)
-        next_month = today + timedelta(days=30)
 
+        # Étape 1 : requête SQL uniquement sur les champs existants
         receipts = (
             PaymentReceipt.objects
             .filter(
-                client__in=clients,
-                next_due_date__isnull=False,
-                next_due_date__date__gte=today,
-                next_due_date__date__lte=next_month,
+                contract__created_by=request.user,
+                next_due_date__gte=today,
             )
-            .select_related("client")
+            .select_related("contract", "client__lead")
             .order_by("next_due_date")
         )
 
-        reminders = {
-            "today": [],
-            "tomorrow": [],
-            "next_week": [],
-            "this_month": [],
-        }
+        # Étape 2 : filtrage Python sur la propriété balance_due
+        filtered_receipts = [
+            r for r in receipts if r.contract and r.contract.balance_due > 0
+        ]
 
-        for receipt in receipts:
-            due_date = receipt.next_due_date.date()  # ← conversion explicite
-
-            item = {
-                "client_name": str(receipt.client),
-                "client_phone": receipt.client.phone,
+        # Construction de la réponse
+        results = []
+        for receipt in filtered_receipts:
+            results.append({
+                "receipt_id": receipt.id,
+                "contract_id": receipt.contract.id,
+                "client_id": receipt.client.id,
+                "first_name": receipt.client.lead.first_name,
+                "last_name": receipt.client.lead.last_name,
+                "phone": receipt.client.lead.phone,
                 "next_due_date": receipt.next_due_date,
-                "amount_due": str(receipt.amount),
-            }
+                "balance_due": str(receipt.contract.balance_due),
+            })
 
-            if due_date == today:
-                reminders["today"].append(item)
-            elif due_date == tomorrow:
-                reminders["tomorrow"].append(item)
-            elif today < due_date <= next_week:
-                reminders["next_week"].append(item)
-            elif next_week < due_date <= next_month:
-                reminders["this_month"].append(item)
+        return Response(results)
 
-        return Response(reminders, status=200)
+    @action(detail=True, methods=["patch"], url_path="update-due-date")
+    def update_next_due_date(self, request, pk=None):
+        """
+        Met à jour la prochaine date d'échéance d’un reçu lié à un contrat.
+        """
+        try:
+            receipt = self.get_object()
+        except PaymentReceipt.DoesNotExist:
+            return Response({"detail": "Reçu introuvable."}, status=404)
+
+        new_date = request.data.get("next_due_date")
+        if not new_date:
+            return Response({"next_due_date": "Ce champ est requis."}, status=400)
+
+        try:
+            parsed_date = datetime.fromisoformat(new_date).date()
+        except ValueError:
+            return Response({
+                "next_due_date": "Format de date invalide. Utilisez YYYY-MM-DD ou YYYY-MM-DDTHH:MM."
+            }, status=400)
+
+        receipt.next_due_date = parsed_date
+        receipt.save(update_fields=["next_due_date"])
+
+        try:
+            send_due_date_updated_email_task.delay(receipt.id, parsed_date.isoformat())
+        except Exception as e:
+            logger.exception("Erreur lors de l’envoi de l’email de mise à jour de l’échéance.")
+
+        return Response({
+            "receipt_id": receipt.id,
+            "contract_id": receipt.contract.id if receipt.contract else None,
+            "client": str(receipt.client),
+            "new_next_due_date": parsed_date,
+        })

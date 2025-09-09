@@ -1,7 +1,5 @@
 # api/contracts/serializer.py
 
-# api/contracts/serializer.py
-
 from decimal import ROUND_HALF_UP, Decimal
 from urllib.parse import unquote, urlparse
 
@@ -46,6 +44,7 @@ class ContractSerializer(serializers.ModelSerializer):
             "contract_url",
             "created_at",
             "is_signed",
+            "is_cancelled",  # ⇦ ajouté ici
             "created_by",
         ]
         read_only_fields = [
@@ -62,6 +61,7 @@ class ContractSerializer(serializers.ModelSerializer):
             "service_details",
             "is_refunded",
             "refund_amount",
+            "is_cancelled",  # ⇦ ajouté ici
         ]
 
     def get_amount_paid(self, obj):

@@ -224,6 +224,30 @@ class ContractViewSet(viewsets.ModelViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        """
+        Annule le contrat définitivement (action réservée aux admins).
+
+        - Le champ `is_cancelled` est mis à True
+        - Le solde dû (`balance_due`) est forcé à 0
+        """
+        contract = self.get_object()
+
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Vous n'avez pas la permission d'annuler ce contrat."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        contract.is_cancelled = True
+        contract.save(update_fields=["is_cancelled"])
+
+        return Response(
+            {"detail": "✅ Contrat annulé avec succès."},
+            status=status.HTTP_200_OK,
+        )
+
     def _delete_file_from_url(self, bucket_key: str, file_url: str):
         """
         Supprime un fichier du storage MinIO à partir de son URL.

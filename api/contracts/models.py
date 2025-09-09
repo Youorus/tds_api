@@ -31,6 +31,7 @@ class Contract(models.Model):
     created_at = models.DateTimeField(_("Créé le"), default=timezone.now)
     is_signed = models.BooleanField(_("Signé ?"), default=False)
     is_refunded = models.BooleanField(default=False)
+    is_cancelled = models.BooleanField(default=False)
     refund_amount = models.DecimalField(
         _("Montant remboursé (€)"),
         max_digits=10,

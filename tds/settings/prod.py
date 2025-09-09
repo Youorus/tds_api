@@ -1,13 +1,9 @@
-from .base import *
 import dj_database_url
-import os
-from redis import SSLConnection
+from .base import *
 
-# ─── Django Core ────────────────────────────────────────────────
 DEBUG = False
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
-# ─── Base de données PostgreSQL (ex: Render) ────────────────────
 DATABASES = {
     "default": dj_database_url.config(
         default=os.getenv("DATABASE_URL"),
@@ -16,24 +12,23 @@ DATABASES = {
     )
 }
 
-# ─── Fichiers statiques (collectés dans /staticfiles) ───────────
 STATIC_URL = "/static/"
 
-# ─── CORS / CSRF autorisés depuis domaines frontend ─────────────
 CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
 
-# ─── Redirection HTTPS et cookies sécurisés ─────────────────────
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_DOMAIN = ".tds-dossier.fr"
+CSRF_COOKIE_DOMAIN = ".tds-dossier.fr"
+SESSION_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SAMESITE = "None"
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = True
 
-# ─── Stockage Scaleway S3 ───────────────────────────────────────
 STORAGE_BACKEND = "aws"
-
 AWS_S3_VERIFY = os.getenv("AWS_S3_VERIFY", "True").lower() in ("true", "1", "yes")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -42,13 +37,6 @@ AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "fr-par")
 AWS_S3_ADDRESSING_STYLE = os.getenv("AWS_S3_ADDRESSING_STYLE", "path")
 AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
 
-# Buckets séparés
-BUCKET_USERS_AVATARS = os.getenv("BUCKET_USERS_AVATARS", "avatars-tds")
-BUCKET_CLIENT_DOCUMENTS = os.getenv("BUCKET_CLIENT_DOCUMENTS", "documents-clients")
-BUCKET_CONTRACTS = os.getenv("BUCKET_CONTRACTS", "contracts")
-BUCKET_RECEIPTS = os.getenv("BUCKET_RECEIPTS", "recus")
-
-# ─── Redis (Upstash en rediss://) pour Channels et Celery ───────
 USE_UPSTASH = "upstash.io" in os.getenv("REDIS_URL", "")
 
 CHANNEL_LAYERS = {
@@ -63,18 +51,7 @@ CHANNEL_LAYERS = {
     },
 }
 
-SESSION_COOKIE_DOMAIN = ".tds-dossier.fr"
-CSRF_COOKIE_DOMAIN = ".tds-dossier.fr"
-
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
-
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-
-if CELERY_BROKER_URL.startswith("rediss://"):
-    CELERY_BROKER_TRANSPORT_OPTIONS = {"ssl_cert_reqs": None}
-else:
-    CELERY_BROKER_TRANSPORT_OPTIONS = {}
-
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
+CELERY_BROKER_TRANSPORT_OPTIONS = (
+    {"ssl_cert_reqs": None} if CELERY_BROKER_URL.startswith("rediss://") else {}
+)

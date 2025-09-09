@@ -1,32 +1,29 @@
-from django.contrib.auth import get_user_model
-from django.contrib.auth.models import update_last_login
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from rest_framework import status
+from django.conf import settings
+from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework import status
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import update_last_login
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.views import TokenRefreshView
-from django.conf import settings
-from django.core import signing
-from django.shortcuts import redirect
 
 from api.custom_auth.serializers import LoginSerializer
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
-IS_HTTPS = not settings.DEBUG
+IS_PROD = not settings.DEBUG
 
-# 🔐 Paramètres communs pour les cookies
+# 🔐 Paramètres communs pour les cookies, adaptés dynamiquement
 COMMON_COOKIE_PARAMS = dict(
-    secure=True,
-    samesite="None",
-    domain=".tds-dossier.fr",
+    secure=IS_PROD,
+    samesite="None" if IS_PROD else "Lax",
+    domain=".tds-dossier.fr" if IS_PROD else None,
     path="/",
 )
-
-# 🔐 Salt spécifique pour la signature du rôle
-USER_ROLE_SALT = "user_role_cookie"
-
 
 class LoginView(APIView):
     """
@@ -37,76 +34,61 @@ class LoginView(APIView):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
-        try:
-            serializer = self.serializer_class(
-                data=request.data,
-                context={"request": request},
-            )
-            serializer.is_valid(raise_exception=True)
+        serializer = self.serializer_class(
+            data=request.data,
+            context={"request": request},
+        )
+        if not serializer.is_valid():
+            logger.warning("❌ Login invalide : %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            user = serializer.validated_data["user"]
-            tokens = serializer.validated_data["tokens"]
+        user = serializer.validated_data["user"]
+        tokens = serializer.validated_data["tokens"]
 
-            update_last_login(User, user)
+        update_last_login(User, user)
 
-            response = Response(
-                {
-                    "detail": "Login successful",
-                    "role": user.role,
-                    "role_display": user.get_role_display(),
-                },
-                status=status.HTTP_200_OK,
-            )
+        response = Response(
+            {
+                "detail": "Login successful",
+                "role": user.role,
+                "role_display": user.get_role_display(),
+            },
+            status=status.HTTP_200_OK,
+        )
 
-            response.set_cookie(
-                key="access_token",
-                value=tokens["access"],
-                httponly=True,
-                max_age=60 * 60,
-                **COMMON_COOKIE_PARAMS,
-            )
-            response.set_cookie(
-                key="refresh_token",
-                value=tokens["refresh"],
-                httponly=True,
-                max_age=60 * 60 * 24 * 7,
-                **COMMON_COOKIE_PARAMS,
-            )
+        response.set_cookie(
+            key="access_token",
+            value=tokens["access"],
+            httponly=True,
+            max_age=60 * 60,
+            **COMMON_COOKIE_PARAMS,
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh"],
+            httponly=True,
+            max_age=60 * 60 * 24 * 7,
+            **COMMON_COOKIE_PARAMS,
+        )
 
-            return response
-
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return Response(
-                {"detail": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        logger.info("✅ Login réussi pour %s [%s]", user.email, "PROD" if IS_PROD else "DEV")
+        return response
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class LogoutView(APIView):
-    """
-    Vue API pour la déconnexion.
-    Supprime les cookies access_token, refresh_token, user_role.
-    """
-
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
-        response.delete_cookie("user_role")
+        logger.info("👋 Utilisateur déconnecté")
         return response
 
 
 class CustomTokenRefreshView(TokenRefreshView):
-    """
-    Rafraîchit le token d’accès en lisant le refresh_token depuis les cookies HttpOnly.
-    Renvoie un nouveau access_token uniquement dans le cookie.
-    """
-
     def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get("refresh_token")
 
@@ -129,7 +111,6 @@ class CustomTokenRefreshView(TokenRefreshView):
                 max_age=60 * 60,
                 **COMMON_COOKIE_PARAMS,
             )
-
             del response.data["access"]
 
         return response
