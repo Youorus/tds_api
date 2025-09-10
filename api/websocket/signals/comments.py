@@ -1,3 +1,4 @@
+# api/websocket/signals/comments.py
 import logging
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
@@ -11,14 +12,14 @@ from api.websocket.signals.base import broadcast, safe_payload
 log = logging.getLogger(__name__)
 
 
-def _safe_ids(instance: Comment):
-    # ✅ Corrigé : safe_payload nécessite 2 arguments
-    return safe_payload(instance, CommentSerializer)
+def _safe_ids(instance: Comment, event: str = "deleted"):
+    return safe_payload(event, instance, CommentSerializer)
 
 
 def _payload(event: str, instance: Comment):
     """
-    Construit un payload JSON-sérialisable.
+    Construit un payload JSON-sérialisable. On passe par DRF serializer,
+    et on timestamp en ISO 8601. DjangoJSONEncoder gère UUID, datetime, etc.
     """
     try:
         data = CommentSerializer(instance).data
@@ -34,7 +35,7 @@ def _payload(event: str, instance: Comment):
         }
 
     return {
-        "event": event,  # "created", "updated", "deleted"
+        "event": event,
         "at": timezone.now().isoformat(),
         "data": data,
     }
