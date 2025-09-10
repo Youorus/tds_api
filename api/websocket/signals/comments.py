@@ -12,8 +12,11 @@ from api.websocket.signals.base import broadcast, safe_payload
 log = logging.getLogger(__name__)
 
 
-def _safe_ids(instance: Comment, event: str = "deleted"):
-    return safe_payload(event, instance, CommentSerializer)
+def _safe_ids(instance: Comment):
+    payload = safe_payload("deleted", instance, CommentSerializer)
+    lead_id = payload["data"].get("lead_id")
+    client_id = payload["data"].get("client_id")
+    return lead_id, client_id
 
 
 def _payload(event: str, instance: Comment):
