@@ -1,30 +1,24 @@
-# api/websocket/signals/comments.py
-import json
 import logging
-
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
 from api.comments.models import Comment
-from api.comments.serializers import CommentSerializer  # ton serializer DRF
+from api.comments.serializers import CommentSerializer
 from api.websocket.signals.base import broadcast, safe_payload
 
 log = logging.getLogger(__name__)
 
 
 def _safe_ids(instance: Comment):
-    return safe_payload(instance)
+    # ✅ Corrigé : safe_payload nécessite 2 arguments
+    return safe_payload(instance, CommentSerializer)
 
 
 def _payload(event: str, instance: Comment):
     """
-    Construit un payload JSON-sérialisable. On passe par DRF serializer,
-    et on timestamp en ISO 8601. DjangoJSONEncoder gère UUID, datetime, etc.
+    Construit un payload JSON-sérialisable.
     """
     try:
         data = CommentSerializer(instance).data
@@ -40,7 +34,7 @@ def _payload(event: str, instance: Comment):
         }
 
     return {
-        "event": event,  # "created" | "updated" | "deleted"
+        "event": event,  # "created", "updated", "deleted"
         "at": timezone.now().isoformat(),
         "data": data,
     }
@@ -59,9 +53,9 @@ def on_comment_saved(sender, instance: Comment, created, **kwargs):
     groups = ["comments"]
     if lead_id:
         groups.append(f"comments-lead-{lead_id}")
-        groups.append("leads")  # si ta liste/KPIs leads reflètent le dernier com
+        groups.append("leads")
     if client_id:
-        groups.append(f"client-{client_id}")  # pour réveiller la fiche client liée
+        groups.append(f"client-{client_id}")
         groups.append("clients")
 
     if groups:
