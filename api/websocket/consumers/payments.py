@@ -7,12 +7,16 @@ class PaymentByClientRoom(BaseConsumer):
     group_prefix = "payments-client"
 
     def get_group_name(self):
-        client_id = int(self.scope["url_route"]["kwargs"]["client_id"])
-        return f"{self.group_prefix}-{client_id}"
+        client_id = self.scope["url_route"]["kwargs"].get("client_id")
+        if client_id is None:
+            raise ValueError("Missing 'client_id' in URL route.")
+        return f"{self.group_prefix}-{int(client_id)}"
 
 class PaymentByContractRoom(BaseConsumer):
     group_prefix = "payments-contract"
 
     def get_group_name(self):
-        contract_id = int(self.scope["url_route"]["kwargs"]["contract_id"])
-        return f"{self.group_prefix}-{contract_id}"
+        contract_id = self.scope["url_route"]["kwargs"].get("contract_id")
+        if contract_id is None:
+            raise ValueError("Missing 'contract_id' in URL route.")
+        return f"{self.group_prefix}-{int(contract_id)}"

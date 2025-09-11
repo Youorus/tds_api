@@ -2,6 +2,7 @@
 
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
+from redis.exceptions import ResponseError
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,9 @@ class BaseConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_add(self.group, self.channel_name)
             await self.accept()
             logger.info(f"✅ WS connecté au groupe {self.group}")
+        except ResponseError as e:
+            logger.error(f"❌ Limite Redis atteinte pour le groupe {self.group_prefix} : {e}")
+            await self.close()
         except Exception as e:
             logger.error(f"❌ Erreur lors du group_name ({self.group_prefix}) : {e}")
             await self.close()
