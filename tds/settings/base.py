@@ -156,6 +156,8 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+X_FRAME_OPTIONS = 'ALLOW-FROM https://titresdesejour.fr'
+
 # Logging
 LOGGING = {
     "version": 1,
