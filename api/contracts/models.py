@@ -27,7 +27,7 @@ class Contract(models.Model):
     discount_percent = models.DecimalField(
         _("Remise (%)"), max_digits=5, decimal_places=2, default=Decimal("0.00")
     )
-    contract_url = models.URLField(_("Contrat PDF"), blank=True, null=True)
+    contract_url = models.URLField(_("Contrat PDF"), max_length=1024, blank=True, null=True)
     created_at = models.DateTimeField(_("Créé le"), default=timezone.now)
     is_signed = models.BooleanField(_("Signé ?"), default=False)
     is_refunded = models.BooleanField(default=False)

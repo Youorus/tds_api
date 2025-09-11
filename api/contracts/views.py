@@ -94,7 +94,6 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         Elle associe le créateur et génère automatiquement le PDF du contrat.
         """
-        print("POST data:", self.request.data)
         contract = serializer.save(created_by=self.request.user)
 
         pdf_url = contract.generate_pdf()  # peut renvoyer None

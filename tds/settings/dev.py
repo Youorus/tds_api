@@ -1,8 +1,5 @@
 from .base import *
-import logging
-logger = logging.getLogger(__name__)
-
-
+import os
 
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
@@ -24,6 +21,7 @@ AWS_S3_ENDPOINT_URL = "http://localhost:9000"
 AWS_ACCESS_KEY_ID = "minioadmin"
 AWS_SECRET_ACCESS_KEY = "minioadmin123"
 AWS_S3_VERIFY = False
+STORAGE_BACKEND = "minio"
 
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False

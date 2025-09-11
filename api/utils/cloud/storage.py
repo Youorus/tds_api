@@ -40,6 +40,9 @@ def store_receipt_pdf(receipt, pdf_bytes: bytes) -> str:
 def store_contract_pdf(contract, pdf_bytes: bytes) -> str:
     """
     Stocke le PDF d’un contrat dans MinIO/S3 et retourne l’URL publique.
+    :param contract: instance Contract
+    :param pdf_bytes: bytes du PDF
+    :return: URL publique du contrat PDF
     """
     client = contract.client
     lead = client.lead
@@ -52,8 +55,12 @@ def store_contract_pdf(contract, pdf_bytes: bytes) -> str:
     storage = MinioContractStorage()
     saved_path = storage.save(filename, file_content)
 
-    # Corrigé : l'URL retournée est déjà complète et encodée (ne pas la re-préfixer)
-    return storage.url(saved_path)
+    # Construction manuelle de l’URL publique
+    location = f"{storage.location}/" if storage.location else ""
+    endpoint = getattr(settings, "AWS_S3_ENDPOINT_URL", "")
+    url = f"{endpoint}/{storage.bucket_name}/{location}{saved_path}"
+
+    return url
 
 
 def store_client_document(client, file_content, original_filename) -> str:

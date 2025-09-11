@@ -78,22 +78,16 @@ class LoginView(APIView):
 @method_decorator(csrf_exempt, name="dispatch")
 class LogoutView(APIView):
     authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = []
 
     def post(self, request, *args, **kwargs):
         response = Response(status=status.HTTP_204_NO_CONTENT)
 
-        delete_cookie_params = dict(
-            path="/",
-            domain=".tds-dossier.fr" if IS_PROD else None,
-            samesite="None" if IS_PROD else "Lax",
-            secure=IS_PROD,
-        )
+        domain = ".tds-dossier.fr" if IS_PROD else None
 
-        response.delete_cookie("access_token", **delete_cookie_params)
-        response.delete_cookie("refresh_token", **delete_cookie_params)
+        response.delete_cookie("access_token", path="/", domain=domain)
+        response.delete_cookie("refresh_token", path="/", domain=domain)
 
-        logger.info("👋 Utilisateur déconnecté")
         return response
 
 

@@ -1,5 +1,6 @@
 import logging
 from decimal import Decimal
+from collections import defaultdict
 
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -31,8 +32,18 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Sauvegarde le reçu avec l'utilisateur connecté, puis génère son PDF.
+        Écrase aussi les autres `next_due_date` pour ce contrat.
         """
         receipt = serializer.save(created_by=self.request.user)
+
+        # Si une prochaine échéance est définie, on l’unifie
+        if receipt.contract and receipt.next_due_date:
+            PaymentReceipt.objects.filter(
+                contract=receipt.contract,
+            ).exclude(
+                pk=receipt.pk
+            ).update(next_due_date=None)
+
         receipt.generate_pdf()
 
     def create(self, request, *args, **kwargs):
@@ -124,12 +135,13 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="upcoming")
     def upcoming_payments(self, request):
         """
-        Retourne la liste de tous les paiements à venir (next_due_date ≥ aujourd’hui),
-        triés par date croissante, pour les contrats avec un solde dû.
+        Retourne la liste des paiements à venir (next_due_date ≥ aujourd’hui),
+        en ne retenant qu’un seul reçu par contrat (le plus proche),
+        pour les contrats avec un solde dû, triés par date croissante.
         """
         today = date.today()
 
-        # Étape 1 : requête SQL uniquement sur les champs existants
+        # Étape 1 : requête initiale
         receipts = (
             PaymentReceipt.objects
             .filter(
@@ -137,17 +149,21 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
                 next_due_date__gte=today,
             )
             .select_related("contract", "client__lead")
-            .order_by("next_due_date")
+            .order_by("contract_id", "next_due_date")
         )
 
-        # Étape 2 : filtrage Python sur la propriété balance_due
-        filtered_receipts = [
-            r for r in receipts if r.contract and r.contract.balance_due > 0
-        ]
+        # Étape 2 : filtrer pour ne garder que le reçu le plus proche par contrat
+        grouped = defaultdict(list)
+        for r in receipts:
+            if r.contract and r.contract.balance_due > 0:
+                grouped[r.contract.id].append(r)
 
-        # Construction de la réponse
+        # Étape 3 : ne garder que le premier reçu (le plus proche) pour chaque contrat
+        unique_receipts = [r_list[0] for r_list in grouped.values()]
+
+        # Étape 4 : construction de la réponse
         results = []
-        for receipt in filtered_receipts:
+        for receipt in unique_receipts:
             results.append({
                 "receipt_id": receipt.id,
                 "contract_id": receipt.contract.id,
@@ -157,7 +173,11 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
                 "phone": receipt.client.lead.phone,
                 "next_due_date": receipt.next_due_date,
                 "balance_due": str(receipt.contract.balance_due),
+                "service_details": str(receipt.contract.service)
             })
+
+        # Trier les résultats finaux par date d’échéance
+        results.sort(key=lambda r: r["next_due_date"])
 
         return Response(results)
 

@@ -4,16 +4,13 @@ from datetime import timedelta
 from dotenv import load_dotenv
 from corsheaders.defaults import default_headers
 from celery.schedules import crontab
-from redis import SSLConnection
 
-# ─── Chargement des variables d’environnement ───
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# ─── Django ──────────────────────────────────────
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "changeme")
-DEBUG = False  # Override dans dev/test
+DEBUG = False
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
@@ -70,7 +67,6 @@ ASGI_APPLICATION = "tds.asgi.application"
 AUTH_USER_MODEL = "users.user"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Templates
 TEMPLATES = [{
     "BACKEND": "django.template.backends.django.DjangoTemplates",
     "DIRS": [BASE_DIR / "templates"],
@@ -107,10 +103,15 @@ SIMPLE_JWT = {
     "AUTH_COOKIE_HTTP_ONLY": True,
 }
 
-# CORS
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
-CORS_ALLOW_HEADERS = list(default_headers) + ["authorization", "content-type"]
+# Langue / Temps
+LANGUAGE_CODE = "fr-fr"
+TIME_ZONE = "Europe/Paris"
+USE_I18N = True
+USE_TZ = True
+APPEND_SLASH = True
+
+# PDF
+WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
 
 # Email
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
@@ -122,16 +123,6 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 SERVER_EMAIL = os.getenv("SERVER_EMAIL")
-
-# Langue / Temps
-LANGUAGE_CODE = "fr-fr"
-TIME_ZONE = "Europe/Paris"
-USE_I18N = True
-USE_TZ = True
-APPEND_SLASH = True
-
-# PDF
-WKHTMLTOPDF_PATH = os.getenv("WKHTMLTOPDF_PATH", "/usr/local/bin/wkhtmltopdf")
 
 # Buckets
 BUCKET_USERS_AVATARS = os.getenv("BUCKET_USERS_AVATARS", "avatars-tds")
@@ -149,7 +140,6 @@ SCW_BUCKETS = {
 # Celery
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
-
 CELERY_BEAT_SCHEDULE = {
     "send-lead-reminders": {
         "task": "api.leads.tasks.send_reminder_emails",
