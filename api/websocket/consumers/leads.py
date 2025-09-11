@@ -1,11 +1,16 @@
 # consumers/leads.py
+
 from .base import BaseConsumer
+import logging
+
+logger = logging.getLogger(__name__)
 
 class LeadConsumer(BaseConsumer):
     group_prefix = "leads"
 
     def get_group_name(self, **kwargs):
-        if "lead_id" not in kwargs:
-            self.logger.error("Missing 'lead_id' in group name resolution for LeadConsumer")
-            raise ValueError("Missing 'lead_id' in group name resolution")
-        return f"{self.group_prefix}_{kwargs['lead_id']}"
+        lead_id = kwargs.get("lead_id")
+        if not lead_id:
+            logger.warning("⚠️ Connexion au groupe général 'leads' car aucun 'lead_id' fourni")
+            return self.group_prefix  # fallback: leads
+        return f"{self.group_prefix}_{lead_id}"

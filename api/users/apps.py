@@ -9,6 +9,3 @@ class UsersConfig(AppConfig):
     def ready(self):
         import api.websocket.signals.leads
         import api.websocket.signals.clients
-        import api.websocket.signals.comments
-        import api.websocket.signals.contracts
-        import api.websocket.signals.payments

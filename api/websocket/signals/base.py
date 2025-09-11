@@ -1,35 +1,31 @@
 # api/websocket/signals/base.py
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 import json
 import logging
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
-from django.core.serializers.json import DjangoJSONEncoder
-from rest_framework.serializers import Serializer
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-def broadcast(groups: list[str], payload: dict):
-    if not groups:
-        return
-    layer = get_channel_layer()
-    if layer is None:
-        log.warning("⚠️ Aucun channel layer configuré pour WebSocket")
-        return
-    text = json.dumps(payload, cls=DjangoJSONEncoder)
-    for group in groups:
-        async_to_sync(layer.group_send)(group, {"type": "send_event", "text": text})
-        log.info("📢 [WS] send %s -> %s", payload.get("event"), group)
-
-def safe_payload(event: str, instance, serializer_class: type[Serializer], extra_data: dict = None) -> dict:
-    try:
-        data = serializer_class(instance).data
-    except Exception as e:
-        log.exception("❌ Serializer %s a échoué : %s", serializer_class.__name__, e)
-        data = {"id": getattr(instance, "id", None)}
-    if extra_data:
-        data.update(extra_data)
+def safe_payload(event: str, instance, serializer_class, extra: dict = None):
     return {
-        "event": event,
-        "at": instance.updated_at.isoformat() if hasattr(instance, "updated_at") else None,
-        "data": data,
+        "event": f"{instance.__class__.__name__.lower()}_{event}",
+        "data": serializer_class(instance).data,
+        "extra": extra or {},
     }
+
+def broadcast(groups, payload: dict):
+    channel_layer = get_channel_layer()
+    text = json.dumps(payload)
+
+    for group in groups:
+        if not group:
+            logger.warning("⚠️ Groupe WebSocket vide, message ignoré")
+            continue
+        async_to_sync(channel_layer.group_send)(
+            group,
+            {
+                "type": "send.event",  # doit correspondre à send_event dans BaseConsumer
+                "text": text,
+            },
+        )
+        logger.info(f"📢 WS Broadcast → {group} : {payload['event']}")

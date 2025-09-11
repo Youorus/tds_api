@@ -11,7 +11,7 @@ class BaseConsumer(AsyncWebsocketConsumer):
     group_prefix = None  # À override dans les subclasses
 
     async def connect(self):
-        self.group = None  # ✅ Toujours définir l’attribut pour éviter les erreurs
+        self.group = None
 
         if not self.channel_layer:
             logger.warning(f"❌ Channel layer non disponible ({self.group_prefix})")
@@ -19,7 +19,8 @@ class BaseConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            self.group = self.get_group_name()
+            # ✅ Récupération des kwargs depuis le scope
+            self.group = self.get_group_name(**self.scope.get("url_route", {}).get("kwargs", {}))
             await self.channel_layer.group_add(self.group, self.channel_name)
             await self.accept()
             logger.info(f"✅ WS connecté au groupe {self.group}")
@@ -43,10 +44,7 @@ class BaseConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             logger.exception(f"❌ Erreur d'envoi WS ({self.group}): {e}")
 
-    def get_group_name(self) -> str:
-        """
-        Doit être surchargé dans les sous-classes si besoin d'un groupe dynamique.
-        """
+    def get_group_name(self, **kwargs) -> str:
         if not self.group_prefix:
             raise ValueError("group_prefix manquant")
         return self.group_prefix

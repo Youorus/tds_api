@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
-IS_PROD = not settings.DEBUG
+IS_PROD = False
 
 # 🔐 Paramètres communs pour les cookies, adaptés dynamiquement
 COMMON_COOKIE_PARAMS = dict(

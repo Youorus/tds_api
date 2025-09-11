@@ -1,1 +1,1 @@
-from . import leads, clients, comments, contracts, payments
+from . import leads, clients
