@@ -7,6 +7,6 @@ router = DefaultRouter()
 router.register(r"", UserViewSet, basename="users")
 
 urlpatterns = [
-    path("me/", MeView.as_view(), name="me"),  # <-- attention : PAS de "/" à la fin
+    path("me/", MeView.as_view(), name="me"),
     path("", include(router.urls)),
 ]

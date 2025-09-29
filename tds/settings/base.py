@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "api.profile",
     "api.services",
     "api.statut_dossier",
+    "api.statut_dossier_interne",
     "api.users",
     "api.booking",
     "api.appointment",
@@ -143,8 +144,8 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_BEAT_SCHEDULE = {
     "send-lead-reminders": {
-        "task": "api.leads.tasks.send_reminder_emails",
-        "schedule": crontab(minute=0, hour="*/1"),
+    "task": "api.leads.tasks.send_reminder_emails",
+    "schedule": crontab(minute=0),
     },
     "mark-leads-as-absent": {
         "task": "api.leads.tasks.mark_absent_leads",

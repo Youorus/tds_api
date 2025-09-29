@@ -15,71 +15,68 @@ from api.utils.email import (
 logger = logging.getLogger(__name__)
 
 
-"""
-Tâche périodique pour envoyer des e-mails de rappel aux leads avec un rendez-vous confirmé :
-- Un rappel est envoyé 1 jour avant le rendez-vous.
-- Un autre rappel est envoyé 2 heures avant le rendez-vous.
-"""
-
-
 @shared_task
 def send_reminder_emails():
+    """
+    Tâche pour envoyer des e-mails de rappel aux leads avec un rendez-vous confirmé :
+    - J-1 : un jour avant le rendez-vous.
+    - H-2 : deux heures avant le rendez-vous.
+    ⚠️ Protection anti-doublons via `last_reminder_sent` (≥ 1h entre deux envois).
+    """
     now = timezone.now()
 
-    # Rappel 1 jour avant
-    one_day_later = now + timedelta(days=1)
-    leads_1d = Lead.objects.filter(
-        status__code=RDV_CONFIRME, appointment_date__date=one_day_later.date()
+    # Fenêtre J-1 : entre J-1 pile et J-1 + 1h
+    one_day_start = now + timedelta(days=1)
+    one_day_end = one_day_start + timedelta(hours=1)
+
+    # Fenêtre H-2 : entre H-2 pile et H-2 + 1h
+    two_hours_start = now + timedelta(hours=2)
+    two_hours_end = two_hours_start + timedelta(hours=1)
+
+    # Leads avec RDV confirmé
+    leads = Lead.objects.filter(status__code=RDV_CONFIRME)
+
+    leads_to_remind = leads.filter(
+        appointment_date__range=(one_day_start, one_day_end)
+    ) | leads.filter(
+        appointment_date__range=(two_hours_start, two_hours_end)
     )
 
-    for lead in leads_1d:
-        send_appointment_reminder_email(lead)
-        logger.info(f"📧 Rappel J-1 envoyé à {lead.email} (lead #{lead.id})")
-
-    # Rappel 2h avant
-    two_hours_later = now + timedelta(hours=2)
-    leads_2h = Lead.objects.filter(
-        status__code=RDV_CONFIRME,
-        appointment_date__hour=two_hours_later.hour,
-        appointment_date__date=two_hours_later.date(),
-        minute__minute=two_hours_later.minute,
-    )
-
-    for lead in leads_2h:
-        send_appointment_reminder_email(lead)
-        logger.info(f"📧 Rappel H-2 envoyé à {lead.email} (lead #{lead.id})")
-
-
-"""
-Tâche périodique pour marquer comme absents les leads dont le rendez-vous confirmé est déjà passé.
-Et envoyer un e-mail d'absence à chaque lead concerné.
-"""
+    for lead in leads_to_remind.distinct():
+        # Protection anti-spam (≥ 1h entre 2 rappels)
+        if not lead.last_reminder_sent or (now - lead.last_reminder_sent).total_seconds() > 3600:
+            send_appointment_reminder_email(lead)
+            lead.last_reminder_sent = now
+            lead.save(update_fields=["last_reminder_sent"])
+            logger.info(f"📧 Rappel envoyé à {lead.email} (lead #{lead.id})")
+        else:
+            logger.info(f"⏩ Lead #{lead.id} déjà rappelé récemment, skip.")
 
 
 @shared_task
 def mark_absent_leads():
+    """
+    Tâche pour marquer comme absents les leads dont le rendez-vous confirmé est déjà passé.
+    Un mail d'absence est envoyé si l'email du lead est présent.
+    """
     now = timezone.now()
 
     try:
         absent_status = LeadStatus.objects.get(code=ABSENT)
         confirmed_status = LeadStatus.objects.get(code=RDV_CONFIRME)
     except LeadStatus.DoesNotExist:
-        logger.error("❌ Les statuts 'ABSENT' ou 'RDV_CONFIRME' sont introuvables.")
+        logger.error("❌ Statuts 'ABSENT' ou 'RDV_CONFIRME' introuvables.")
         return
 
-    leads_to_mark = Lead.objects.filter(
-        status=confirmed_status, appointment_date__lt=now
-    )
+    leads_to_mark = Lead.objects.filter(status=confirmed_status, appointment_date__lt=now)
 
     for lead in leads_to_mark:
         lead.status = absent_status
-        lead.save()
+        lead.save(update_fields=["status"])
         logger.info(f"✅ Lead #{lead.id} marqué comme ABSENT")
 
         if lead.email:
             send_missed_appointment_email(lead)
             logger.info(f"📧 Mail d'absence envoyé à {lead.email} (lead #{lead.id})")
         else:
-            logger.warning(
-                f"⚠️ Impossible d'envoyer le mail d'absence (email manquant) pour lead #{lead.id}"
-            )
+            logger.warning(f"⚠️ Email manquant pour lead #{lead.id}, pas d'envoi possible.")

@@ -12,6 +12,8 @@ from api.leads.constants import RDV_CONFIRME, RDV_PLANIFIE
 from api.leads.models import Lead
 from api.statut_dossier.models import StatutDossier
 from api.statut_dossier.serializers import StatutDossierSerializer
+from api.statut_dossier_interne.models import StatutDossierInterne
+from api.statut_dossier_interne.serializers import StatutDossierInterneSerializer
 from api.users.assigned_user_serializer import AssignedUserSerializer
 from api.users.models import User
 from api.users.roles import UserRoles
@@ -74,6 +76,13 @@ class LeadSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+    statut_dossier_interne = StatutDossierInterneSerializer(read_only=True)
+    statut_dossier_interne_id = serializers.PrimaryKeyRelatedField(
+        queryset=StatutDossierInterne.objects.all(),
+        source="statut_dossier_interne",
+        write_only=True,
+        required=False,
+    )
 
     contract_emitter_id = serializers.SerializerMethodField()
 
@@ -95,6 +104,8 @@ class LeadSerializer(serializers.ModelSerializer):
             "contract_emitter_id",
             "statut_dossier",
             "statut_dossier_id",
+            "statut_dossier_interne",
+            "statut_dossier_interne_id",
             "jurist_assigned",
             "jurist_assigned_ids",
         ]

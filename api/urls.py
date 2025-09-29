@@ -27,6 +27,7 @@ api_urlpatterns = [
     path("user-unavailability/", include("api.user_unavailability.urls")),
     # Statuts de dossier (pour contrats ou demandes)
     path("statut-dossiers/", include("api.statut_dossier.urls")),
+    path("statut-dossiers-internes/", include("api.statut_dossier_interne.urls")),
     # Documents clients (upload et gestion)
     path("documents/", include("api.documents.urls")),
     path("booking/", include("api.booking.urls")),

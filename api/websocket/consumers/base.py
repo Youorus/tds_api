@@ -19,8 +19,8 @@ class BaseConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            # ✅ Récupération des kwargs depuis le scope
-            self.group = self.get_group_name(**self.scope.get("url_route", {}).get("kwargs", {}))
+            # 🔹 Laisse la sous-classe gérer la logique
+            self.group = self.get_group_name()
             await self.channel_layer.group_add(self.group, self.channel_name)
             await self.accept()
             logger.info(f"✅ WS connecté au groupe {self.group}")

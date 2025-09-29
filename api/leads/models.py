@@ -46,6 +46,14 @@ class Lead(models.Model):
         verbose_name=_("statut du dossier"),
         help_text=_("Suivi interne de l’état d’avancement du dossier"),
     )
+    statut_dossier_interne = models.ForeignKey(
+        "statut_dossier_interne.StatutDossierInterne",
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        verbose_name=_("statut du dossier interne"),
+        help_text=_("Suivi interne réservé à l’équipe pour l’état d’avancement interne du dossier"),
+    )
 
     appointment_date = models.DateTimeField(
         blank=True,
