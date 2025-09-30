@@ -3,6 +3,7 @@
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from datetime import date
 
 from api.jurist_availability_date.models import JuristGlobalAvailability
 from api.jurist_availability_date.serializers import JuristGlobalAvailabilitySerializer
@@ -18,11 +19,18 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
             return [permissions.AllowAny()]
         return [permissions.IsAdminUser()]
 
-    @action(detail=False, methods=["get"], url_path="days")
+    @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def days(self, request):
         """
-        Retourne la liste des jours (entiers 0-6) où il existe au moins un créneau global
-        Ex : [1, 3] pour mardi/jeudi
+        Retourne la liste des jours disponibles pour les juristes.
+        - Si repeat_weekly=True → renvoie "weekly-<weekday>" (0=lundi, 6=dimanche)
+        - Sinon → renvoie la date exacte "YYYY-MM-DD"
         """
-        days = self.get_queryset().values_list("day_of_week", flat=True).distinct()
-        return Response(sorted(list(days)))
+        qs = self.get_queryset()
+        days = set()
+        for avail in qs:
+            if avail.repeat_weekly:
+                days.add(f"weekly-{avail.date.weekday()}")
+            else:
+                days.add(avail.date.isoformat())
+        return Response(sorted(days))

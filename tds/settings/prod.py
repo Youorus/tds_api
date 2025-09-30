@@ -2,6 +2,7 @@ from .base import *
 import os
 import dj_database_url
 from redis import SSLConnection
+import ssl
 
 DEBUG = False
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
@@ -52,6 +53,11 @@ CHANNEL_LAYERS = {
 }
 
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL")
-CELERY_BROKER_TRANSPORT_OPTIONS = (
-    {"ssl_cert_reqs": None} if CELERY_BROKER_URL.startswith("rediss://") else {}
-)
+if CELERY_BROKER_URL and CELERY_BROKER_URL.startswith("rediss://"):
+    CELERY_BROKER_TRANSPORT_OPTIONS = {
+        "ssl_cert_reqs": ssl.CERT_NONE
+    }
+else:
+    CELERY_BROKER_TRANSPORT_OPTIONS = {}
+
+CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"

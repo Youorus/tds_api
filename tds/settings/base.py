@@ -62,6 +62,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.middleware.http.ConditionalGetMiddleware",
 ]
 
 ROOT_URLCONF = "tds.urls"
@@ -93,6 +94,41 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+    ],
+}
+#
+# Database (PostgreSQL) optimized
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB", "tds"),
+        "USER": os.getenv("POSTGRES_USER", "tds"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 600,  # 10 minutes persistent connections
+        "CONN_HEALTH_CHECKS": True,
+    }
+}
+
+# Redis cache
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+# AWS S3 object parameters for static files (long cache)
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "max-age=31536000, public",
 }
 
 SIMPLE_JWT = {
@@ -171,3 +207,7 @@ LOGGING = {
 }
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://www.tds-dossier.fr")
+# Security headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"

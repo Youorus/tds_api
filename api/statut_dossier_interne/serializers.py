@@ -11,6 +11,10 @@ class StatutDossierInterneSerializer(serializers.ModelSerializer):
     class Meta:
         model = StatutDossierInterne
         fields = ["id", "code", "label", "description", "color"]
+        extra_kwargs = {
+            "label": {"required": False, "allow_blank": True},
+            "description": {"required": False, "allow_blank": True},
+        }
 
     def validate_code(self, value):
         # Supprime espaces, majuscules, underscore

@@ -11,7 +11,12 @@ def is_valid_day(day):
     """
     Retourne True si au moins une plage globale existe ce jour-là.
     """
-    return JuristGlobalAvailability.objects.filter(day_of_week=day.weekday()).exists()
+    return JuristGlobalAvailability.objects.filter(
+        date=day
+    ).exists() or JuristGlobalAvailability.objects.filter(
+        repeat_weekly=True,
+        date__week_day=day.isoweekday() % 7 + 1,
+    ).exists()
 
 
 def get_slots_for_day(day):
@@ -23,7 +28,12 @@ def get_slots_for_day(day):
     tz = get_current_timezone()  # Toujours Europe/Paris si settings correct
     slots = []
 
-    availabilities = JuristGlobalAvailability.objects.filter(day_of_week=day.weekday())
+    availabilities = JuristGlobalAvailability.objects.filter(
+        date=day
+    ) | JuristGlobalAvailability.objects.filter(
+        repeat_weekly=True,
+        date__week_day=day.isoweekday() % 7 + 1,
+    )
     for avail in availabilities:
         hstart, hend = avail.start_time, avail.end_time
         current = datetime.combine(day, hstart)

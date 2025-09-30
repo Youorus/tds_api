@@ -1,33 +1,40 @@
-# test_models.py
-
 from django.db import models
+from django.utils import timezone
 
 
 class JuristGlobalAvailability(models.Model):
     """
-    Définit les créneaux globaux où il est possible de prendre RDV avec un juriste,
-    indépendamment de la personne.
+    Définit les créneaux globaux où il est possible de prendre rendez-vous
+    avec un juriste, indépendamment d’une personne.
     """
 
-    DAYS_OF_WEEK = [
-        (0, "Lundi"),
-        (1, "Mardi"),
-        (2, "Mercredi"),
-        (3, "Jeudi"),
-        (4, "Vendredi"),
-        (5, "Samedi"),
-        (6, "Dimanche"),
-    ]
-    day_of_week = models.IntegerField(choices=DAYS_OF_WEEK)
-    start_time = models.TimeField()
-    end_time = models.TimeField()
+    date = models.DateField(
+        default=timezone.now,
+        help_text="Date du créneau de disponibilité."
+    )
+    start_time = models.TimeField(
+        help_text="Heure de début du créneau (HH:MM)."
+    )
+    end_time = models.TimeField(
+        help_text="Heure de fin du créneau (HH:MM)."
+    )
+    repeat_weekly = models.BooleanField(
+        default=False,
+        help_text="Si coché, ce créneau est répété chaque semaine au même jour de semaine."
+    )
 
     class Meta:
-        unique_together = ("day_of_week", "start_time", "end_time")
-        ordering = ["day_of_week", "start_time"]
+        verbose_name = "Disponibilité globale juriste"
+        verbose_name_plural = "Disponibilités globales juristes"
+        ordering = ["date", "start_time"]
+        unique_together = ("date", "start_time", "end_time")
 
-    def __str__(self):
-        return (
-            f"{self.get_day_of_week_display()} de "
-            f"{self.start_time.strftime('%H:%M')} à {self.end_time.strftime('%H:%M')}"
+    def __str__(self) -> str:
+        base_str = (
+            f"{self.date.strftime('%d/%m/%Y')} "
+            f"de {self.start_time.strftime('%H:%M')} "
+            f"à {self.end_time.strftime('%H:%M')}"
         )
+        if self.repeat_weekly:
+            base_str += " (répété chaque semaine)"
+        return base_str
