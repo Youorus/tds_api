@@ -5,6 +5,8 @@ from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from api.services.utils import code_from_label
+
 
 class Service(models.Model):
     """
@@ -18,7 +20,7 @@ class Service(models.Model):
     """
 
     code = models.CharField(
-        max_length=50,
+        max_length=200,
         unique=True,
         verbose_name=_("Code du service"),
         help_text=_(
@@ -56,9 +58,9 @@ class Service(models.Model):
     def clean_code(self, code):
         """
         Nettoie et normalise le code :
-        - Supprime espaces/tirets/underscores
-        - Met en MAJUSCULES
         - Supprime les accents
+        - Remplace espaces/tirets/underscores par "_"
+        - Met en MAJUSCULES
         - Trim début/fin
         """
         code = code.strip()
@@ -68,11 +70,15 @@ class Service(models.Model):
             for c in unicodedata.normalize("NFD", code)
             if unicodedata.category(c) != "Mn"
         )
-        code = code.replace(" ", "").replace("_", "").replace("-", "")
+        # Normalisation des séparateurs en "_"
+        code = re.sub(r"[\s\-_]+", "_", code)
         code = code.upper()
         return code
 
     def save(self, *args, **kwargs):
         if self.code:
-            self.code = self.clean_code(self.code)
+            self.code = code_from_label(self.code)
+        else:
+            # Si jamais code absent, dérive du label
+            self.code = code_from_label(self.label or "")
         super().save(*args, **kwargs)

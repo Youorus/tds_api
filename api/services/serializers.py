@@ -1,6 +1,7 @@
+# api/services/serializers.py
 from rest_framework import serializers
-
 from api.services.models import Service
+from api.services.utils import code_from_label
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -10,31 +11,16 @@ class ServiceSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
     def validate_code(self, value):
-        """
-        Code forcé en MAJUSCULES, espaces remplacés par _
-        """
-        return value.strip().upper().replace(" ", "_")
-
-    def validate_label(self, value):
-        if len(value.strip()) < 3:
-            raise serializers.ValidationError("Le libellé du service est trop court.")
-        return value
-
-    def validate_price(self, value):
-        if value < 0:
-            raise serializers.ValidationError("Le prix doit être positif ou nul.")
-        return value
+        return code_from_label(value)
 
     def create(self, validated_data):
-        # Pour garantir même hors formulaire que le code est normalisé
-        validated_data["code"] = (
-            validated_data["code"].strip().upper().replace(" ", "_")
-        )
+        if not validated_data.get("code"):
+            validated_data["code"] = code_from_label(validated_data["label"])
+        else:
+            validated_data["code"] = code_from_label(validated_data["code"])
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if "code" in validated_data:
-            validated_data["code"] = (
-                validated_data["code"].strip().upper().replace(" ", "_")
-            )
+            validated_data["code"] = code_from_label(validated_data["code"])
         return super().update(instance, validated_data)

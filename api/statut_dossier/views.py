@@ -14,3 +14,4 @@ class StatutDossierViewSet(viewsets.ModelViewSet):
     queryset = StatutDossier.objects.all()
     serializer_class = StatutDossierSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = None

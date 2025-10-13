@@ -12,6 +12,7 @@ PROTECTED_CODES = {"ABSENT", "PRESENT", "RDV_CONFIRME", "RDV_PLANIFIE"}
 class LeadStatusViewSet(viewsets.ModelViewSet):
     queryset = LeadStatus.objects.all()
     serializer_class = LeadStatusSerializer
+    pagination_class = None
 
     def get_permissions(self):
         if self.action in ["list", "retrieve"]:

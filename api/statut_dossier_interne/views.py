@@ -12,3 +12,4 @@ class StatutDossierInterneViewSet(viewsets.ModelViewSet):
     queryset = StatutDossierInterne.objects.all()
     serializer_class = StatutDossierInterneSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = None
