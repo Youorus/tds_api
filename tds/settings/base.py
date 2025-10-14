@@ -180,8 +180,8 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_BEAT_SCHEDULE = {
     "send-lead-reminders": {
-    "task": "api.leads.tasks.send_reminder_emails",
-    "schedule": crontab(minute=0),
+        "task": "api.leads.tasks.send_reminder_emails",
+        "schedule": crontab(hour=7, minute=0),
     },
     "mark-leads-as-absent": {
         "task": "api.leads.tasks.mark_absent_leads",

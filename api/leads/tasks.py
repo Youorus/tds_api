@@ -16,41 +16,25 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
+@shared_task
 def send_reminder_emails():
     """
-    Tâche pour envoyer des e-mails de rappel aux leads avec un rendez-vous confirmé :
-    - J-1 : un jour avant le rendez-vous.
-    - H-2 : deux heures avant le rendez-vous.
-    ⚠️ Protection anti-doublons via `last_reminder_sent` (≥ 1h entre deux envois).
+    Envoie un rappel un jour avant le rendez-vous confirmé.
     """
     now = timezone.now()
+    tomorrow = now.date() + timedelta(days=1)
 
-    # Fenêtre J-1 : entre J-1 pile et J-1 + 1h
-    one_day_start = now + timedelta(days=1)
-    one_day_end = one_day_start + timedelta(hours=1)
-
-    # Fenêtre H-2 : entre H-2 pile et H-2 + 1h
-    two_hours_start = now + timedelta(hours=2)
-    two_hours_end = two_hours_start + timedelta(hours=1)
-
-    # Leads avec RDV confirmé
-    leads = Lead.objects.filter(status__code=RDV_CONFIRME)
-
-    leads_to_remind = leads.filter(
-        appointment_date__range=(one_day_start, one_day_end)
-    ) | leads.filter(
-        appointment_date__range=(two_hours_start, two_hours_end)
+    leads = Lead.objects.filter(
+        status__code=RDV_CONFIRME,
+        appointment_date__date=tomorrow
     )
 
-    for lead in leads_to_remind.distinct():
-        # Protection anti-spam (≥ 1h entre 2 rappels)
-        if not lead.last_reminder_sent or (now - lead.last_reminder_sent).total_seconds() > 3600:
+    for lead in leads:
+        if not lead.last_reminder_sent:
             send_appointment_reminder_email(lead)
             lead.last_reminder_sent = now
             lead.save(update_fields=["last_reminder_sent"])
-            logger.info(f"📧 Rappel envoyé à {lead.email} (lead #{lead.id})")
-        else:
-            logger.info(f"⏩ Lead #{lead.id} déjà rappelé récemment, skip.")
+            logger.info(f"📧 Rappel J-1 envoyé à {lead.email} (lead #{lead.id})")
 
 
 @shared_task
