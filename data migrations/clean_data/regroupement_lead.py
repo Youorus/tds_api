@@ -4,10 +4,10 @@ import math
 import re
 import unicodedata
 
-file_path = "new_rows.csv"
+file_path = "tds_data.xlsx"
 
-# --- Étape 1 : détecter la ligne d'en-tête ---
-preview = pd.read_csv(file_path, header=None, nrows=30)
+# --- Étape 1 : détecter la ligne d’en-tête ---
+preview = pd.read_excel(file_path, header=None, nrows=30)
 header_row = None
 for i, row in preview.iterrows():
     if row.astype(str).str.contains("Nom", case=False, na=False).any():
@@ -18,7 +18,7 @@ if header_row is None:
     raise ValueError("❌ Impossible de trouver la ligne contenant 'Nom'")
 
 # --- Étape 2 : lecture avec en-tête ---
-df = pd.read_csv(file_path, header=header_row)
+df = pd.read_excel(file_path, header=header_row)
 
 # --- Normalisation des colonnes ---
 def normalize_col(col: str) -> str:

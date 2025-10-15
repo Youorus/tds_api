@@ -47,13 +47,12 @@ class LeadViewSet(viewsets.ModelViewSet):
     - Assignation des conseillers ou juristes
     - Création publique avec gestion de quota horaire
     - Envoi automatique de notifications email selon le statut ou la modification
-    - Filtres dynamiques sur le rôle, la date, le statut, le texte
+    - Filtres dynamiques sur la date, le statut, le texte
 
     Permissions :
     - Créateur du lead (IsLeadCreator) par défaut
     - Public (AllowAny) pour la création publique
     - Admin ou Conseiller requis pour l’assignation
-
     """
 
     serializer_class = LeadSerializer
@@ -63,28 +62,14 @@ class LeadViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = Lead.objects.all()
 
-        queryset = self._filter_by_role(queryset, user)
+        # ⚡️ Pas de filtrage par rôle → tout le monde voit le même jeu de données
         queryset = self._filter_by_search(queryset)
         queryset = self._filter_by_status(queryset)
         queryset = self._filter_by_date(queryset)
 
         return queryset.order_by("-created_at")
 
-    def _filter_by_role(self, queryset, user):
-        if getattr(user, "role", None) == UserRoles.JURISTE:
-            return queryset.filter(jurist_assigned=user)
-
-        if getattr(user, "role", None) == UserRoles.CONSEILLER:
-            try:
-                status_present = LeadStatus.objects.get(code=PRESENT)
-                return queryset.filter(
-                    Q(assigned_to=user)
-                    | Q(assigned_to__isnull=True, status=status_present)
-                )
-            except LeadStatus.DoesNotExist:
-                return queryset.filter(assigned_to=user)
-
-        return queryset
+    # ==== FILTRES ====
 
     def _filter_by_search(self, queryset):
         search = self.request.query_params.get("search")
@@ -112,12 +97,16 @@ class LeadViewSet(viewsets.ModelViewSet):
                 return queryset.filter(**{f"{date_field}__date": parsed_date})
         return queryset
 
+    # ==== PERMISSIONS ====
+
     def get_permissions(self):
         if self.action == "public_create":
             return [AllowAny()]
         if self.action in ["assignment", "request_assignment"]:
             return [IsConseillerOrAdmin()]
         return super().get_permissions()
+
+    # ==== CREATE & UPDATE ====
 
     def perform_create(self, serializer):
         lead_status = serializer.validated_data.get("status")
@@ -248,8 +237,6 @@ class LeadViewSet(viewsets.ModelViewSet):
 
         - ADMIN : peut assigner ou désassigner n’importe quel conseiller.
         - CONSEILLER : peut uniquement s’auto-assigner ou se désassigner.
-
-        Requiert que l'utilisateur ait le rôle approprié.
         """
         lead = self.get_object()
         user = request.user
@@ -295,8 +282,6 @@ class LeadViewSet(viewsets.ModelViewSet):
     def assign_juristes(self, request, pk=None):
         """
         Assigne ou désassigne un ou plusieurs juristes à un lead (ADMIN uniquement).
-
-        Valide que les utilisateurs à assigner sont bien des juristes actifs.
         """
         user = request.user
         if user.role != UserRoles.ADMIN:
@@ -314,7 +299,6 @@ class LeadViewSet(viewsets.ModelViewSet):
                 raise NotFound("Un ou plusieurs juristes à assigner sont introuvables.")
             lead.jurist_assigned.add(*juristes)
 
-            # Notifier le lead par email du juriste principal assigné (si lead.email existe)
             if lead.email and juristes.exists():
                 main_jurist = juristes.first()
                 send_jurist_assigned_notification_task.delay(lead.id, main_jurist.id)
@@ -330,8 +314,6 @@ class LeadViewSet(viewsets.ModelViewSet):
     def send_formulaire_email(self, request, pk=None):
         """
         Déclenche l’envoi d’un e-mail contenant le formulaire au lead concerné.
-
-        Utilise une tâche Celery asynchrone.
         """
         lead = self.get_object()
         send_formulaire_task.delay(lead.id)
