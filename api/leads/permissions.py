@@ -20,7 +20,7 @@ class IsLeadCreator(BasePermission):
         if view.action == "create":
             return request.user.is_authenticated and getattr(
                 request.user, "role", None
-            ) in [UserRoles.ADMIN, UserRoles.ACCUEIL]
+            ) in [UserRoles.ADMIN, UserRoles.ACCUEIL, UserRoles.CONSEILLER, UserRoles.JURISTE]
         # Update/delete/read: tout utilisateur connecté
         if request.user and request.user.is_authenticated:
             return True
