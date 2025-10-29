@@ -12,6 +12,7 @@ class IsPaymentEditor(BasePermission):
     ALLOWED_ROLES = (
         UserRoles.ADMIN,
         UserRoles.CONSEILLER,
+        UserRoles.ACCUEIL,
         UserRoles.JURISTE,
     )
 

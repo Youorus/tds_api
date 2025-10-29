@@ -1,6 +1,7 @@
 amqp==5.3.1
 anyio==4.9.0
 asgiref==3.8.1
+reportlab==4.2.5
 attrs==25.3.0
 autobahn==24.4.2
 Automat==25.4.16

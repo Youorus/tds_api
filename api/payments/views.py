@@ -36,7 +36,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         """
         receipt = serializer.save(created_by=self.request.user)
 
-        # Si une prochaine échéance est définie, on l’unifie
+        # Si une prochaine échéance est définie, on l'unifie
         if receipt.contract and receipt.next_due_date:
             PaymentReceipt.objects.filter(
                 contract=receipt.contract,
@@ -113,7 +113,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
 
         if not lead.email:
             return Response(
-                {"detail": "Ce lead ne possède pas d’adresse email."}, status=400
+                {"detail": "Ce lead ne possède pas d'adresse email."}, status=400
             )
 
         receipts = PaymentReceipt.objects.filter(id__in=receipt_ids, client__lead=lead)
@@ -124,7 +124,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
             send_receipts_email_task.delay(lead.id)
         except Exception as e:
             logger.exception(
-                "Erreur lors du déclenchement de la task d’envoi des reçus."
+                "Erreur lors du déclenchement de la task d'envoi des reçus."
             )
             return Response({"detail": f"Erreur technique : {str(e)}"}, status=500)
 
@@ -135,17 +135,18 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="upcoming")
     def upcoming_payments(self, request):
         """
-        Retourne la liste des paiements à venir (next_due_date ≥ aujourd’hui),
-        en ne retenant qu’un seul reçu par contrat (le plus proche),
+        Retourne la liste des paiements à venir (next_due_date ≥ aujourd'hui),
+        en ne retenant qu'un seul reçu par contrat (le plus proche),
         pour les contrats avec un solde dû, triés par date croissante.
+
+        SANS FILTRE sur l'utilisateur : accessible à tous les utilisateurs autorisés.
         """
         today = date.today()
 
-        # Étape 1 : requête initiale
+        # Étape 1 : requête initiale SANS filtre sur created_by
         receipts = (
             PaymentReceipt.objects
             .filter(
-                contract__created_by=request.user,
                 next_due_date__gte=today,
             )
             .select_related("contract", "client__lead")
@@ -176,7 +177,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
                 "service_details": str(receipt.contract.service)
             })
 
-        # Trier les résultats finaux par date d’échéance
+        # Trier les résultats finaux par date d'échéance
         results.sort(key=lambda r: r["next_due_date"])
 
         return Response(results)
@@ -184,7 +185,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["patch"], url_path="update-due-date")
     def update_next_due_date(self, request, pk=None):
         """
-        Met à jour la prochaine date d'échéance d’un reçu lié à un contrat.
+        Met à jour la prochaine date d'échéance d'un reçu lié à un contrat.
         """
         try:
             receipt = self.get_object()
@@ -208,7 +209,7 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         try:
             send_due_date_updated_email_task.delay(receipt.id, parsed_date.isoformat())
         except Exception as e:
-            logger.exception("Erreur lors de l’envoi de l’email de mise à jour de l’échéance.")
+            logger.exception("Erreur lors de l'envoi de l'email de mise à jour de l'échéance.")
 
         return Response({
             "receipt_id": receipt.id,
