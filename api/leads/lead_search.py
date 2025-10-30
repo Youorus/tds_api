@@ -1,7 +1,7 @@
 from datetime import date, datetime, time
 from typing import Optional
 
-from django.db.models import Exists, F, OuterRef
+from django.db.models import Exists, F, OuterRef, Q
 from django.utils.dateparse import parse_date, parse_datetime
 from django.utils.timezone import get_current_timezone, is_naive, make_aware, now
 from rest_framework.permissions import IsAuthenticated
@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from api.leads.models import Lead
 from api.contracts.models import Contract
+from api.leads.constants import RDV_CONFIRME, RDV_PLANIFIE
 
 
 def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
@@ -60,7 +61,7 @@ def _to_int_or_none(val: Optional[str]) -> Optional[int]:
 class LeadSearchView(APIView):
     """
     Vue API permettant la recherche et la filtration des leads,
-    avec ajout des KPI filtrés (rdv_today, contracts_today)
+    avec ajout des KPI filtrés (rdv_today uniquement RDV_PLANIFIE et RDV_CONFIRME)
     et retour des juristes / conseillers assignés.
     """
 
@@ -164,15 +165,16 @@ class LeadSearchView(APIView):
         # --- Total ---
         total = qs.count()
 
-        # --- KPI FILTRÉS (appliqués sur le queryset filtré) ---
+        # --- KPI FILTRÉS ---
         today = now().date()
 
-        # RDV aujourd'hui parmi les leads FILTRÉS
-        rdv_today = qs.filter(appointment_date__date=today).count()
+        # RDV aujourd'hui (UNIQUEMENT RDV_PLANIFIE et RDV_CONFIRME) parmi les leads FILTRÉS
+        rdv_today = qs.filter(
+            appointment_date__date=today,
+            status__code__in=[RDV_PLANIFIE, RDV_CONFIRME]
+        ).count()
 
         # Contrats aujourd'hui liés aux leads FILTRÉS
-        # Note: Adapter selon votre structure de données
-        # Si Contract a un ForeignKey vers Lead:
         filtered_lead_ids = list(qs.values_list('id', flat=True))
         contracts_today = Contract.objects.filter(
             client__lead_id__in=filtered_lead_ids,
@@ -224,7 +226,7 @@ class LeadSearchView(APIView):
                 "ordering": ordering,
                 "items": rows,
                 "kpi": {
-                    "rdv_today": rdv_today,
+                    "rdv_today": rdv_today,  # Seulement RDV_PLANIFIE et RDV_CONFIRME
                     "contracts_today": contracts_today,
                 },
             }
