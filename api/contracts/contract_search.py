@@ -1,4 +1,3 @@
-# api/contracts/test_views.py
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Optional
@@ -35,7 +34,7 @@ def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
 
 
 def _to_aware(
-    dt_or_d: Optional[object], end_of_day: bool = False
+        dt_or_d: Optional[object], end_of_day: bool = False
 ) -> Optional[datetime]:
     if dt_or_d is None:
         return None
@@ -144,14 +143,15 @@ class ContractSearchView(APIView):
         date_from = _to_aware(_parse_iso_any(raw_date_from), end_of_day=False)
         date_to = _to_aware(_parse_iso_any(raw_date_to), end_of_day=True)
 
+        # Calculs des annotations réutilisables
         real_amount_due = ExpressionWrapper(
             F("amount_due")
             * (
-                Value(1.0)
-                - (
-                    Coalesce(F("discount_percent"), Value(Decimal("0.00")))
-                    / Value(100.0)
-                )
+                    Value(1.0)
+                    - (
+                            Coalesce(F("discount_percent"), Value(Decimal("0.00")))
+                            / Value(100.0)
+                    )
             ),
             output_field=DecimalField(max_digits=12, decimal_places=2),
         )
@@ -172,22 +172,17 @@ class ContractSearchView(APIView):
         )
         today = timezone.localdate()
 
-        qs = Contract.objects.select_related("client", "service", "created_by")
+        # ============================================
+        # QUERYSET DE BASE (pour les statistiques)
+        # ============================================
+        qs_base = Contract.objects.select_related("client", "service", "created_by")
 
-        # Par défaut, exclure les contrats annulés pour les statistiques
-        include_cancelled = is_cancelled_param == "avec"
-
-        if is_cancelled_param == "avec":
-            qs = qs.filter(is_cancelled=True)
-        elif is_cancelled_param == "sans" or is_cancelled_param is None:
-            qs = qs.filter(is_cancelled=False)
-
-        qs = qs.annotate(
+        # Annotations communes
+        qs_base = qs_base.annotate(
             real_amount_due=real_amount_due,
             amount_paid=amount_paid,
             net_paid=net_paid,
             balance_due=balance_due,
-            # ⇩⇩⇩ ANNOTATION CLÉ pour les remises (évite toute comparaison d'expressions)
             discount_abs=Coalesce(F("discount_percent"), Value(Decimal("0.00"))),
         ).annotate(
             is_fully_paid=Case(
@@ -202,64 +197,115 @@ class ContractSearchView(APIView):
             last_payment_date=Max("receipts__payment_date"),
         )
 
+        # ============================================
+        # FILTRES COMMUNS (date, service, client, etc.)
+        # ============================================
         if date_from:
-            qs = qs.filter(created_at__gte=date_from)
+            qs_base = qs_base.filter(created_at__gte=date_from)
         if date_to:
-            qs = qs.filter(created_at__lte=date_to)
-
-        if is_signed_param == "avec":
-            qs = qs.filter(is_signed=True)
-        elif is_signed_param == "sans":
-            qs = qs.filter(is_signed=False)
-
-        if is_refunded_param == "avec":
-            qs = qs.filter(is_refunded=True)
-        elif is_refunded_param == "sans":
-            qs = qs.filter(is_refunded=False)
-
-        if fully_paid_param == "avec":
-            qs = qs.filter(balance_due=Decimal("0.00"))
-        elif fully_paid_param == "sans":
-            qs = qs.filter(balance_due__gt=Decimal("0.00"))
-
-        if has_balance_param == "avec":
-            qs = qs.filter(balance_due__gt=Decimal("0.00"))
-        elif has_balance_param == "sans":
-            qs = qs.filter(balance_due=Decimal("0.00"))
-
-        # ✅ Remplace toute comparaison « expression > Decimal » par un lookup sur l’annotation
-        if with_discount == "avec":
-            qs = qs.filter(discount_abs__gt=Decimal("0.00"))
-        elif with_discount == "sans":
-            qs = qs.filter(discount_abs__lte=Decimal("0.00"))
+            qs_base = qs_base.filter(created_at__lte=date_to)
 
         if service_id:
-            qs = qs.filter(service_id=service_id)
+            qs_base = qs_base.filter(service_id=service_id)
         if service_code:
-            qs = qs.filter(service__code=service_code)
+            qs_base = qs_base.filter(service__code=service_code)
         if client_id:
-            qs = qs.filter(client_id=client_id)
+            qs_base = qs_base.filter(client_id=client_id)
         if created_by:
-            qs = qs.filter(created_by_id=created_by)
+            qs_base = qs_base.filter(created_by_id=created_by)
 
         if min_amount_due is not None:
-            qs = qs.filter(amount_due__gte=min_amount_due)
+            qs_base = qs_base.filter(amount_due__gte=min_amount_due)
         if max_amount_due is not None:
-            qs = qs.filter(amount_due__lte=max_amount_due)
+            qs_base = qs_base.filter(amount_due__lte=max_amount_due)
         if min_real_amount is not None:
-            qs = qs.filter(real_amount_due__gte=min_real_amount)
+            qs_base = qs_base.filter(real_amount_due__gte=min_real_amount)
         if max_real_amount is not None:
-            qs = qs.filter(real_amount_due__lte=max_real_amount)
+            qs_base = qs_base.filter(real_amount_due__lte=max_real_amount)
         if min_balance_due is not None:
-            qs = qs.filter(balance_due__gte=min_balance_due)
+            qs_base = qs_base.filter(balance_due__gte=min_balance_due)
         if max_balance_due is not None:
-            qs = qs.filter(balance_due__lte=max_balance_due)
+            qs_base = qs_base.filter(balance_due__lte=max_balance_due)
 
-        # ⚠️ Utiliser une version filtrée du queryset pour les agrégats afin d’exclure les contrats annulés
-        qs_agg = qs if include_cancelled else qs.filter(is_cancelled=False)
+        # ============================================
+        # QUERYSET POUR L'AFFICHAGE (avec tous les filtres)
+        # ============================================
+        qs_display = qs_base
 
-        # Agrégats (aucune comparaison Python entre expressions ici)
-        agg = qs_agg.aggregate(
+        # Filtre is_cancelled pour l'affichage
+        if is_cancelled_param == "avec":
+            qs_display = qs_display.filter(is_cancelled=True)
+        elif is_cancelled_param == "sans":
+            qs_display = qs_display.filter(is_cancelled=False)
+        # Si None, on affiche tout (annulés + non annulés)
+
+        # Filtres additionnels pour l'affichage
+        if is_signed_param == "avec":
+            qs_display = qs_display.filter(is_signed=True)
+        elif is_signed_param == "sans":
+            qs_display = qs_display.filter(is_signed=False)
+
+        if is_refunded_param == "avec":
+            qs_display = qs_display.filter(is_refunded=True)
+        elif is_refunded_param == "sans":
+            qs_display = qs_display.filter(is_refunded=False)
+
+        if fully_paid_param == "avec":
+            qs_display = qs_display.filter(balance_due=Decimal("0.00"))
+        elif fully_paid_param == "sans":
+            qs_display = qs_display.filter(balance_due__gt=Decimal("0.00"))
+
+        if has_balance_param == "avec":
+            qs_display = qs_display.filter(balance_due__gt=Decimal("0.00"))
+        elif has_balance_param == "sans":
+            qs_display = qs_display.filter(balance_due=Decimal("0.00"))
+
+        if with_discount == "avec":
+            qs_display = qs_display.filter(discount_abs__gt=Decimal("0.00"))
+        elif with_discount == "sans":
+            qs_display = qs_display.filter(discount_abs__lte=Decimal("0.00"))
+
+        # ============================================
+        # QUERYSET POUR LES STATISTIQUES
+        # ============================================
+        # Les stats excluent TOUJOURS les contrats annulés (sauf si explicitement demandés)
+        if is_cancelled_param == "avec":
+            # Si on demande explicitement les annulés, les stats portent sur les annulés
+            qs_stats = qs_base.filter(is_cancelled=True)
+        else:
+            # Sinon, les stats excluent toujours les annulés
+            qs_stats = qs_base.filter(is_cancelled=False)
+
+        # Appliquer les mêmes filtres que pour l'affichage (sauf is_cancelled déjà géré)
+        if is_signed_param == "avec":
+            qs_stats = qs_stats.filter(is_signed=True)
+        elif is_signed_param == "sans":
+            qs_stats = qs_stats.filter(is_signed=False)
+
+        if is_refunded_param == "avec":
+            qs_stats = qs_stats.filter(is_refunded=True)
+        elif is_refunded_param == "sans":
+            qs_stats = qs_stats.filter(is_refunded=False)
+
+        if fully_paid_param == "avec":
+            qs_stats = qs_stats.filter(balance_due=Decimal("0.00"))
+        elif fully_paid_param == "sans":
+            qs_stats = qs_stats.filter(balance_due__gt=Decimal("0.00"))
+
+        if has_balance_param == "avec":
+            qs_stats = qs_stats.filter(balance_due__gt=Decimal("0.00"))
+        elif has_balance_param == "sans":
+            qs_stats = qs_stats.filter(balance_due=Decimal("0.00"))
+
+        if with_discount == "avec":
+            qs_stats = qs_stats.filter(discount_abs__gt=Decimal("0.00"))
+        elif with_discount == "sans":
+            qs_stats = qs_stats.filter(discount_abs__lte=Decimal("0.00"))
+
+        # ============================================
+        # CALCUL DES AGRÉGATS
+        # ============================================
+        agg = qs_stats.aggregate(
             sum_amount_due=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
             sum_real_amount_due=Coalesce(
                 Sum("real_amount_due"), Value(Decimal("0.00"))
@@ -271,19 +317,20 @@ class ContractSearchView(APIView):
             count_refunded=Count("id", filter=Q(is_refunded=True)),
             count_fully_paid=Count("id", filter=Q(balance_due=Decimal("0.00"))),
             count_with_balance=Count("id", filter=Q(balance_due__gt=Decimal("0.00"))),
-            # ✅ utilisation de l’annotation discount_abs
             count_reduced=Count("id", filter=Q(discount_abs__gt=Decimal("0.00"))),
             count_cancelled=Count("id", filter=Q(is_cancelled=True)),
         )
 
-        total = qs.count()
-
-        qs = qs.order_by(ordering)
+        # ============================================
+        # PAGINATION SUR LE QUERYSET D'AFFICHAGE
+        # ============================================
+        total = qs_display.count()
+        qs_display = qs_display.order_by(ordering)
         start = (page - 1) * page_size
         end = start + page_size
 
         rows = list(
-            qs.values(
+            qs_display.values(
                 "id",
                 "client_id",
                 "service_id",

@@ -49,16 +49,12 @@ def clean_phone(raw_value: str) -> str | None:
     raw = raw.replace(" ", "").replace(".", "").replace(",", "")
 
     try:
-        # Cas FR commençant par 0
         if raw.startswith("0") and len(raw) >= 9:
             raw = "+33" + raw[1:]
-        # Cas FR manquant le 0 (ex: 620670550 → rajouter le 0)
         elif len(raw) == 9 and raw[0] in ["6", "7"]:
             raw = "+33" + raw
-        # Cas France déjà en 33
         elif raw.startswith("33") and not raw.startswith("+"):
             raw = "+" + raw
-        # Cas préfixes internationaux connus
         elif raw.startswith("359"):  # Bulgarie
             raw = "+" + raw
         elif raw.startswith("93"):   # Afghanistan
@@ -75,7 +71,6 @@ def clean_phone(raw_value: str) -> str | None:
 
 
 def create_contract(client, collaborator, service_id, amount, contract_date):
-    """Créer ou mettre à jour un contrat pour le client."""
     if pd.isna(service_id) or str(service_id).strip() in ("", "nan", "none") or amount <= 0:
         print(f"ℹ️ Aucun contrat à créer → (service_id={service_id}, montant={amount})")
         return None
@@ -95,15 +90,12 @@ def create_contract(client, collaborator, service_id, amount, contract_date):
 
     if existing_contract:
         updated = False
-
         if not existing_contract.created_by and collaborator:
             existing_contract.created_by = collaborator
             updated = True
-
         if not existing_contract.contract_url:
             existing_contract.contract_url = f"https://fake.url/contracts/{client.id}.pdf"
             updated = True
-
         if updated:
             existing_contract.save(update_fields=["created_by", "contract_url"])
             print(f"♻️ Contrat existant mis à jour → Client {client.id} / "
@@ -112,7 +104,6 @@ def create_contract(client, collaborator, service_id, amount, contract_date):
             print(f"⚠️ Contrat déjà existant (aucune mise à jour nécessaire) → "
                   f"Client {client.id} / Service={service.label} / Contrat #{existing_contract.id}")
         return existing_contract
-
     else:
         new_contract = Contract.objects.create(
             client=client,
@@ -129,7 +120,6 @@ def create_contract(client, collaborator, service_id, amount, contract_date):
 
 
 def create_payments(client, contract, row, collaborator):
-    """Créer les paiements liés à un contrat depuis les colonnes CSV."""
     for i in range(1, 5):
         amount = row.get(f"payment_{i}_amount")
         date = parse_dt_safe(row.get(f"payment_{i}_date"))
