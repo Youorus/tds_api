@@ -163,6 +163,10 @@ class ContractViewSet(viewsets.ModelViewSet):
         # 5. Sauvegarde champs modifiés
         if updated_fields:
             instance.save(update_fields=updated_fields)
+            # ✅ Si le contrat vient d'être signé, notifier par email le responsable (DAILY_RDV_REPORT_EMAIL)
+            if instance.is_signed:
+                from api.utils.email.contracts.tasks import send_contract_signed_notification_task
+                send_contract_signed_notification_task.delay(instance.id)
 
         return Response(self.get_serializer(instance).data)
 

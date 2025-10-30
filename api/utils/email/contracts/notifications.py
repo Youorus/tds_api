@@ -1,4 +1,5 @@
 import logging
+import os
 
 from api.utils.cloud.scw.utils import download_file_from_s3, extract_s3_key_from_url
 from api.utils.email import send_html_email
@@ -50,3 +51,34 @@ def send_contract_email_to_lead(contract):
     )
 
     logger.info(f"📩 Contrat #{contract.id} envoyé à {lead.email}")
+
+def send_contract_signed_notification(contract):
+    """
+    Envoie un e-mail à l'adresse DAILY_RDV_REPORT_EMAIL
+    pour notifier qu'un contrat a été signé.
+    """
+    recipient = os.getenv("DAILY_RDV_REPORT_EMAIL")
+
+    if not recipient:
+        logger.warning("❌ Variable DAILY_RDV_REPORT_EMAIL non configurée dans le .env.")
+        return
+
+    client = contract.client
+    lead = getattr(client, "lead", None)
+
+    context = _build_context(
+        lead=lead,
+        extra={
+            "contract": contract,
+            "client": client,
+        },
+    )
+
+    send_html_email(
+        to_email=recipient,
+        subject=f"📄 Nouveau contrat signé ",
+        template_name="email/contract/contract_signed_admin.html",
+        context=context,
+    )
+
+    logger.info(f"📨 Notification contrat signé envoyée à {recipient} (contrat #{contract.id})")

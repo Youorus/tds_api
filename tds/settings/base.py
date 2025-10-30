@@ -193,6 +193,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "api.payments.tasks.send_payment_due_reminders",
         "schedule": crontab(hour=7, minute=0),
     },
+    "send-daily-appointments-report": {
+        "task": "api.leads.tasks.send_daily_appointments_report_task",
+        "schedule": crontab(hour=6, minute=0),
+    },
 }
 
 X_FRAME_OPTIONS = 'ALLOW-FROM https://titresdesejour.fr'

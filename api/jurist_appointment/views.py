@@ -7,8 +7,6 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 
 from api.leads.models import Lead
-
-from ..leads.serializers import LeadSerializer
 from ..user_unavailability.models import UserUnavailability
 from ..users.roles import UserRoles
 from ..utils.email.jurist_appointment.tasks import (

@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.leads.models import Lead
-from api.contracts.models import Contract  # adapte le chemin si ton modèle Contract est ailleurs
+from api.contracts.models import Contract
 
 
 def _parse_iso_any(dt: Optional[str]) -> Optional[object]:
@@ -60,7 +60,7 @@ def _to_int_or_none(val: Optional[str]) -> Optional[int]:
 class LeadSearchView(APIView):
     """
     Vue API permettant la recherche et la filtration des leads,
-    avec ajout des KPI globaux (rdv_today, contracts_today)
+    avec ajout des KPI filtrés (rdv_today, contracts_today)
     et retour des juristes / conseillers assignés.
     """
 
@@ -113,7 +113,7 @@ class LeadSearchView(APIView):
         qs = (
             Lead.objects
             .select_related("status", "statut_dossier")
-            .prefetch_related("jurist_assigned", "assigned_to")  # ⚡ optimisation
+            .prefetch_related("jurist_assigned", "assigned_to")
             .annotate(
                 has_conseiller=Exists(
                     ThroughConseiller.objects.filter(lead_id=OuterRef("pk"))
@@ -164,10 +164,20 @@ class LeadSearchView(APIView):
         # --- Total ---
         total = qs.count()
 
-        # --- KPI globaux ---
+        # --- KPI FILTRÉS (appliqués sur le queryset filtré) ---
         today = now().date()
-        rdv_today = Lead.objects.filter(appointment_date__date=today).count()
-        contracts_today = Contract.objects.filter(created_at__date=today).count()
+
+        # RDV aujourd'hui parmi les leads FILTRÉS
+        rdv_today = qs.filter(appointment_date__date=today).count()
+
+        # Contrats aujourd'hui liés aux leads FILTRÉS
+        # Note: Adapter selon votre structure de données
+        # Si Contract a un ForeignKey vers Lead:
+        filtered_lead_ids = list(qs.values_list('id', flat=True))
+        contracts_today = Contract.objects.filter(
+            client__lead_id__in=filtered_lead_ids,
+            created_at__date=today
+        ).count()
 
         # --- Pagination & tri ---
         qs = qs.order_by(ordering)
@@ -196,7 +206,6 @@ class LeadSearchView(APIView):
                 "statut_dossier_color": getattr(lead, "statut_dossier_color", None),
                 "has_conseiller": lead.has_conseiller,
                 "has_jurist": lead.has_jurist,
-                # 👇 Ajout des noms
                 "jurists": [
                     {"id": u.id, "first_name": u.first_name, "last_name": u.last_name}
                     for u in lead.jurist_assigned.all()
