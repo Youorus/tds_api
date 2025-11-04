@@ -15,7 +15,7 @@ from api.leads.models import Lead
 from api.lead_status.models import LeadStatus
 
 # --- Config ---
-FILE_PATH = "/Users/marc./PycharmProjects/tds_api/data migrations/leads/tds_venir.csv"
+FILE_PATH = "/data_migrations/leads/tds_venir.csv"
 PARIS_TZ = ZoneInfo("Europe/Paris")
 
 # --- Étape 1 : vérifier fichier ---

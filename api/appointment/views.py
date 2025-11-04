@@ -69,8 +69,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def all_by_date(self, request):
         """
         GET /appointments/all-by-date/?date=YYYY-MM-DD&lead=<id>
-        Retourne tous les rendez-vous classiques (et juristes uniquement pour les admins)
-        pour une date donnée, et optionnellement filtrés par lead.
+        Retourne tous les rendez-vous classiques et juristes pour une date donnée,
+        filtrés selon le rôle de l'utilisateur.
         """
         user = request.user
         date_str = request.query_params.get("date")
@@ -90,20 +90,35 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # RDV classiques
+        # --- RDV classiques (scope déjà géré par get_queryset) ---
         appointments_qs = self.get_queryset().filter(date__date=day)
         if lead_id:
             appointments_qs = appointments_qs.filter(lead_id=lead_id)
 
         appointments_data = AppointmentSerializer(appointments_qs, many=True).data
 
-        # RDV juristes : uniquement visibles pour les admins
+        # --- RDV juristes : filtrage par rôle ---
         jurist_appointments_data = []
+
         if user.role == UserRoles.ADMIN:
-            jurist_qs = JuristAppointment.objects.filter(date__date=day)
+            # Admins : tous les RDV juristes
+            jurist_qs = JuristAppointment.objects.select_related("jurist", "lead").filter(
+                date__date=day
+            )
             if lead_id:
                 jurist_qs = jurist_qs.filter(lead_id=lead_id)
+            jurist_appointments_data = JuristAppointmentSerializer(
+                jurist_qs, many=True
+            ).data
 
+        elif user.role == UserRoles.JURISTE:
+            # ✅ Juristes : uniquement LEURS RDV
+            jurist_qs = JuristAppointment.objects.select_related("jurist", "lead").filter(
+                jurist=user,
+                date__date=day
+            )
+            if lead_id:
+                jurist_qs = jurist_qs.filter(lead_id=lead_id)
             jurist_appointments_data = JuristAppointmentSerializer(
                 jurist_qs, many=True
             ).data
@@ -135,19 +150,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         for item in counts_appointment:
             total_counts[item["day"].isoformat()] = item["count"]
 
-        # Admins uniquement : ajout des RDV juristes
+        # --- Ajout des RDV juristes selon le rôle ---
         if user.role == UserRoles.ADMIN:
+            # Admins : tous les RDV juristes
             jurist_qs = JuristAppointment.objects.filter(date__isnull=False)
-            counts_jurist = (
-                jurist_qs.annotate(day=TruncDate("date"))
-                .values("day")
-                .annotate(count=Count("id"))
+        elif user.role == UserRoles.JURISTE:
+            # ✅ Juristes : uniquement leurs RDV
+            jurist_qs = JuristAppointment.objects.filter(
+                jurist=user,
+                date__isnull=False
             )
-            for item in counts_jurist:
-                day = item["day"].isoformat()
-                if day in total_counts:
-                    total_counts[day] += item["count"]
-                else:
-                    total_counts[day] = item["count"]
+        else:
+            jurist_qs = JuristAppointment.objects.none()
+
+        counts_jurist = (
+            jurist_qs.annotate(day=TruncDate("date"))
+            .values("day")
+            .annotate(count=Count("id"))
+        )
+
+        for item in counts_jurist:
+            day = item["day"].isoformat()
+            if day in total_counts:
+                total_counts[day] += item["count"]
+            else:
+                total_counts[day] = item["count"]
 
         return Response(total_counts, status=status.HTTP_200_OK)

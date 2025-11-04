@@ -235,16 +235,43 @@ class LeadViewSet(viewsets.ModelViewSet):
         """
         Assigne ou désassigne un ou plusieurs conseillers à un lead.
 
-        - ADMIN : peut assigner ou désassigner n’importe quel conseiller.
-        - CONSEILLER : peut uniquement s’auto-assigner ou se désassigner.
+        - ADMIN : peut assigner/désassigner n'importe quel conseiller + s'auto-assigner
+        - CONSEILLER : peut uniquement s'auto-assigner ou se désassigner.
         """
+
+        import sys
+        print("=" * 80, file=sys.stderr)
+        print("🔥 ASSIGNMENT APPELÉ !", file=sys.stderr)
+        print(f"User: {request.user.email}", file=sys.stderr)
+        print(f"Role: {request.user.role}", file=sys.stderr)
+        print(f"PK: {pk}", file=sys.stderr)
+        print(f"Data: {request.data}", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+
         lead = self.get_object()
         user = request.user
 
-        if user.role == UserRoles.ADMIN:
-            assign_ids = request.data.get("assign", [])
-            unassign_ids = request.data.get("unassign", [])
+        # Vérification du rôle
+        if user.role not in [UserRoles.ADMIN, UserRoles.CONSEILLER]:
+            raise PermissionDenied(
+                "Seuls les admins ou conseillers peuvent gérer les assignations."
+            )
 
+        action = request.data.get("action")
+        assign_ids = request.data.get("assign", [])
+        unassign_ids = request.data.get("unassign", [])
+
+        # ✅ Cas 1 : Auto-assignation/désassignation (action="assign" ou "unassign")
+        if action in ["assign", "unassign"]:
+            if action == "assign":
+                if not lead.assigned_to.filter(id=user.id).exists():
+                    lead.assigned_to.add(user)
+            elif action == "unassign":
+                if lead.assigned_to.filter(id=user.id).exists():
+                    lead.assigned_to.remove(user)
+
+        # ✅ Cas 2 : Admin assigne/désassigne d'autres conseillers (via arrays)
+        elif user.role == UserRoles.ADMIN:
             if assign_ids:
                 valid_users = User.objects.filter(
                     id__in=assign_ids, role=UserRoles.CONSEILLER, is_active=True
@@ -259,20 +286,11 @@ class LeadViewSet(viewsets.ModelViewSet):
                 )
                 lead.assigned_to.remove(*users_to_unassign)
 
-        elif user.role == UserRoles.CONSEILLER:
-            action = request.data.get("action")
-            if action not in ["assign", "unassign"]:
-                return Response(
-                    {"detail": "Action attendue : 'assign' ou 'unassign'."}, status=400
-                )
-
-            if action == "assign" and not lead.assigned_to.filter(id=user.id).exists():
-                lead.assigned_to.add(user)
-            elif action == "unassign" and lead.assigned_to.filter(id=user.id).exists():
-                lead.assigned_to.remove(user)
+        # ✅ Cas 3 : Conseiller essaie d'assigner quelqu'un d'autre
         else:
-            raise PermissionDenied(
-                "Seuls les admins ou conseillers peuvent gérer les assignations."
+            return Response(
+                {"detail": "Les conseillers ne peuvent que s'auto-assigner/désassigner."},
+                status=400
             )
 
         lead.save()

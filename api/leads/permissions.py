@@ -33,8 +33,8 @@ class IsConseillerOrAdmin(BasePermission):
     """
 
     def has_permission(self, request, view):
-        user = request.user
-        return user.is_authenticated and getattr(user, "role", None) in (
-            UserRoles.ADMIN,
-            UserRoles.CONSEILLER,
+        return (
+                request.user
+                and request.user.is_authenticated
+                and request.user.role in [UserRoles.ADMIN, UserRoles.CONSEILLER]
         )
