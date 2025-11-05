@@ -14,8 +14,8 @@ from api.contracts.models import Contract
 from api.payments.models import PaymentReceipt
 
 # 3️⃣ Paramètres : mois et année à filtrer
-YEAR = 2024
-MONTH = 11
+YEAR = 2025
+MONTH = 1
 CSV_FILE = f"contracts_payments_{YEAR}_{MONTH:02d}.csv"
 
 with open(CSV_FILE, mode="w", newline="", encoding="utf-8") as csvfile:

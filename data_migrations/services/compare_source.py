@@ -2,10 +2,10 @@ import re
 import pdfplumber
 import pandas as pd
 
-pdf_file = "/Users/marc./Downloads/contracts_novembre.pdf"
+pdf_file = "/Users/marc./Downloads/contracts_decembre.pdf"
 output_file = "contracts_cleaned.csv"
-month_to_extract = 11      # Mois sous forme d'entier
-year_to_extract = 2024     # Année sous forme d'entier
+month_to_extract = 1      # Mois sous forme d'entier
+year_to_extract = 2025     # Année sous forme d'entier
 
 def extract_contracts(pdf_path, month, year):
     contracts = []

@@ -3,9 +3,9 @@ import difflib
 import re
 
 # --- Paramètres ---
-csv_django = "contracts_payments_2024_11.csv"  # export Django
+csv_django = "contracts_payments_2025_01.csv"  # export Django
 csv_pdf = "contracts_cleaned.csv"  # export PDF
-output_file = "comparaison_contrats_11_2024.csv"
+output_file = "comparaison_contrats_01_2025.csv"
 
 # --- Lecture des fichiers ---
 df_django = pd.read_csv(csv_django)

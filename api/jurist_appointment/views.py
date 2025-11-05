@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import filters, status, viewsets
@@ -7,6 +8,7 @@ from rest_framework.response import Response
 from django.http import HttpResponse
 
 from api.leads.models import Lead
+from api.jurist_availability_date.models import JuristGlobalAvailability
 from ..user_unavailability.models import UserUnavailability
 from ..users.roles import UserRoles
 from ..utils.email.jurist_appointment.tasks import (
@@ -31,8 +33,14 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
 from datetime import datetime, timedelta
 from collections import defaultdict
+import pytz  # ✅ NOUVEAU IMPORT pour le fuseau horaire
 
 User = get_user_model()
+
+
+def convert_to_django_weekday(python_date):
+    django_weekday = (python_date.weekday() + 2) % 7
+    return 7 if django_weekday == 0 else django_weekday
 
 
 class JuristAppointmentViewSet(viewsets.ModelViewSet):
@@ -78,71 +86,93 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"])
     def available_jurists(self, request):
         """
-        Retourne la liste des juristes dispos pour un lead et une date donnée,
-        en tenant compte de leurs périodes d'indisponibilité.
+        ✅ VERSION CORRIGÉE
+        Retourne la liste des juristes dispos pour une date donnée,
+        en tenant compte des disponibilités globales ET spécifiques.
         """
-        lead_id = request.query_params.get("lead_id")
         date_str = request.query_params.get("date")
-        if not lead_id or not date_str:
-            return Response({"detail": "lead_id et date requis."}, status=400)
-
-        lead = Lead.objects.filter(id=lead_id).first()
-        if not lead:
-            return Response({"detail": "Lead introuvable."}, status=404)
+        if not date_str:
+            return Response({"detail": "date requis."}, status=400)
 
         day = parse_date(date_str)
-        if not day or not is_valid_day(day):
-            return Response(
-                {"detail": "Date invalide (créneau global indisponible ce jour-là)."},
-                status=400,
-            )
+        if not day:
+            return Response({"detail": "Date invalide."}, status=400)
 
-        # Liste des IDs de juristes indisponibles ce jour-là
+        # ✅ CORRECTION : Utiliser la bonne conversion de jour
+        django_weekday = convert_to_django_weekday(day)
+
+        # 1. Vérifier s'il y a des disponibilités (globales ou spécifiques) pour ce jour
+        has_global_availability = JuristGlobalAvailability.objects.filter(
+            Q(date=day) | Q(repeat_weekly=True, date__week_day=django_weekday),
+            availability_type='global',
+            is_active=True
+        ).exists()
+
+        has_specific_availability = JuristGlobalAvailability.objects.filter(
+            Q(date=day) | Q(repeat_weekly=True, date__week_day=django_weekday),
+            availability_type='specific',
+            is_active=True
+        ).exists()
+
+        # Si aucune disponibilité ni globale ni spécifique, retourner liste vide
+        if not has_global_availability and not has_specific_availability:
+            return Response({
+                "jurists": [],
+                "count": 0
+            })
+
+        # 2. Liste des IDs de juristes indisponibles ce jour-là
         unavailable_ids = set(
             UserUnavailability.objects.filter(
                 start_date__lte=day, end_date__gte=day
             ).values_list("user_id", flat=True)
         )
 
-        jurist_assigned = getattr(
-            lead, "jurist_assigned", None
-        )
+        # 3. Récupérer les juristes selon le type de disponibilité
+        if has_global_availability:
+            # Si disponibilité globale : TOUS les juristes actifs (sauf indisponibles)
+            jurists_query = User.objects.filter(
+                role="JURISTE",
+                is_active=True
+            ).exclude(id__in=unavailable_ids)
+        else:
+            # Sinon, seulement les juristes avec disponibilités spécifiques
+            jurists_with_specific = User.objects.filter(
+                role="JURISTE",
+                is_active=True,
+                specific_availabilities__in=JuristGlobalAvailability.objects.filter(
+                    Q(date=day) | Q(repeat_weekly=True, date__week_day=django_weekday),
+                    availability_type='specific',
+                    is_active=True
+                )
+            ).distinct()
+            jurists_query = jurists_with_specific.exclude(id__in=unavailable_ids)
 
-        if jurist_assigned and jurist_assigned.exists():
-            jurists = jurist_assigned.all().exclude(id__in=unavailable_ids)
-            available = [j for j in jurists if get_available_slots_for_jurist(j, day)]
-            serializer = JuristSerializer(available, many=True)
-            return Response(serializer.data)
+        # 4. Filtrer ceux qui ont des créneaux disponibles
+        available_jurists = [j for j in jurists_query if get_available_slots_for_jurist(j, day)]
 
-        jurists = User.objects.filter(role="JURISTE", is_active=True).exclude(
-            id__in=unavailable_ids
-        )
-        available = [j for j in jurists if get_available_slots_for_jurist(j, day)]
-        serializer = JuristSerializer(available, many=True)
-        return Response(serializer.data)
+        serializer = JuristSerializer(available_jurists, many=True)
+
+        return Response({
+            "jurists": serializer.data,
+            "count": len(available_jurists)
+        })
 
     @action(detail=False, methods=["get"])
     def jurist_slots(self, request):
-        """
-        Liste les créneaux disponibles pour un juriste donné à une date donnée.
-        """
         jurist_id = request.query_params.get("jurist_id")
         date_str = request.query_params.get("date")
-        # Protection contre None/"None"/""
-        if not jurist_id or jurist_id in ("None", "") or not date_str:
+
+        if not jurist_id or not date_str:
             return Response({"detail": "jurist_id et date requis."}, status=400)
 
-        jurist = User.objects.filter(
-            id=jurist_id, role="JURISTE", is_active=True
-        ).first()
+        jurist = User.objects.filter(id=jurist_id, role="JURISTE", is_active=True).first()
         if not jurist:
-            return Response({"detail": "Juriste introuvable."}, status=404)
+            return Response({"detail": "Juriste introuvable."}, status=400)
 
         day = parse_date(date_str)
-        if not day or not is_valid_day(day):
-            return Response(
-                {"detail": "Date invalide (mardi/jeudi uniquement)."}, status=400
-            )
+        if not day:
+            return Response({"detail": "Date invalide."}, status=400)
 
         slots = get_available_slots_for_jurist(jurist, day)
         return Response(slots)
@@ -156,6 +186,29 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(appointments, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="available-days")
+    def available_days(self, request):
+        """
+        ✅ VERSION CORRIGÉE
+        Retourne les jours où il y a des disponibilités (globales ou spécifiques)
+        """
+        # Récupérer toutes les disponibilités actives
+        availabilities = JuristGlobalAvailability.objects.filter(is_active=True)
+
+        days = set()
+        for avail in availabilities:
+            if avail.repeat_weekly:
+                # Pour les récurrences, ajouter le format "weekly-X"
+                days.add(f"weekly-{avail.date.weekday()}")
+            else:
+                # Pour les dates exactes
+                days.add(avail.date.isoformat())
+
+        return Response({
+            'days': sorted(days),
+            'count': len(days)
+        })
+
     @action(detail=False, methods=["get"], url_path="export-pdf")
     def export_appointments_pdf(self, request):
         """
@@ -168,13 +221,18 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
         Par défaut: 7 prochains jours
         """
+        # ✅ Fuseau horaire de Paris
+        paris_tz = pytz.timezone('Europe/Paris')
+
         # Récupération des paramètres de filtre
         start_date_str = request.query_params.get("start_date")
         end_date_str = request.query_params.get("end_date")
         jurist_id = request.query_params.get("jurist_id")
 
-        # Dates par défaut: aujourd'hui + 7 jours
-        today = timezone.now().date()
+        # Dates par défaut: aujourd'hui + 7 jours (en timezone Paris)
+        now_paris = timezone.now().astimezone(paris_tz)
+        today = now_paris.date()
+
         if start_date_str:
             start_date = parse_date(start_date_str) or today
         else:
@@ -200,9 +258,14 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         # Organisation des rendez-vous par jour
         appointments_by_day = defaultdict(lambda: defaultdict(list))
         for apt in appointments:
-            day_key = apt.date.date()
+            # ✅ Conversion en timezone Paris pour l'affichage
+            apt_date_paris = apt.date.astimezone(paris_tz)
+            day_key = apt_date_paris.date()
             jurist_name = f"{apt.jurist.first_name} {apt.jurist.last_name}"
-            appointments_by_day[day_key][jurist_name].append(apt)
+            appointments_by_day[day_key][jurist_name].append({
+                'time': apt_date_paris,
+                'lead': apt.lead
+            })
 
         # Génération du PDF
         buffer = BytesIO()
@@ -217,6 +280,8 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
         # Styles
         styles = getSampleStyleSheet()
+
+        # ✅ Style titre principal en français
         title_style = ParagraphStyle(
             'CustomTitle',
             parent=styles['Heading1'],
@@ -227,6 +292,7 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
             fontName='Helvetica-Bold'
         )
 
+        # ✅ Style titre de jour en français
         day_title_style = ParagraphStyle(
             'DayTitle',
             parent=styles['Heading2'],
@@ -237,6 +303,7 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
             fontName='Helvetica-Bold'
         )
 
+        # ✅ Style titre juriste en français
         jurist_title_style = ParagraphStyle(
             'JuristTitle',
             parent=styles['Heading3'],
@@ -247,16 +314,44 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
             fontName='Helvetica-Bold'
         )
 
+        # ✅ Dictionnaire des jours de la semaine en français
+        FRENCH_DAYS = {
+            'Monday': 'Lundi',
+            'Tuesday': 'Mardi',
+            'Wednesday': 'Mercredi',
+            'Thursday': 'Jeudi',
+            'Friday': 'Vendredi',
+            'Saturday': 'Samedi',
+            'Sunday': 'Dimanche'
+        }
+
+        # ✅ Dictionnaire des mois en français
+        FRENCH_MONTHS = {
+            'January': 'Janvier',
+            'February': 'Février',
+            'March': 'Mars',
+            'April': 'Avril',
+            'May': 'Mai',
+            'June': 'Juin',
+            'July': 'Juillet',
+            'August': 'Août',
+            'September': 'Septembre',
+            'October': 'Octobre',
+            'November': 'Novembre',
+            'December': 'Décembre'
+        }
+
         # Construction du contenu
         story = []
 
-        # Titre principal
+        # ✅ Titre principal en français
         title_text = f"Planning des Rendez-vous Juristes<br/>{start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}"
         story.append(Paragraph(title_text, title_style))
         story.append(Spacer(1, 0.5 * cm))
 
-        # Info génération
-        generation_info = f"<i>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</i>"
+        # ✅ Info génération en français avec heure de Paris
+        generation_time_paris = now_paris.strftime('%d/%m/%Y à %H:%M')
+        generation_info = f"<i>Généré le {generation_time_paris} (heure de Paris)</i>"
         story.append(Paragraph(generation_info, styles['Normal']))
         story.append(Spacer(1, 1 * cm))
 
@@ -266,9 +361,14 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
 
         # Parcours des jours
         for day in sorted(appointments_by_day.keys()):
-            # Titre du jour
-            day_name = day.strftime('%A %d %B %Y')
-            day_title = f"📅 {day_name.capitalize()}"
+            # ✅ Formatage de la date en français
+            english_day_name = day.strftime('%A')
+            english_month_name = day.strftime('%B')
+            french_day_name = FRENCH_DAYS.get(english_day_name, english_day_name)
+            french_month_name = FRENCH_MONTHS.get(english_month_name, english_month_name)
+
+            day_formatted = day.strftime(f'{french_day_name} %d {french_month_name} %Y')
+            day_title = f"📅 {day_formatted}"
             story.append(Paragraph(day_title, day_title_style))
 
             jurists_data = appointments_by_day[day]
@@ -278,19 +378,24 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
                 apts = jurists_data[jurist_name]
                 total_appointments += len(apts)
 
-                # Nom du juriste
+                # ✅ Nom du juriste en français
                 jurist_title = f"👤 {jurist_name} ({len(apts)} RDV)"
                 story.append(Paragraph(jurist_title, jurist_title_style))
 
-                # Tableau des rendez-vous
+                # ✅ Tableau des rendez-vous avec en-têtes en français
                 table_data = [
                     ["Heure", "Client", "Téléphone", "Email"]
                 ]
 
-                for apt in apts:
-                    lead = apt.lead
+                for apt_data in apts:
+                    apt_time = apt_data['time']
+                    lead = apt_data['lead']
+
+                    # ✅ Heure en format français (Paris)
+                    time_str = apt_time.strftime('%H:%M')
+
                     table_data.append([
-                        apt.date.strftime('%H:%M'),
+                        time_str,
                         f"{lead.first_name} {lead.last_name}",
                         lead.phone or "-",
                         lead.email or "-"
@@ -334,10 +439,10 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
                 story.append(Spacer(1, 0.3 * cm))
                 story.append(Paragraph("<hr width='100%'/>", styles['Normal']))
 
-        # Résumé final
+        # ✅ Résumé final en français
         if total_appointments > 0:
             story.append(Spacer(1, 1 * cm))
-            summary = f"<b>Résumé:</b> {total_appointments} rendez-vous sur {total_days} jour(s)"
+            summary = f"<b>Résumé :</b> {total_appointments} rendez-vous sur {total_days} jour(s)"
             story.append(Paragraph(summary, styles['Normal']))
         else:
             story.append(Paragraph(

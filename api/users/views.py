@@ -46,17 +46,8 @@ class UserViewSet(viewsets.ModelViewSet):
         user.save()
         return Response({"is_active": user.is_active}, status=status.HTTP_200_OK)
 
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="juristes",
-        permission_classes=[IsAuthenticated],
-    )
+    @action(detail=False, methods=["get"], url_path="juristes")
     def juristes(self, request):
-        """
-        Retourne la liste des juristes actifs (role=JURISTE, is_active=True).
-        Accessible à tous les utilisateurs connectés.
-        """
         juristes = User.objects.filter(role=UserRoles.JURISTE, is_active=True)
         serializer = self.get_serializer(juristes, many=True)
         return Response(serializer.data)
