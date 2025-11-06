@@ -68,3 +68,4 @@ def send_payment_due_reminders():
             logger.error(
                 f"❌ Erreur lors de l’envoi du rappel paiement client #{client.id} : {e}"
             )
+

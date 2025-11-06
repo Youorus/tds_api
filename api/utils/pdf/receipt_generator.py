@@ -8,14 +8,29 @@ from django.utils import timezone
 
 def generate_receipt_pdf(receipt) -> bytes:
     """
-    Génère le PDF d’un reçu de paiement.
-    - receipt : instance PaymentReceipt
+    Génère le PDF d'un reçu de paiement avec les données ACTUELLES.
+    - receipt : instance PaymentReceipt (doit être rafraîchie si nécessaire)
     - Retour : bytes PDF prêt à stocker.
     """
-    from api.payments.models import PaymentReceipt
+    # ✅ S'assurer que l'instance est fraîche si elle vient d'être modifiée
+    if receipt.pk:
+        # Recharger depuis la base pour avoir les dernières données
+        receipt.refresh_from_db()
 
     lead = receipt.client.lead
     contract = receipt.contract
+
+    # ✅ Calculer les montants avec les données actuelles
+    amount_paid = contract.amount_paid if contract else 0
+    real_amount = contract.real_amount if contract else receipt.amount
+    remaining_amount = real_amount - amount_paid
+
+    # ✅ CORRECTION : Utiliser la date de paiement stockée en DB
+    # Si payment_date existe, utiliser cette date, sinon utiliser maintenant
+    payment_date_display = receipt.payment_date.strftime("%d/%m/%Y") if receipt.payment_date else "Date non définie"
+
+    # Date d'émission du reçu (toujours maintenant)
+    emission_date = timezone.now().strftime("%d/%m/%Y")
 
     context = {
         "receipt": receipt,
@@ -23,11 +38,12 @@ def generate_receipt_pdf(receipt) -> bytes:
         "client_address": receipt.client.adresse or "Adresse non renseignée",
         "client_phone": lead.phone or "—",
         "client_email": lead.email or "—",
-        "service": contract.service,
+        "service": contract.service if contract else "Service non spécifié",
         "amount": f"{receipt.amount:.2f} €",
         "mode": receipt.get_mode_display(),
-        "remaining": f"{(contract.real_amount - contract.amount_paid):.2f} €",
-        "date": timezone.now().strftime("%d/%m/%Y"),
+        "remaining": f"{remaining_amount:.2f} €",
+        "date": emission_date,  # Date d'émission du reçu
+        "payment_date": payment_date_display,  # ✅ Date réelle du paiement depuis la DB
         "company": {
             "name": "TDS France",
             "email": "contact@tds-france.fr",
@@ -44,5 +60,12 @@ def generate_receipt_pdf(receipt) -> bytes:
     wkhtmltopdf_path = getattr(settings, "WKHTMLTOPDF_PATH", None)
     config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
 
-    pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
-    return pdf_bytes
+    try:
+        pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
+        return pdf_bytes
+    except Exception as e:
+        # Logger l'erreur pour le débogage
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur génération PDF reçu #{receipt.id}: {e}")
+        raise

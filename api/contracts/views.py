@@ -10,7 +10,7 @@ Cette vue inclut les fonctionnalités suivantes :
 - Envoi du contrat au client par e-mail via une tâche asynchrone
 """
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.utils.text import slugify
 from rest_framework import permissions, status, viewsets
@@ -20,64 +20,12 @@ from rest_framework.response import Response
 from api.contracts.models import Contract
 from api.contracts.permissions import IsContractEditor
 from api.contracts.serializer import ContractSerializer
+from api.payments.models import PaymentReceipt
 from api.payments.serializers import PaymentReceiptSerializer
-from api.utils.email.contracts.tasks import send_contract_email_task
+from api.utils.email.contracts.tasks import send_contract_email_task, send_contract_signed_notification_task
 
 
 class ContractViewSet(viewsets.ModelViewSet):
-    @action(detail=True, methods=["post"], url_path="refund")
-    def refund(self, request, pk=None):
-        """
-        Applique un remboursement partiel ou total sur un contrat existant.
-
-        - Le montant doit être supérieur à 0
-        - Le total remboursé ne peut pas dépasser le montant déjà payé
-
-        Attendu dans le corps : {
-          "refund_amount": number,
-          "refund_note": string (optionnel)
-        }
-        """
-        contract = self.get_object()
-        raw_amount = request.data.get("refund_amount")
-        refund_note = request.data.get(
-            "refund_note"
-        )  # optionnel si tu as ce champ côté modèle/serializer
-
-        from decimal import Decimal, InvalidOperation
-
-        try:
-            amount = Decimal(str(raw_amount))
-        except (InvalidOperation, TypeError):
-            return Response(
-                {"detail": "Montant invalide."}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        valid, message = self._is_valid_refund_amount(contract, amount)
-        if not valid:
-            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Appliquer le remboursement (on cumule)
-        already_refunded = contract.refund_amount or Decimal("0.00")
-        contract.refund_amount = already_refunded + amount
-        contract.is_refunded = bool(
-            contract.refund_amount and contract.refund_amount > 0
-        )
-
-        # Si tu gères une note de remboursement côté modèle/serializer, on peut la patcher via serializer
-        partial_data = {
-            "refund_amount": str(contract.refund_amount),
-            "is_refunded": contract.is_refunded,
-        }
-        if refund_note is not None:
-            partial_data["refund_note"] = refund_note
-
-        serializer = self.get_serializer(contract, data=partial_data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
     """
     ViewSet principal pour la gestion CRUD des contrats,
     avec endpoints pour uploads PDF, receipts et filtrage par client.
@@ -90,7 +38,7 @@ class ContractViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """
-        Méthode appelée à la création d’un contrat.
+        Méthode appelée à la création d'un contrat.
 
         Elle associe le créateur et génère automatiquement le PDF du contrat.
         """
@@ -133,6 +81,7 @@ class ContractViewSet(viewsets.ModelViewSet):
 
         - Permet de téléverser un PDF signé
         - Permet de modifier le statut `is_signed`
+        - Permet de modifier amount_due, discount_percent, is_cancelled, etc.
         """
         instance = self.get_object()
         signed_contract = request.FILES.get("signed_contract")
@@ -165,7 +114,6 @@ class ContractViewSet(viewsets.ModelViewSet):
             instance.save(update_fields=updated_fields)
             # ✅ Si le contrat vient d'être signé, notifier par email le responsable (DAILY_RDV_REPORT_EMAIL)
             if instance.is_signed:
-                from api.utils.email.contracts.tasks import send_contract_signed_notification_task
                 send_contract_signed_notification_task.delay(instance.id)
 
         return Response(self.get_serializer(instance).data)
@@ -179,38 +127,22 @@ class ContractViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
 
         # 1. Suppression des reçus liés (PDF storage + DB)
-        from api.payments.models import PaymentReceipt  # Adapter si besoin
-
         receipts = instance.receipts.all()
         for receipt in receipts:
             if receipt.receipt_url:
                 try:
-                    from django.conf import settings
-
-                    from api.utils.cloud.scw.bucket_utils import delete_object
-
-                    bucket_name = settings.SCW_BUCKETS["receipts"]
-                    split_token = f"/{bucket_name}/"
-                    path = receipt.receipt_url.split(split_token, 1)[-1]
-                    delete_object("receipts", path)
+                    self._delete_file_from_url("receipts", receipt.receipt_url)
                 except Exception as e:
                     print(f"Erreur suppression du PDF reçu S3: {e}")
 
         # 2. Suppression du PDF contrat
         if instance.contract_url:
             try:
-                from django.conf import settings
-
-                from api.utils.cloud.scw.bucket_utils import delete_object
-
-                bucket_name = settings.SCW_BUCKETS["contracts"]
-                split_token = f"/{bucket_name}/"
-                path = instance.contract_url.split(split_token, 1)[-1]
-                delete_object("contracts", path)
+                self._delete_file_from_url("contracts", instance.contract_url)
             except Exception as e:
                 print(f"Erreur suppression du PDF contrat S3: {e}")
 
-        # 3. Supprime l’instance (et reçus via FK CASCADE)
+        # 3. Supprime l'instance (et reçus via FK CASCADE)
         return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=["post"], url_path="send-email")
@@ -227,23 +159,74 @@ class ContractViewSet(viewsets.ModelViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    @action(detail=True, methods=["post"], url_path="cancel")
+    @action(detail=True, methods=["post"], url_path="cancel", permission_classes=[permissions.IsAdminUser])
     def cancel(self, request, pk=None):
         """
-        Annule le contrat définitivement (action réservée aux admins).
-
-        - Le champ `is_cancelled` est mis à True
-        - Le solde dû (`balance_due`) est forcé à 0
+        ✅ Active/désactive le contrat (annule ou réactive).
+        - Si le contrat est actif → on l'annule.
+        - Si le contrat est annulé → on le réactive.
         """
         contract = self.get_object()
 
-        contract.is_cancelled = True
+        if contract.is_cancelled:
+            # Réactivation
+            contract.is_cancelled = False
+        else:
+            # Annulation
+            contract.is_cancelled = True
+
         contract.save(update_fields=["is_cancelled"])
 
-        return Response(
-            {"detail": "✅ Contrat annulé avec succès."},
-            status=status.HTTP_200_OK,
+        return Response({ "is_cancelled": contract.is_cancelled})
+
+    @action(detail=True, methods=["post"], url_path="refund")
+    def refund(self, request, pk=None):
+        """
+        Applique un remboursement partiel ou total sur un contrat existant.
+
+        - Le montant doit être supérieur à 0
+        - Le total remboursé ne peut pas dépasser le montant déjà payé
+
+        Attendu dans le corps : {
+          "refund_amount": number,
+          "refund_note": string (optionnel)
+        }
+        """
+        contract = self.get_object()
+        raw_amount = request.data.get("refund_amount")
+        refund_note = request.data.get("refund_note")
+
+        try:
+            amount = Decimal(str(raw_amount))
+        except (InvalidOperation, TypeError):
+            return Response(
+                {"detail": "Montant invalide."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid, message = self._is_valid_refund_amount(contract, amount)
+        if not valid:
+            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Appliquer le remboursement (on cumule)
+        already_refunded = contract.refund_amount or Decimal("0.00")
+        contract.refund_amount = already_refunded + amount
+        contract.is_refunded = bool(
+            contract.refund_amount and contract.refund_amount > 0
         )
+
+        # Si tu gères une note de remboursement côté modèle/serializer, on peut la patcher via serializer
+        partial_data = {
+            "refund_amount": str(contract.refund_amount),
+            "is_refunded": contract.is_refunded,
+        }
+        if refund_note is not None:
+            partial_data["refund_note"] = refund_note
+
+        serializer = self.get_serializer(contract, data=partial_data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def _delete_file_from_url(self, bucket_key: str, file_url: str):
         """
@@ -254,7 +237,6 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         try:
             from django.conf import settings
-
             from api.utils.cloud.scw.bucket_utils import delete_object
 
             bucket = settings.SCW_BUCKETS[bucket_key]
@@ -265,8 +247,10 @@ class ContractViewSet(viewsets.ModelViewSet):
             print(f"Erreur suppression fichier S3: {e}")
 
     def _save_signed_contract_pdf(self, instance, file):
+        """
+        Sauvegarde un contrat signé dans le storage.
+        """
         from django.conf import settings
-
         from api.utils.cloud.scw.bucket_utils import put_object
 
         client = instance.client

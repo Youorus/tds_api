@@ -1,6 +1,8 @@
 import logging
 from decimal import Decimal
 from collections import defaultdict
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -15,7 +17,6 @@ from api.payments.serializers import PaymentReceiptSerializer
 from api.utils.cloud.scw.bucket_utils import delete_object
 from api.utils.email.recus.tasks import send_receipts_email_task
 from api.utils.email.recus.tasks import send_due_date_updated_email_task
-from api.contracts.models import Contract
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,93 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
 
         return super().create(request, *args, **kwargs)
 
+    def _regenerate_pdf_async(self, receipt_id, old_receipt_url=None):
+        """
+        Régénère le PDF de manière asynchrone dans un thread séparé.
+        """
+
+        def regenerate_task():
+            try:
+                logger.info(f"Début régénération PDF asynchrone pour reçu #{receipt_id}")
+
+                # ✅ IMPORTANT: Récupérer une NOUVELLE instance depuis la base
+                from api.payments.models import PaymentReceipt
+                receipt = PaymentReceipt.objects.get(id=receipt_id)
+
+                # Supprimer l'ancien PDF s'il existe
+                if old_receipt_url:
+                    try:
+                        self._delete_file_from_url("receipts", old_receipt_url)
+                        logger.info(f"Ancien PDF supprimé: {old_receipt_url}")
+                    except Exception as e:
+                        logger.warning(f"Impossible de supprimer l'ancien PDF: {e}")
+
+                # ✅ Générer le PDF avec les NOUVELLES données
+                receipt.generate_pdf()
+                logger.info(f"PDF régénéré avec succès pour reçu #{receipt_id}")
+
+            except PaymentReceipt.DoesNotExist:
+                logger.error(f"Reçu #{receipt_id} introuvable")
+            except Exception as e:
+                logger.error(f"Erreur régénération PDF asynchrone reçu #{receipt_id}: {e}")
+
+        # Lancer dans un thread séparé
+        import threading
+        thread = threading.Thread(target=regenerate_task)
+        thread.daemon = True
+        thread.start()
+
+    # Dans votre PaymentReceiptViewSet - version corrigée
+
+    def update(self, request, *args, **kwargs):
+        """
+        Surcharge de la méthode update avec régénération asynchrone du PDF.
+        """
+        instance = self.get_object()
+
+        # Sauvegarde de l'ancienne URL pour suppression potentielle
+        old_receipt_url = instance.receipt_url
+
+        # Appel de la méthode update normale
+        response = super().update(request, *args, **kwargs)
+
+        # Si la mise à jour a réussi, on lance la régénération asynchrone
+        if response.status_code == 200:
+            try:
+                # ✅ RAFRAÎCHIR l'instance depuis la base pour avoir les nouvelles données
+                instance.refresh_from_db()
+
+                # Lancer la régénération asynchrone
+                self._regenerate_pdf_async(instance.id, old_receipt_url)
+                logger.info(f"Régénération PDF asynchrone lancée pour reçu #{instance.id}")
+
+            except Exception as e:
+                logger.error(f"Erreur lancement régénération asynchrone: {e}")
+
+        return response
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Surcharge de partial_update avec la même logique asynchrone.
+        """
+        instance = self.get_object()
+        old_receipt_url = instance.receipt_url
+
+        response = super().partial_update(request, *args, **kwargs)
+
+        if response.status_code == 200:
+            try:
+                # ✅ RAFRAÎCHIR l'instance depuis la base
+                instance.refresh_from_db()
+
+                self._regenerate_pdf_async(instance.id, old_receipt_url)
+                logger.info(f"Régénération PDF asynchrone lancée pour reçu #{instance.id}")
+
+            except Exception as e:
+                logger.error(f"Erreur lancement régénération asynchrone: {e}")
+
+        return response
+
     def destroy(self, request, *args, **kwargs):
         """
         Supprime aussi le PDF dans S3 (Scaleway/MinIO) si présent.
@@ -70,15 +158,26 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         if instance.receipt_url:
             try:
-                from django.conf import settings
-
-                bucket_name = settings.SCW_BUCKETS["receipts"]
-                split_token = f"/{bucket_name}/"
-                path = instance.receipt_url.split(split_token, 1)[-1]
-                delete_object("receipts", path)
+                self._delete_file_from_url("receipts", instance.receipt_url)
             except Exception as e:
                 logger.warning(f"Erreur suppression du reçu PDF S3 : {e}")
         return super().destroy(request, *args, **kwargs)
+
+    def _delete_file_from_url(self, bucket_key: str, file_url: str):
+        """
+        Supprime un fichier du storage à partir de son URL.
+        """
+        try:
+            from django.conf import settings
+            from api.utils.cloud.scw.bucket_utils import delete_object
+
+            bucket = settings.SCW_BUCKETS[bucket_key]
+            split_token = f"/{bucket}/"
+            path = file_url.split(split_token, 1)[-1]
+            delete_object(bucket_key, path)
+        except Exception as e:
+            logger.error(f"Erreur suppression fichier S3: {e}")
+            raise
 
     @action(detail=False, methods=["post"], url_path="send-email")
     def send_receipts_email(self, request):

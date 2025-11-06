@@ -49,4 +49,9 @@ class PaymentReceipt(models.Model):
         pdf_bytes = generate_receipt_pdf(self)
         url = store_receipt_pdf(self, pdf_bytes)
         if url:
-            PaymentReceipt.objects.filter(pk=self.pk).update(receipt_url=url)
+            # ✅ CORRECTION : Mettre à jour l'instance en mémoire ET en base
+            self.receipt_url = url
+            # Sauvegarder uniquement le champ receipt_url
+            self.save(update_fields=["receipt_url"])
+            return url
+        return None
