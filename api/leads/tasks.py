@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-@shared_task
 def send_reminder_emails():
     """
     Envoie un rappel un jour avant le rendez-vous confirmé.
