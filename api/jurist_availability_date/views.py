@@ -1,3 +1,8 @@
+# ==========================================
+# BACKEND DJANGO - views.py
+# api/jurist_availability_date/views.py
+# ==========================================
+
 from rest_framework import permissions, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -61,6 +66,7 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def days(self, request):
+        """Retourne la liste des jours avec disponibilités"""
         include_weekly = request.query_params.get('include_weekly', 'true').lower() == 'true'
 
         days = set()
@@ -68,11 +74,7 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
         # Récupère TOUTES les disponibilités actives
         qs = JuristGlobalAvailability.objects.filter(is_active=True)
 
-
-
         for avail in qs:
-
-
             # ✅ TOUJOURS ajouter la date exacte
             days.add(avail.date.isoformat())
 
@@ -80,21 +82,15 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
             if avail.repeat_weekly and include_weekly:
                 days.add(f"weekly-{avail.date.weekday()}")
 
-
         return Response({
             'days': sorted(days),
             'count': len(days)
         })
+
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def available_jurists(self, request):
         """
-        ✅ VERSION CORRIGÉE ET SIMPLIFIÉE
         Retourne la liste des juristes disponibles pour une date donnée.
-
-        Logique:
-        1. Récupérer tous les juristes actifs avec le rôle JURISTE
-        2. Exclure ceux qui sont en indisponibilité
-        3. Ne garder que ceux qui ont au moins 1 créneau disponible ce jour-là
         """
         date_str = request.query_params.get("date")
         if not date_str:
@@ -120,7 +116,7 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
 
         # 2. Récupérer tous les juristes actifs (non indisponibles)
         all_jurists = User.objects.filter(
-            role="JURISTE",  # ⚠️ Assurez-vous que c'est le bon nom de champ
+            role="JURISTE",
             is_active=True
         ).exclude(id__in=unavailable_ids)
 
@@ -128,7 +124,7 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
         available_jurists = []
         for jurist in all_jurists:
             slots = get_available_slots_for_jurist(jurist, day)
-            if slots:  # Si au moins 1 créneau disponible
+            if slots:
                 available_jurists.append(jurist)
 
         # 4. Sérialiser et retourner
@@ -141,9 +137,7 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def stats(self, request):
-        """
-        Retourne des statistiques sur les disponibilités.
-        """
+        """Retourne des statistiques sur les disponibilités"""
         qs = self.get_queryset()
 
         stats = {
@@ -171,19 +165,6 @@ class JuristGlobalAvailabilityViewSet(viewsets.ModelViewSet):
     def bulk_create(self, request):
         """
         Crée plusieurs disponibilités en une seule requête.
-
-        Body: {
-            "availabilities": [
-                {
-                    "availability_type": "global",
-                    "date": "2025-01-15",
-                    "start_time": "09:00:00",
-                    "end_time": "12:00:00",
-                    "slot_duration": 30
-                },
-                ...
-            ]
-        }
         """
         availabilities_data = request.data.get('availabilities', [])
 

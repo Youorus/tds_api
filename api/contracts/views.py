@@ -75,44 +75,62 @@ class ContractViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(contracts, many=True)
         return Response(serializer.data)
 
+    # ==========================================
+    # Backend - views.py
+    # ==========================================
+
     def partial_update(self, request, *args, **kwargs):
         """
         Met à jour partiellement un contrat.
-
-        - Permet de téléverser un PDF signé
-        - Permet de modifier le statut `is_signed`
-        - Permet de modifier amount_due, discount_percent, is_cancelled, etc.
         """
         instance = self.get_object()
         signed_contract = request.FILES.get("signed_contract")
         is_signed = request.data.get("is_signed", None)
+        refund_amount = request.data.get("refund_amount", None)
         updated_fields = []
 
         if signed_contract:
-            # 1. Supprimer l'ancien PDF du storage
+            # Gérer l'upload du PDF signé
             if instance.contract_url:
                 self._delete_file_from_url("contracts", instance.contract_url)
-
-            # 2. Sauvegarder le nouveau PDF signé
-            instance.contract_url = self._save_signed_contract_pdf(
-                instance, signed_contract
-            )
+            instance.contract_url = self._save_signed_contract_pdf(instance, signed_contract)
             updated_fields.append("contract_url")
 
-        # 3. MAJ du champ signé
         if is_signed is not None:
             instance.is_signed = str(is_signed).lower() in ["true", "1"]
             updated_fields.append("is_signed")
 
-        # 4. MAJ des autres champs via serializer
+        # ✅ Gérer le remboursement
+        if refund_amount is not None:
+            try:
+                amount = Decimal(str(refund_amount))
+                if amount < 0:
+                    return Response(
+                        {"detail": "Le montant remboursé ne peut pas être négatif."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if amount > instance.amount_paid:
+                    return Response(
+                        {
+                            "detail": f"Le remboursement ne peut pas dépasser le montant payé ({instance.amount_paid} €)."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                instance.refund_amount = amount
+                instance.is_refunded = bool(amount > 0)
+                updated_fields.extend(["refund_amount", "is_refunded"])
+            except (InvalidOperation, TypeError):
+                return Response(
+                    {"detail": "Montant de remboursement invalide."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        # MAJ des autres champs via serializer (service, amount_due, discount_percent)
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        # 5. Sauvegarde champs modifiés
         if updated_fields:
             instance.save(update_fields=updated_fields)
-            # ✅ Si le contrat vient d'être signé, notifier par email le responsable (DAILY_RDV_REPORT_EMAIL)
             if instance.is_signed:
                 send_contract_signed_notification_task.delay(instance.id)
 

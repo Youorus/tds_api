@@ -1,0 +1,528 @@
+RAPPORT DE VÉRIFICATION - 03/2025
+================================================================================
+Date de génération: 2025-11-06 14:26:05
+Module Django: tds.settings.prod
+================================================================================
+
+Total des incohérences: 55
+
+Incohérence #1
+Type: MANQUANT_DB
+Client: ekaterina vasileva
+Téléphone: 33683051301
+Montant PDF: 80.00€
+Date (PDF): 28/03
+
+--------------------------------------------------------------------------------
+
+Incohérence #2
+Type: MANQUANT_DB
+Client:  SAIDANI
+Téléphone: 33758077883
+Montant PDF: 60.00€
+Date (PDF): 04/03
+
+--------------------------------------------------------------------------------
+
+Incohérence #3
+Type: MANQUANT_DB
+Client:  DEPOHI
+Téléphone: 33695345027
+Montant PDF: 1590.00€
+Date (PDF): 14/03
+
+--------------------------------------------------------------------------------
+
+Incohérence #4
+Type: MONTANT_DIFFERENT
+Client: Boue annick Foua
+Téléphone: 33603805366
+Montant PDF: 60.00€
+Montant DB: 890.00€
+Différence: -830.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #5
+Type: MONTANT_DIFFERENT
+Client: NICOLETTA ZOKO
+Téléphone: 33752845268
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #6
+Type: MONTANT_DIFFERENT
+Client: Thierno BARRY
+Téléphone: 33678469920
+Montant PDF: 80.00€
+Montant DB: 1590.00€
+Différence: -1510.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #7
+Type: MONTANT_DIFFERENT
+Client: ARIF AFRIDI
+Téléphone: 33769323153
+Montant PDF: 80.00€
+Montant DB: 1190.00€
+Différence: -1110.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #8
+Type: MONTANT_DIFFERENT
+Client: Ketia KUBIA
+Téléphone: 33767236289
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #9
+Type: MONTANT_DIFFERENT
+Client: Frantz Junior Raymond
+Téléphone: 33745976644
+Montant PDF: 80.00€
+Montant DB: 1190.00€
+Différence: -1110.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #10
+Type: MONTANT_DIFFERENT
+Client: Marie Thérèse Embolo Nlang
+Téléphone: 33634153311
+Montant PDF: 80.00€
+Montant DB: 1590.00€
+Différence: -1510.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #11
+Type: MONTANT_DIFFERENT
+Client: Bonith Khoy
+Téléphone: 33652032008
+Montant PDF: 80.00€
+Montant DB: 1190.00€
+Différence: -1110.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #12
+Type: MONTANT_DIFFERENT
+Client: mahamaide Toure
+Téléphone: 33783636648
+Montant PDF: 60.00€
+Montant DB: 890.00€
+Différence: -830.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #13
+Type: MONTANT_DIFFERENT
+Client: DADIE MOISE OKO
+Téléphone: 33783382199
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #14
+Type: MONTANT_DIFFERENT
+Client: Rachid saidani
+Téléphone: 33751415226
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #15
+Type: MONTANT_DIFFERENT
+Client: Oumi-salma Ali nourou
+Téléphone: 33784735298
+Montant PDF: 60.00€
+Montant DB: 890.00€
+Différence: -830.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #16
+Type: MONTANT_DIFFERENT
+Client: Ibrahima Dosso
+Téléphone: 33767813213
+Montant PDF: 80.00€
+Montant DB: 1590.00€
+Différence: -1510.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #17
+Type: MONTANT_DIFFERENT
+Client: Mamadou MANGANE
+Téléphone: 33652755196
+Montant PDF: 60.00€
+Montant DB: 890.00€
+Différence: -830.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #18
+Type: MONTANT_DIFFERENT
+Client: lahoucine alahyane
+Téléphone: 33625283431
+Montant PDF: 80.00€
+Montant DB: 1190.00€
+Différence: -1110.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #19
+Type: MONTANT_DIFFERENT
+Client: Océane zouzouko
+Téléphone: 33658880690
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #20
+Type: MONTANT_DIFFERENT
+Client: Mohamed DIOUF
+Téléphone: 33767425557
+Montant PDF: 80.00€
+Montant DB: 1590.00€
+Différence: -1510.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #21
+Type: MONTANT_DIFFERENT
+Client: Nissan Fofana
+Téléphone: 33751075685
+Montant PDF: 40.00€
+Montant DB: 690.00€
+Différence: -650.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #22
+Type: MONTANT_DIFFERENT
+Client:  KENGMO
+Téléphone: 33646133138
+Montant PDF: 60.00€
+Montant DB: 790.00€
+Différence: -730.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #23
+Type: MONTANT_DIFFERENT
+Client: Roger PERE AKAKPO
+Téléphone: 33605670669
+Montant PDF: 890.00€
+Montant DB: 820.00€
+Différence: 70.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #24
+Type: MONTANT_DIFFERENT
+Client:  AKAKPO
+Téléphone: 33605670669
+Montant PDF: 1590.00€
+Montant DB: 820.00€
+Différence: 770.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #25
+Type: MONTANT_DIFFERENT
+Client: Ariel FILLE AKAKPO
+Téléphone: 33605670669
+Montant PDF: 1590.00€
+Montant DB: 820.00€
+Différence: 770.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #26
+Type: MONTANT_DIFFERENT
+Client: ElijAh FILLE AKAKPO
+Téléphone: 33605670669
+Montant PDF: 690.00€
+Montant DB: 820.00€
+Différence: -130.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #27
+Type: MONTANT_DIFFERENT
+Client: ELYSEE FILS AKAPO
+Téléphone: 33605670669
+Montant PDF: 690.00€
+Montant DB: 820.00€
+Différence: -130.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #28
+Type: MONTANT_DIFFERENT
+Client: Macire DOUKANTHI
+Téléphone: 33758695960
+Montant PDF: 140.00€
+Montant DB: 890.00€
+Différence: -750.00€
+
+--------------------------------------------------------------------------------
+
+Incohérence #29
+Type: MANQUANT_PDF
+Client: Ulrich Lagouo
+Téléphone: 33650760826
+Montant DB: 1190.00€
+ID Contrat (DB): 1398
+
+--------------------------------------------------------------------------------
+
+Incohérence #30
+Type: MANQUANT_PDF
+Client: Gloria constanza Rodriguez castillo
+Téléphone: 33769352748
+Montant DB: 690.00€
+ID Contrat (DB): 892
+
+--------------------------------------------------------------------------------
+
+Incohérence #31
+Type: MANQUANT_PDF
+Client: Ekaterina Vasileva
+Téléphone: 33635968086
+Montant DB: 1190.00€
+ID Contrat (DB): 1397
+
+--------------------------------------------------------------------------------
+
+Incohérence #32
+Type: MANQUANT_PDF
+Client: Khosseh Diop
+Téléphone: 33781912960
+Montant DB: 800.00€
+ID Contrat (DB): 1396
+
+--------------------------------------------------------------------------------
+
+Incohérence #33
+Type: MANQUANT_PDF
+Client: Philomene Rio judon mackanga
+Téléphone: 33646313778
+Montant DB: 720.00€
+ID Contrat (DB): 1391
+
+--------------------------------------------------------------------------------
+
+Incohérence #34
+Type: MANQUANT_PDF
+Client: Natalicia maria Moreira lopes semedo
+Téléphone: 33749994505
+Montant DB: 690.00€
+ID Contrat (DB): 1389
+
+--------------------------------------------------------------------------------
+
+Incohérence #35
+Type: MANQUANT_PDF
+Client: Joselyne Nzita kapinga
+Téléphone: 33786470082
+Montant DB: 490.00€
+ID Contrat (DB): 1340
+
+--------------------------------------------------------------------------------
+
+Incohérence #36
+Type: MANQUANT_PDF
+Client: Ariel Akakpo (fille)
+Téléphone: 33753140009
+Montant DB: 1460.00€
+ID Contrat (DB): 1325
+
+--------------------------------------------------------------------------------
+
+Incohérence #37
+Type: MANQUANT_PDF
+Client: Mélanie Mundiete mbume
+Téléphone: 33758502406
+Montant DB: 690.00€
+ID Contrat (DB): 996
+
+--------------------------------------------------------------------------------
+
+Incohérence #38
+Type: MANQUANT_PDF
+Client: Vololoniaina Dauphine razafidanary veuve rakotondratsimb
+Téléphone: 33685199316
+Montant DB: 890.00€
+ID Contrat (DB): 1378
+
+--------------------------------------------------------------------------------
+
+Incohérence #39
+Type: MANQUANT_PDF
+Client: Olivier Tade
+Téléphone: 33758286517
+Montant DB: 1000.00€
+ID Contrat (DB): 1062
+
+--------------------------------------------------------------------------------
+
+Incohérence #40
+Type: MANQUANT_PDF
+Client: Estrela esperenza Sanchez fabiu
+Téléphone: 33627757635
+Montant DB: 690.00€
+ID Contrat (DB): 1251
+
+--------------------------------------------------------------------------------
+
+Incohérence #41
+Type: MANQUANT_PDF
+Client: Nadege sabine Depohi
+Téléphone: 33753482029
+Montant DB: 1590.00€
+ID Contrat (DB): 1237
+
+--------------------------------------------------------------------------------
+
+Incohérence #42
+Type: MANQUANT_PDF
+Client: Elisee Kuta bilesi
+Téléphone: 33659731892
+Montant DB: 1190.00€
+ID Contrat (DB): 1037
+
+--------------------------------------------------------------------------------
+
+Incohérence #43
+Type: MANQUANT_PDF
+Client: Héritier Mwembu ebwa
+Téléphone: 33769370133
+Montant DB: 890.00€
+ID Contrat (DB): 1366
+
+--------------------------------------------------------------------------------
+
+Incohérence #44
+Type: MANQUANT_PDF
+Client: Ibrahima Diallo
+Téléphone: 33753239955
+Montant DB: 690.00€
+ID Contrat (DB): 1221
+
+--------------------------------------------------------------------------------
+
+Incohérence #45
+Type: MANQUANT_PDF
+Client: Kadiatou Kane
+Téléphone: 33753453048
+Montant DB: 490.00€
+ID Contrat (DB): 1374
+
+--------------------------------------------------------------------------------
+
+Incohérence #46
+Type: MANQUANT_PDF
+Client: Malika Ben hadj salem derouiche
+Téléphone: 33647964996
+Montant DB: 1190.00€
+ID Contrat (DB): 977
+
+--------------------------------------------------------------------------------
+
+Incohérence #47
+Type: MANQUANT_PDF
+Client: Boussey Diawara
+Téléphone: 33751143629
+Montant DB: 490.00€
+ID Contrat (DB): 1361
+
+--------------------------------------------------------------------------------
+
+Incohérence #48
+Type: MANQUANT_PDF
+Client: Abdel aziz Njighetyi njifon
+Téléphone: 33758468340
+Montant DB: 890.00€
+ID Contrat (DB): 1358
+
+--------------------------------------------------------------------------------
+
+Incohérence #49
+Type: MANQUANT_PDF
+Client: Viviana Rakotondratsima
+Téléphone: 33660083349
+Montant DB: 1190.00€
+ID Contrat (DB): 1207
+
+--------------------------------------------------------------------------------
+
+Incohérence #50
+Type: MANQUANT_PDF
+Client: Eunice dulcie Mbemba kiyindou
+Téléphone: 33745051965
+Montant DB: 690.00€
+ID Contrat (DB): 917
+
+--------------------------------------------------------------------------------
+
+Incohérence #51
+Type: MANQUANT_PDF
+Client: Ghanem abdelhadi Saidani
+Téléphone: 33782645411
+Montant DB: 890.00€
+ID Contrat (DB): 937
+
+--------------------------------------------------------------------------------
+
+Incohérence #52
+Type: MANQUANT_PDF
+Client: Nacera Ben mohamed div. djendir
+Téléphone: 33667121941
+Montant DB: 1190.00€
+ID Contrat (DB): 906
+
+--------------------------------------------------------------------------------
+
+Incohérence #53
+Type: MANQUANT_PDF
+Client: Bandiougou Sacko
+Téléphone: 33758121127
+Montant DB: 390.00€
+ID Contrat (DB): 1259
+
+--------------------------------------------------------------------------------
+
+Incohérence #54
+Type: MANQUANT_PDF
+Client: Marieme soda Diallo
+Téléphone: 33783541135
+Montant DB: 1190.00€
+ID Contrat (DB): 936
+
+--------------------------------------------------------------------------------
+
+Incohérence #55
+Type: MANQUANT_PDF
+Client: Xiuping Liu
+Téléphone: 33652504776
+Montant DB: 690.00€
+ID Contrat (DB): 944
+
+--------------------------------------------------------------------------------
+

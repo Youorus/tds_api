@@ -40,8 +40,8 @@ except ImportError:
     REPORTS_DIRECTORY = './rapports'  # 👈 Répertoire des rapports
 
 # ⚙️ CONFIGURATION DIRECTE DU PDF - Décommentez et modifiez pour exécution directe
-PDF_PATH = "/Users/marc./Downloads/contracts_fevrier.pdf"  # 👈 Chemin de votre PDF
-MONTH = 2  # 👈 Mois (1-12)
+PDF_PATH = "/Users/marc./Downloads/contracts_mai.pdf"  # 👈 Chemin de votre PDF
+MONTH = 5  # 👈 Mois (1-12)
 YEAR = 2025  # 👈 Année
 
 # ⚙️ 1️⃣ Initialiser Django AVANT d'importer les modèles
