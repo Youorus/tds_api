@@ -228,6 +228,9 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         start_date_str = request.query_params.get("start_date")
         end_date_str = request.query_params.get("end_date")
         jurist_id = request.query_params.get("jurist_id")
+        # 🔒 Si l'utilisateur connecté est un juriste → filtrage automatique
+        if hasattr(request.user, "role") and request.user.role == "JURISTE":
+            jurist_id = request.user.id
 
         # Dates par défaut: aujourd'hui + 7 jours (en timezone Paris)
         now_paris = timezone.now().astimezone(paris_tz)

@@ -24,3 +24,9 @@ class MinioDocumentStorage(S3Boto3Storage):
     bucket_name = config("BUCKET_CLIENT_DOCUMENTS", default="documents-clients")
     location = ""
     file_overwrite = False
+
+
+class MinioInvoiceStorage(S3Boto3Storage):
+    bucket_name = config("BUCKET_INVOICES", default="factures")
+    location = ""
+    file_overwrite = False

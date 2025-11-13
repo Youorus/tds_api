@@ -135,6 +135,14 @@ class ClientSerializer(serializers.ModelSerializer):
         ):
             errors["type_visa"] = "Veuillez sélectionner un type de visa."
 
+        # Date d'expiration du visa obligatoire si a_un_visa est True
+        if (
+            (not is_partial or "date_expiration_visa" in data)
+            and data.get("a_un_visa")
+            and not data.get("date_expiration_visa")
+        ):
+            errors["date_expiration_visa"] = "Veuillez indiquer la date d'expiration du visa."
+
         # Domaine d'activité obligatoire si situation_pro renseignée
         if (
             (not is_partial or "domaine_activite" in data)
@@ -142,6 +150,26 @@ class ClientSerializer(serializers.ModelSerializer):
             and not data.get("domaine_activite")
         ):
             errors["domaine_activite"] = "Veuillez indiquer votre domaine d’activité."
+
+        # Validation souple pour le compte Démarches Simplifiées
+        if data.get("has_demarche_simplifiee_account"):
+
+            existing_email = getattr(self.instance, "demarche_simplifiee_email", None) if self.instance else None
+            existing_password = getattr(self.instance, "demarche_simplifiee_password", None) if self.instance else None
+
+            email = data.get("demarche_simplifiee_email", existing_email)
+            password = data.get("demarche_simplifiee_password", existing_password)
+
+            # Si l'utilisateur commence à remplir (email OU password), on exige l’autre
+            if email and not password:
+                errors["demarche_simplifiee_password"] = (
+                    "Veuillez renseigner le mot de passe du compte Démarches Simplifiées."
+                )
+
+            if password and not email:
+                errors["demarche_simplifiee_email"] = (
+                    "Veuillez renseigner l'email du compte Démarches Simplifiées."
+                )
 
         # Nombre d'enfants doit être positif
         if (not is_partial or "nombre_enfants" in data) and data.get(

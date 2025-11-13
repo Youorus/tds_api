@@ -11,11 +11,17 @@ from api.contracts.models import Contract
 def generate_contract_pdf(contract: Contract) -> bytes:
     """
     Génère le PDF du contrat à partir du template HTML et retourne les bytes.
-    - contract : instance de Contract à convertir en PDF.
-    - Retour : bytes du PDF généré (prêt à uploader sur MinIO/S3).
     """
     client = contract.client
     lead = client.lead
+
+    # 🧮 Calcul du montant réel après remise
+    if hasattr(contract, "real_amount_due") and contract.real_amount_due is not None:
+        montant_reel = contract.real_amount_due
+    else:
+        montant_reel = contract.amount_due
+        if contract.discount_percent:
+            montant_reel -= contract.amount_due * (contract.discount_percent / 100)
 
     context = {
         "date": timezone.now().strftime("%d/%m/%Y"),
@@ -23,8 +29,12 @@ def generate_contract_pdf(contract: Contract) -> bytes:
         "last_name": lead.last_name,
         "phone": lead.phone,
         "email": lead.email,
-        "service": contract.service,
-        "montant": f"{contract.amount_due:.2f} €",
+        "service": contract.service.label,
+
+        # 🧾 Montant avec remise appliquée
+        "montant": f"{montant_reel:.2f} €",
+
+        # Pour affichage informatif
         "discount": f"{contract.discount_percent:.2f} %",
         "company": {
             "name": "TDS France",
@@ -37,11 +47,9 @@ def generate_contract_pdf(contract: Contract) -> bytes:
 
     html_string = render_to_string("contrats/contract_template.html", context)
 
-    # ✅ Récupère le chemin uniquement si défini (sinon utilise wkhtmltopdf global)
     wkhtmltopdf_path = getattr(settings, "WKHTMLTOPDF_PATH", None)
     config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path) if wkhtmltopdf_path else None
 
-    # ✅ Génère le PDF directement depuis la string HTML
     pdf_bytes = pdfkit.from_string(html_string, False, configuration=config)
 
     return pdf_bytes

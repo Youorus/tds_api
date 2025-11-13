@@ -169,14 +169,15 @@ BUCKET_USERS_AVATARS = os.getenv("BUCKET_USERS_AVATARS", "avatars-tds")
 BUCKET_CLIENT_DOCUMENTS = os.getenv("BUCKET_CLIENT_DOCUMENTS", "documents-clients")
 BUCKET_CONTRACTS = os.getenv("BUCKET_CONTRACTS", "contracts")
 BUCKET_RECEIPTS = os.getenv("BUCKET_RECEIPTS", "recus")
+BUCKET_INVOICES = os.getenv("BUCKET_INVOICES", "factures")
 
 SCW_BUCKETS = {
     "avatars": BUCKET_USERS_AVATARS,
     "documents": BUCKET_CLIENT_DOCUMENTS,
     "contracts": BUCKET_CONTRACTS,
     "receipts": BUCKET_RECEIPTS,
+    "invoices": BUCKET_INVOICES,
 }
-
 # Celery
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"

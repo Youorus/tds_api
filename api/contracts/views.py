@@ -44,7 +44,7 @@ class ContractViewSet(viewsets.ModelViewSet):
         """
         contract = serializer.save(created_by=self.request.user)
 
-        pdf_url = contract.generate_pdf()  # peut renvoyer None
+        pdf_url = contract.generate_contract_pdf()
         if pdf_url:
             # Synchronise le champ localement si tu en as besoin
             contract.contract_url = pdf_url
@@ -299,3 +299,41 @@ class ContractViewSet(viewsets.ModelViewSet):
                 f"Le montant dépasse le maximum remboursable ({max_refundable} €).",
             )
         return True, ""
+
+    @action(detail=True, methods=["post"], url_path="generate-invoice")
+    def generate_invoice(self, request, pk=None):
+        """
+        Génère manuellement une facture pour ce contrat.
+        """
+        contract = self.get_object()
+
+        try:
+            # Vérifier si une facture existe déjà
+            if contract.invoice_url:
+                return Response({
+                    "detail": "Une facture existe déjà pour ce contrat.",
+                    "invoice_url": contract.invoice_url,
+                    "existing": True
+                }, status=200)
+
+            # Générer la facture
+            invoice_url = contract.generate_invoice_pdf()
+
+            if invoice_url:
+                return Response({
+                    "detail": "Facture générée avec succès.",
+                    "invoice_url": invoice_url,
+                    "contract_id": contract.id,
+                    "is_fully_paid": contract.is_fully_paid,
+                    "balance_due": str(contract.balance_due),
+                    "real_amount": str(contract.real_amount)
+                }, status=200)
+            else:
+                return Response({
+                    "detail": "Erreur lors de la génération de la facture."
+                }, status=500)
+
+        except Exception as e:
+            return Response({
+                "detail": f"Erreur technique: {str(e)}"
+            }, status=500)

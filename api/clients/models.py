@@ -28,9 +28,28 @@ class Client(models.Model):
     has_anef_account = models.BooleanField(
         _("a un compte ANEF ?"), null=True, blank=True
     )
-    anef_email = models.CharField(_("email du compte ANEF"), max_length=255, blank=True)
+    anef_email = models.CharField(
+        _("email du compte ANEF (texte libre)"),
+        max_length=255,
+        blank=True
+    )
     anef_password = models.CharField(
         _("mot de passe du compte ANEF"), max_length=255, blank=True
+    )
+
+    # Compte Démarches Simplifiées
+    has_demarche_simplifiee_account = models.BooleanField(
+        _("a un compte Démarches Simplifiées ?"), null=True, blank=True
+    )
+    demarche_simplifiee_email = models.CharField(
+        _("email du compte Démarches Simplifiées (texte libre)"),
+        max_length=255,
+        blank=True
+    )
+    demarche_simplifiee_password = models.CharField(
+        _("mot de passe du compte Démarches Simplifiées"),
+        max_length=255,
+        blank=True
     )
 
     # Source(s) d'information (enum JSON, liste)
@@ -82,6 +101,9 @@ class Client(models.Model):
         choices=VisaType.choices,
         null=True,
         blank=True,
+    )
+    date_expiration_visa = models.DateField(
+        _("date d'expiration du visa"), null=True, blank=True
     )
     statut_refugie_ou_protection = models.BooleanField(
         _("statut réfugié ou protection subsidiaire"), null=True, blank=True

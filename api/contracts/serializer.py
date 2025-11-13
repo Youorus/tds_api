@@ -15,7 +15,6 @@ class ContractSerializer(serializers.ModelSerializer):
     amount_paid = serializers.SerializerMethodField()
     real_amount_due = serializers.SerializerMethodField()
     is_fully_paid = serializers.SerializerMethodField()
-    # ⇩⇩⇩ nouveaux champs exposés depuis les @property du modèle
     balance_due = serializers.SerializerMethodField()
     net_paid = serializers.SerializerMethodField()
 
@@ -23,6 +22,7 @@ class ContractSerializer(serializers.ModelSerializer):
     service_details = ServiceSerializer(source="service", read_only=True)
 
     contract_url = serializers.SerializerMethodField()
+    invoice_url = serializers.SerializerMethodField()  # ✅ AJOUTÉ
 
     class Meta:
         model = Contract
@@ -36,17 +36,19 @@ class ContractSerializer(serializers.ModelSerializer):
             "discount_percent",
             "real_amount_due",
             "amount_paid",
-            "net_paid",  # ⇦ nouveau
-            "balance_due",  # ⇦ nouveau
+            "net_paid",
+            "balance_due",
             "is_fully_paid",
             "is_refunded",
             "refund_amount",
             "contract_url",
+            "invoice_url",
             "created_at",
             "is_signed",
-            "is_cancelled",  # ⇦ ajouté ici
+            "is_cancelled",
             "created_by",
         ]
+
         read_only_fields = [
             "id",
             "real_amount_due",
@@ -55,22 +57,25 @@ class ContractSerializer(serializers.ModelSerializer):
             "balance_due",
             "is_fully_paid",
             "contract_url",
+            "invoice_url",
             "created_at",
             "created_by",
             "client_details",
             "service_details",
             "is_refunded",
             "refund_amount",
-            "is_cancelled",  # ⇦ ajouté ici
+            "is_cancelled",
         ]
 
+    # ==========================================================
+    # 🔵 METHODS ASSOCIATED WITH SerializerMethodField
+    # ==========================================================
+
     def get_amount_paid(self, obj):
-        return float(obj.amount_paid)  # ou str si tu préfères
+        return float(obj.amount_paid)
 
     def get_real_amount_due(self, obj):
-        ratio = Decimal("1.00") - (obj.discount_percent or Decimal("0.00")) / Decimal(
-            "100.00"
-        )
+        ratio = Decimal("1.00") - (obj.discount_percent or Decimal("0.00")) / Decimal("100.00")
         return float(
             (obj.amount_due * ratio).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         )
@@ -84,14 +89,28 @@ class ContractSerializer(serializers.ModelSerializer):
     def get_net_paid(self, obj):
         return float(obj.net_paid)
 
-    def get_contract_url(self, obj):
-        if obj.contract_url:
-            from urllib.parse import unquote, urlparse
+    # ==========================================================
+    # 🔵 URL SIGNÉE — CONTRAT
+    # ==========================================================
 
-            parsed = urlparse(obj.contract_url)
-            path = unquote(parsed.path)
-            key = "/".join(
-                path.strip("/").split("/")[1:]
-            )  # Retire le préfixe "contracts/"
-            return generate_presigned_url("contracts", key)
-        return None
+    def get_contract_url(self, obj):
+        if not obj.contract_url:
+            return None
+
+        parsed = urlparse(obj.contract_url)
+        path = unquote(parsed.path)
+        key = "/".join(path.strip("/").split("/")[1:])  # enlève "contracts/"
+        return generate_presigned_url("contracts", key)
+
+    # ==========================================================
+    # 🔵 URL SIGNÉE — FACTURE (invoice_url)
+    # ==========================================================
+
+    def get_invoice_url(self, obj):
+        if not obj.invoice_url:
+            return None
+
+        parsed = urlparse(obj.invoice_url)
+        path = unquote(parsed.path)
+        key = "/".join(path.strip("/").split("/")[1:])  # enlève "invoices/"
+        return generate_presigned_url("invoices", key)

@@ -28,6 +28,7 @@ class Contract(models.Model):
         _("Remise (%)"), max_digits=5, decimal_places=2, default=Decimal("0.00")
     )
     contract_url = models.URLField(_("Contrat PDF"), max_length=1024, blank=True, null=True)
+    invoice_url = models.URLField(_("Facture PDF"), max_length=1024, blank=True, null=True)
     created_at = models.DateTimeField(_("Créé le"), default=timezone.now)
     is_signed = models.BooleanField(_("Signé ?"), default=False)
     is_refunded = models.BooleanField(default=False)
@@ -127,10 +128,10 @@ class Contract(models.Model):
         self.refund_amount = (self.refund_amount or Decimal("0.00")) + Decimal(amount)
         self.save(update_fields=["refund_amount", "is_refunded"])
 
-    def generate_pdf(self):
+    def generate_contract_pdf(self):
         """
         Génère un PDF pour le contrat (stockage cloud).
-        Renvoie l’URL du contrat PDF si la génération réussit.
+        Renvoie l'URL du contrat PDF si la génération réussit.
         """
         if self.contract_url:
             print("ℹ️ PDF déjà généré, URL :", self.contract_url)
@@ -153,4 +154,33 @@ class Contract(models.Model):
             return contract_url
         except Exception as e:
             print(f"❌ Erreur lors de la génération du contrat PDF : {e}")
+            return None
+
+    def generate_invoice_pdf(self):
+        """
+        Génère un PDF de facture pour le contrat (stockage cloud).
+        Renvoie l'URL de la facture PDF si la génération réussit.
+        """
+        if self.invoice_url:
+            print("ℹ️ Facture PDF déjà générée, URL :", self.invoice_url)
+            return self.invoice_url
+
+        from api.utils.cloud.storage import store_invoice_pdf
+        from api.utils.pdf.invoice_generator import generate_invoice_pdf
+
+        print(f"🧾 Génération facture PDF pour contrat #{self.pk}...")
+        try:
+            pdf_bytes = generate_invoice_pdf(self)
+            invoice_ref = f"TDS-{self.id:06d}"  # Même référence que dans le template
+            invoice_url = store_invoice_pdf(self, pdf_bytes, invoice_ref)
+            if invoice_url:
+                self.invoice_url = invoice_url
+                # ✅ MAJ persistée côté base
+                Contract.objects.filter(pk=self.pk).update(invoice_url=invoice_url)
+                print("✅ Facture PDF générée :", invoice_url)
+            else:
+                print("⚠️ Aucune URL retournée par store_invoice_pdf")
+            return invoice_url
+        except Exception as e:
+            print(f"❌ Erreur lors de la génération de la facture PDF : {e}")
             return None

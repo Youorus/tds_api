@@ -30,6 +30,39 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentReceiptSerializer
     permission_classes = [IsPaymentEditor]
 
+    def _check_and_generate_invoice(self, contract):
+        """
+        Vérifie si le contrat est entièrement payé et génère la facture si c'est le cas.
+        """
+        try:
+            # Rafraîchir le contrat depuis la base pour avoir les données à jour
+            contract.refresh_from_db()
+
+            if contract.is_fully_paid and not contract.invoice_url:
+                logger.info(f"🎉 Contrat #{contract.id} entièrement payé, génération de la facture...")
+
+                # Générer la facture PDF
+                invoice_url = contract.generate_invoice_pdf()
+
+                if invoice_url:
+                    logger.info(f"✅ Facture générée avec succès: {invoice_url}")
+                    return invoice_url
+                else:
+                    logger.error(f"❌ Échec de la génération de la facture pour le contrat #{contract.id}")
+                    return None
+            else:
+                if contract.invoice_url:
+                    logger.debug(f"ℹ️ Facture déjà générée pour le contrat #{contract.id}")
+                elif not contract.is_fully_paid:
+                    logger.debug(
+                        f"ℹ️ Contrat #{contract.id} pas encore entièrement payé (solde: {contract.balance_due}€)")
+
+                return contract.invoice_url
+
+        except Exception as e:
+            logger.error(f"❌ Erreur lors de la vérification/génération de la facture pour contrat #{contract.id}: {e}")
+            return None
+
     def perform_create(self, serializer):
         """
         Sauvegarde le reçu avec l'utilisateur connecté, puis génère son PDF.
@@ -45,7 +78,17 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
                 pk=receipt.pk
             ).update(next_due_date=None)
 
+        # Générer le PDF du reçu
         receipt.generate_pdf()
+
+        # ✅ VÉRIFIER SI C'EST LE DERNIER PAIEMENT ET GÉNÉRER LA FACTURE
+        if receipt.contract:
+            # Lancer la vérification dans un thread séparé pour ne pas bloquer la réponse
+            threading.Thread(
+                target=self._check_and_generate_invoice,
+                args=(receipt.contract,),
+                daemon=True
+            ).start()
 
     def create(self, request, *args, **kwargs):
         """
@@ -99,8 +142,6 @@ class PaymentReceiptViewSet(viewsets.ModelViewSet):
         thread = threading.Thread(target=regenerate_task)
         thread.daemon = True
         thread.start()
-
-    # Dans votre PaymentReceiptViewSet - version corrigée
 
     def update(self, request, *args, **kwargs):
         """
