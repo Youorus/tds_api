@@ -34,7 +34,8 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from collections import defaultdict
 import pytz  # ✅ NOUVEAU IMPORT pour le fuseau horaire
-
+import logging
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -222,17 +223,37 @@ class JuristAppointmentViewSet(viewsets.ModelViewSet):
         Par défaut: 7 prochains jours
         """
         # ✅ Fuseau horaire de Paris
-        paris_tz = pytz.timezone('Europe/Paris')
+        paris_tz = pytz.timezone("Europe/Paris")
 
-        # Récupération des paramètres de filtre
+        # Récupération des paramètres
         start_date_str = request.query_params.get("start_date")
         end_date_str = request.query_params.get("end_date")
-        jurist_id = request.query_params.get("jurist_id")
-        # 🔒 Si l'utilisateur connecté est un juriste → filtrage automatique
-        if hasattr(request.user, "role") and request.user.role == "JURISTE":
-            jurist_id = request.user.id
+        jurist_param = request.query_params.get("jurist_id")
 
-        # Dates par défaut: aujourd'hui + 7 jours (en timezone Paris)
+        logger.info(f"📥 Params reçus : start_date={start_date_str}, end_date={end_date_str}, jurist_id={jurist_param!r}")
+
+        # Normalisation : jurist_id n'est valide que si vraiment fourni
+        if jurist_param in (None, "", "null", "None"):
+            jurist_id = None
+        else:
+            jurist_id = jurist_param
+
+        logger.info(f"🔎 jurist_id normalisé : {jurist_id}")
+
+        # 🔒 Si l'utilisateur connecté est un juriste → filtrage automatique
+        user_role = getattr(request.user, "role", None)
+        if user_role == "JURISTE":
+            logger.info(f"🧑‍⚖️ Utilisateur connecté = juriste ({request.user.id})")
+
+            if jurist_id is None:
+                jurist_id = str(request.user.id)
+                logger.info(f"➡️ Filtrage automatique sur le juriste connecté : {jurist_id}")
+            else:
+                logger.info(f"➡️ jurist_id fourni → override accepté : {jurist_id}")
+        else:
+            logger.info(f"👤 Utilisateur connecté rôle = {user_role}")
+
+        # Dates de référence en timezone Paris
         now_paris = timezone.now().astimezone(paris_tz)
         today = now_paris.date()
 
