@@ -352,70 +352,149 @@ class ContractSearchService:
 
     @classmethod
     def calculate_aggregates(cls, queryset):
-        """Calcule les agrégats statistiques - EXCLUT les soldes des contrats annulés"""
-        # Pour les statistiques, on utilise une approche plus simple
-        # en calculant d'abord les valeurs de base puis en appliquant la logique
+        """Calcule les agrégats statistiques - Version CORRIGÉE"""
 
-        # Agrégats de base
-        base_agg = queryset.aggregate(
-            sum_amount_due=Coalesce(Sum("amount_due"), Value(Decimal("0.00"))),
+        # ✅ Annoter amount_paid_total AVANT d'agréger
+        qs_with_payments = queryset.annotate(
+            amount_paid_total=Coalesce(
+                Sum("receipts__amount"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField()
+            )
+        )
+
+        # Agrégats principaux
+        agg = qs_with_payments.aggregate(
+            sum_amount_due=Coalesce(
+                Sum("amount_due"),
+                Value(Decimal("0.00"))
+            ),
+
+            # Montant réel après remise
             sum_real_amount_due=Coalesce(
                 Sum(
-                    F("amount_due") * (Value(1.0) - (Coalesce(F("discount_percent"), Value(0)) / Value(100.0))),
+                    F("amount_due") * (
+                            Value(1.0) - (
+                            Coalesce(F("discount_percent"), Value(0)) / Value(100.0)
+                    )
+                    ),
                     output_field=DecimalField(max_digits=12, decimal_places=2)
                 ),
                 Value(Decimal("0.00"))
             ),
-            sum_amount_paid=Coalesce(Sum("receipts__amount"), Value(Decimal("0.00"))),
+
+            # ✅ Total payé (somme des receipts)
+            sum_amount_paid=Coalesce(
+                Sum("amount_paid_total"),
+                Value(Decimal("0.00"))
+            ),
+
+            # ✅ Net payé = payé - remboursements
             sum_net_paid=Coalesce(
                 Sum(
-                    Coalesce(F("amount_paid"), Value(Decimal("0.00"))) - Coalesce(F("refund_amount"),
-                                                                                  Value(Decimal("0.00"))),
+                    F("amount_paid_total") - Coalesce(F("refund_amount"), Value(Decimal("0.00"))),
                     output_field=DecimalField(max_digits=12, decimal_places=2)
                 ),
                 Value(Decimal("0.00"))
             ),
-        )
 
-        # Calcul manuel du solde restant pour exclure les annulés
-        contracts_with_balance = queryset.filter(is_cancelled=False).annotate(
-            contract_balance=ExpressionWrapper(
-                F("real_amount_due") - F("net_paid"),
-                output_field=DecimalField(max_digits=12, decimal_places=2)
-            )
-        ).aggregate(
-            sum_balance_due=Coalesce(Sum(
-                Greatest(Value(Decimal("0.00")), F("contract_balance"))
-            ), Value(Decimal("0.00")))
-        )
-
-        # Comptages
-        counts = queryset.aggregate(
+            # Comptages
             count_signed=Count("id", filter=Q(is_signed=True)),
             count_refunded=Count("id", filter=Q(is_refunded=True)),
-            count_fully_paid=Count("id", filter=Q(
-                Q(balance_due=Decimal("0.00")) | Q(is_cancelled=True)
-            )),
-            count_with_balance=Count("id", filter=Q(
-                balance_due__gt=Decimal("0.00"),
-                is_cancelled=False
-            )),
             count_reduced=Count("id", filter=Q(discount_percent__gt=0)),
             count_cancelled=Count("id", filter=Q(is_cancelled=True)),
         )
 
+        # ✅ Balance due : EXCLURE les annulés ET calculer correctement
+        balance_agg = qs_with_payments.filter(
+            is_cancelled=False
+        ).annotate(
+            real_after_discount=ExpressionWrapper(
+                F("amount_due") * (
+                        Value(1.0) - (
+                        Coalesce(F("discount_percent"), Value(0)) / Value(100.0)
+                )
+                ),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            net_paid_calc=ExpressionWrapper(
+                F("amount_paid_total") - Coalesce(F("refund_amount"), Value(Decimal("0.00"))),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            balance_calc=ExpressionWrapper(
+                F("real_after_discount") - F("net_paid_calc"),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        ).aggregate(
+            sum_balance_due=Coalesce(
+                Sum(
+                    Greatest(
+                        Value(Decimal("0.00")),
+                        F("balance_calc")
+                    )
+                ),
+                Value(Decimal("0.00"))
+            )
+        )
+
+        # ✅ Fully paid : annulés OU balance = 0
+        count_fully_paid = qs_with_payments.annotate(
+            real_after_discount=ExpressionWrapper(
+                F("amount_due") * (
+                        Value(1.0) - (
+                        Coalesce(F("discount_percent"), Value(0)) / Value(100.0)
+                )
+                ),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            net_paid_calc=ExpressionWrapper(
+                F("amount_paid_total") - Coalesce(F("refund_amount"), Value(Decimal("0.00"))),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            balance_calc=ExpressionWrapper(
+                F("real_after_discount") - F("net_paid_calc"),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        ).filter(
+            Q(is_cancelled=True) | Q(balance_calc__lte=Decimal("0.00"))
+        ).count()
+
+        # ✅ With balance : NON annulés ET balance > 0
+        count_with_balance = qs_with_payments.filter(
+            is_cancelled=False
+        ).annotate(
+            real_after_discount=ExpressionWrapper(
+                F("amount_due") * (
+                        Value(1.0) - (
+                        Coalesce(F("discount_percent"), Value(0)) / Value(100.0)
+                )
+                ),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            net_paid_calc=ExpressionWrapper(
+                F("amount_paid_total") - Coalesce(F("refund_amount"), Value(Decimal("0.00"))),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            ),
+            balance_calc=ExpressionWrapper(
+                F("real_after_discount") - F("net_paid_calc"),
+                output_field=DecimalField(max_digits=12, decimal_places=2)
+            )
+        ).filter(
+            balance_calc__gt=Decimal("0.00")
+        ).count()
+
         return {
-            'sum_amount_due': base_agg['sum_amount_due'],
-            'sum_real_amount_due': base_agg['sum_real_amount_due'],
-            'sum_amount_paid': base_agg['sum_amount_paid'],
-            'sum_net_paid': base_agg['sum_net_paid'],
-            'sum_balance_due': contracts_with_balance['sum_balance_due'],
-            'count_signed': counts['count_signed'],
-            'count_refunded': counts['count_refunded'],
-            'count_fully_paid': counts['count_fully_paid'],
-            'count_with_balance': counts['count_with_balance'],
-            'count_reduced': counts['count_reduced'],
-            'count_cancelled': counts['count_cancelled'],
+            'sum_amount_due': agg['sum_amount_due'],
+            'sum_real_amount_due': agg['sum_real_amount_due'],
+            'sum_amount_paid': agg['sum_amount_paid'],
+            'sum_net_paid': agg['sum_net_paid'],
+            'sum_balance_due': balance_agg['sum_balance_due'],
+            'count_signed': agg['count_signed'],
+            'count_refunded': agg['count_refunded'],
+            'count_fully_paid': count_fully_paid,
+            'count_with_balance': count_with_balance,
+            'count_reduced': agg['count_reduced'],
+            'count_cancelled': agg['count_cancelled'],
         }
 
 
