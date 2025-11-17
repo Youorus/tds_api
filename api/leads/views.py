@@ -336,3 +336,48 @@ class LeadViewSet(viewsets.ModelViewSet):
         lead = self.get_object()
         send_formulaire_task.delay(lead.id)
         return Response({"detail": "E-mail de formulaire envoyé."}, status=200)
+
+    @action(detail=False, methods=["get"], url_path="rdv-by-date")
+    def rdv_by_date(self, request):
+        """
+        Retourne les leads ayant un RDV planifié OU confirmé
+        pour une date spécifique (YYYY-MM-DD), sans doublons.
+        """
+        date_str = request.query_params.get("date")
+        if not date_str:
+            return Response(
+                {"detail": "Le paramètre 'date' est requis (format YYYY-MM-DD)."},
+                status=400
+            )
+
+        parsed_date = parse_date(date_str)
+        if not parsed_date:
+            return Response(
+                {"detail": "Format de date invalide. Utiliser YYYY-MM-DD."},
+                status=400
+            )
+
+        # --- Récupération des statuts dynamiques ---
+        STATUS_CODES = ["RDV_PLANIFIE", "RDV_CONFIRME"]
+
+        statuses = LeadStatus.objects.filter(code__in=STATUS_CODES)
+
+        if not statuses.exists():
+            return Response(
+                {"detail": "Aucun des statuts RDV_PLANIFIE / RDV_CONFIRME n'existe."},
+                status=500
+            )
+
+        # --- Récupération des leads ---
+        leads = (
+            Lead.objects
+            .filter(
+                status__in=statuses,
+                appointment_date__date=parsed_date
+            )
+            .order_by("appointment_date")
+            .distinct()  # >>> empêche les doublons
+        )
+
+        serializer = self.get_serializer(leads, many=True)
+        return Response(serializer.data)
