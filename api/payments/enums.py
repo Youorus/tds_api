@@ -11,5 +11,8 @@ class PaymentMode(models.TextChoices):
     PAYPAL = "PAYPAL", _("PayPal")
     STRIPE = "STRIPE", _("Stripe")
     KLARNA = "KLARNA", _("Klarna")
-    SCLP = "SCLP", _("Scalapay")  # si c’est bien ça
+    SCLP = "SCLP", _("Scalapay")
+    SCALA = "SCALA", _("Scala")
+    LENNBOX = "LENNBOX", _("Lennbox")
+    SEPA = "SEPA", _("Prélèvement SEPA")
     AUTRE = "AUTRE", _("Autre / Non spécifié")

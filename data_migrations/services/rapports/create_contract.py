@@ -240,15 +240,15 @@ def main():
 
     # Exemple 2: Créer un nouveau service par nom
     create_lead_client_contract(
-        first_name="Natalia",
-        last_name="VODA",
-        phone="605930167",
-        email="",
+        first_name="AKAKPO ( MAMAN)",
+        last_name="Akakpo",
+        phone="33605670669",
+        email="sergileakue@yahoo.fr",
         service_name="Inconnu",  # 👈 Nom du service
-        amount_due=Decimal("795.00"),
-        payment_amount=Decimal("795.00"),
-        payment_mode="ESPECES",
-        contract_date=datetime(2025, 1, 20),
+        amount_due=Decimal("1190.00"),
+        payment_amount=Decimal("300.00"),
+        payment_mode="CB",
+        contract_date=datetime(2024, 11, 19),
         payment_date=datetime(2025, 1, 20),
         is_cancelled=True
     )
