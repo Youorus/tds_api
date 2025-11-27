@@ -58,7 +58,6 @@ class ContractSerializer(serializers.ModelSerializer):
             "is_fully_paid",
             "contract_url",
             "invoice_url",
-            "created_at",
             "created_by",
             "client_details",
             "service_details",
